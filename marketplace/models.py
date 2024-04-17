@@ -1,6 +1,7 @@
 from django.db import models
 from autoslug import AutoSlugField
 from authorization.models import UserProfile, Organization
+from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 class EquipmentCategory(models.Model):
@@ -10,7 +11,7 @@ class EquipmentCategory(models.Model):
         return self.title
 
 
-class Equipment(models.Model):
+class EquipmentAd(models.Model):
     title = models.CharField(max_length=70)
     category = models.ForeignKey(EquipmentCategory, related_name='equipment_ads', on_delete=models.DO_NOTHING)
     slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
@@ -20,6 +21,7 @@ class Equipment(models.Model):
     author = models.ForeignKey(UserProfile, related_name='equipment_ads', on_delete=models.CASCADE)
     liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_equipments')
     hide = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.title}, slug: {self.slug}"
@@ -59,6 +61,7 @@ class Order(models.Model):
     liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_orders')
     author = models.ForeignKey(UserProfile, related_name='order_ads', on_delete=models.CASCADE)
     org_work = models.ForeignKey(Organization, related_name='received_orders')
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.title}, slug: {self.slug}"
@@ -72,3 +75,13 @@ class OrderImages(models.Model):
     def __str__(self):
         return f'These images for {self.order.title}'
 
+
+class Reviews(models.Model):
+    order = models.ForeignKey(Order, related_name='order_reviews', on_delete=models.CASCADE)
+    reviewer = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='reviews')
+    review_text = models.TextField()
+    rating = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)], default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'Review by {self.reviewer} on {self.product}'
