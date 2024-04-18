@@ -11,7 +11,7 @@ class EquipmentCategory(models.Model):
         return self.title
 
 
-class EquipmentAd(models.Model):
+class Equipment(models.Model):
     title = models.CharField(max_length=70)
     category = models.ForeignKey(EquipmentCategory, related_name='equipments', on_delete=models.DO_NOTHING)
     slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
@@ -21,6 +21,7 @@ class EquipmentAd(models.Model):
     author = models.ForeignKey(UserProfile, related_name='equipment_ads', on_delete=models.CASCADE)
     liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_equipments')
     hide = models.BooleanField(default=False)
+    sold = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -33,7 +34,7 @@ class EquipmentImages(models.Model):
                                blank=True, null=True)
 
     def __str__(self):
-        return f'These images for {self.equipment.title}'
+        return f'These images for {self.equipment.title}, slug: {self.slug}'
 
 
 class OrderCategory(models.Model):
@@ -73,7 +74,7 @@ class OrderImages(models.Model):
                                blank=True, null=True)
 
     def __str__(self):
-        return f'These images for {self.order.title}'
+        return f'These images for {self.order.title}, slug: {self.slug}'
 
 
 class Reviews(models.Model):
