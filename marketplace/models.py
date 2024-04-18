@@ -13,7 +13,7 @@ class EquipmentCategory(models.Model):
 
 class EquipmentAd(models.Model):
     title = models.CharField(max_length=70)
-    category = models.ForeignKey(EquipmentCategory, related_name='equipment_ads', on_delete=models.DO_NOTHING)
+    category = models.ForeignKey(EquipmentCategory, related_name='equipments', on_delete=models.DO_NOTHING)
     slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(max_length=1000, null=True)
@@ -43,7 +43,7 @@ class OrderCategory(models.Model):
         return self.title
 
 
-STATUS = (('New', 'New'), ('In Progress', 'In Progress'), ('Checking', 'Checking'), ('Sent', 'Sent'),('Arrived', 'Arrived'),)
+STATUS = (('New', 'New'), ('In Progress', 'In Progress'), ('Checking', 'Checking'), ('Sent', 'Sent'), ('Arrived', 'Arrived'),)
 
 
 class Order(models.Model):
