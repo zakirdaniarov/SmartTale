@@ -5,6 +5,7 @@ cloudinary==1.39.1
 Django==4.2.5
 django-autoslug==1.9.9
 django-cloudinary-storage==0.3.0
+django-cors-headers==4.3.1
 djangorestframework==3.15.1
 djangorestframework-simplejwt==5.3.1
 drf-yasg==1.21.7

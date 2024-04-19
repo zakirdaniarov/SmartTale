@@ -60,7 +60,8 @@ class UserProfile(models.Model):
         return f"Name: {self.lastname} {self.name}; Email: {self.user}; Slug: {self.slug}"
 
 class Organization(models.Model):
-    user = models.OneToOneField(User, verbose_name = 'user', related_name = 'organization', on_delete = models.CASCADE)
+    founder = models.ForeignKey(UserProfile, verbose_name = 'user', related_name = 'founder_organizations', on_delete = models.DO_NOTHING)
+    owner = models.ForeignKey(UserProfile, verbose_name = 'user', related_name = 'owner_organizations', on_delete = models.DO_NOTHING)
     title = models.CharField(max_length = 100)
     slug = AutoSlugField(populate_from = 'title', unique = True, always_update = True)
     phone_number = models.CharField(max_length = 20, blank = True, null = True, default = None)

@@ -34,7 +34,7 @@ class EquipmentImages(models.Model):
                                blank=True, null=True)
 
     def __str__(self):
-        return f'These images for {self.equipment.title}, slug: {self.slug}'
+        return f'These images for {self.equipment.title}, slug: {self.equipment.slug}'
 
 
 class OrderCategory(models.Model):
@@ -74,7 +74,7 @@ class OrderImages(models.Model):
                                blank=True, null=True)
 
     def __str__(self):
-        return f'These images for {self.order.title}, slug: {self.slug}'
+        return f'These images for {self.order.title}, slug: {self.order.slug}'
 
 
 class Reviews(models.Model):
