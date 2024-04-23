@@ -65,6 +65,14 @@ class UserProfile(models.Model):
     def __str__(self):
         return f"Name: {self.last_name} {self.first_name}; Email: {self.user}; Slug: {self.slug}"
 
+class ConfirmationCode(models.Model):
+    profile = models.OneToOneField(UserProfile, verbose_name = 'profile', related_name = 'code', on_delete = models.CASCADE)
+    code = models.CharField(max_length = 4)
+    updated_at = models.DateTimeField(auto_now = True)
+
+    def __str__(self):
+        return f"{self.profile.user}'s code: {self.code}"
+
 class Organization(models.Model):
     founder = models.ForeignKey(UserProfile, verbose_name = 'user', related_name = 'founder_organizations', on_delete = models.DO_NOTHING)
     owner = models.ForeignKey(UserProfile, verbose_name = 'user', related_name = 'owner_organizations', on_delete = models.DO_NOTHING)

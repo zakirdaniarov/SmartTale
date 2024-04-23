@@ -9,7 +9,7 @@ from rest_framework_simplejwt import tokens, views as jwt_views
 
 from .serializers import RegistrationSerializer, LoginSerializer, CookieTokenRefreshSerializer
 from .models import User, UserProfile
-from .services import get_tokens_for_user
+from .services import get_tokens_for_user, create_token_and_send_to_email
 
 class SignupAPIView(APIView):
     permission_classes = [AllowAny]
@@ -27,6 +27,7 @@ class SignupAPIView(APIView):
         except Exception as e:
             user.delete()
             return Response({'Invalid data': 'Invalid first, last or middle names.'}, status = status.HTTP_400_BAD_REQUEST)
+        create_token_and_send_to_email(user = user)
         return Response({"Success": "User is created."}, status = status.HTTP_201_CREATED)
     
 class LoginAPIView(APIView):
