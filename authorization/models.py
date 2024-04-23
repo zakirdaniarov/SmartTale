@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import BaseUserManager, AbstractBaseUser, PermissionsMixin
 from autoslug import AutoSlugField
+from operator import attrgetter
 
 from .utils import LowercaseEmailField
 
@@ -9,7 +10,11 @@ GENDER_CHOICES = (
         ('Female', 'Female'),
 )
 
-# Create your models here.
+def get_populate_from(instance):
+    attrs = [attr.replace("__", ".") for attr in instance.AUTOSLUG_FIELDS]
+    attrs_values = [attrgetter(attr)(instance) for attr in attrs]
+    
+    return "-".join(attrs_values)
 class UserManager(BaseUserManager):
 
     def create_superuser(self, email, password, **extra_fields):
@@ -42,14 +47,15 @@ class User(AbstractBaseUser, PermissionsMixin):
     
 
 class UserProfile(models.Model):
+    AUTOSLUG_FIELDS = ("last_name", "first_name")
+
     user = models.OneToOneField(User, verbose_name = 'user', related_name = 'user_profile', on_delete = models.CASCADE)
-    name = models.CharField(max_length = 50)
-    lastname = models.CharField(max_length = 50)
-    middlename = models.CharField(max_length = 50)
+    first_name = models.CharField(max_length = 50)
+    last_name = models.CharField(max_length = 50)
+    middle_name = models.CharField(max_length = 50)
     profile_image = models.ImageField(upload_to = 'smarttale/user_profile', blank = True, null = True, max_length = 500)
-    slug = AutoSlugField(populate_from = lambda instance: f"{instance.name}-{instance.lastname}",
-                         unique_with = ['name', 'lastname'],
-                         slugify=lambda value: value.replace(' ','-'), unique = True, always_update = True)
+    slug = AutoSlugField(populate_from = get_populate_from,
+                         unique_with = ['first_name', 'last_name'], always_update = True)
     gender = models.CharField(max_length = 6, choices = GENDER_CHOICES, blank = True, null = True, default = None)
     birthday = models.DateField(null = True, default = None)
     phone_number = models.CharField(max_length = 20, blank = True, null = True, default = None)
@@ -57,7 +63,15 @@ class UserProfile(models.Model):
     created_at = models.DateTimeField(auto_now_add = True)
 
     def __str__(self):
-        return f"Name: {self.lastname} {self.name}; Email: {self.user}; Slug: {self.slug}"
+        return f"Name: {self.last_name} {self.first_name}; Email: {self.user}; Slug: {self.slug}"
+
+class ConfirmationCode(models.Model):
+    profile = models.OneToOneField(UserProfile, verbose_name = 'profile', related_name = 'code', on_delete = models.CASCADE)
+    code = models.CharField(max_length = 4)
+    updated_at = models.DateTimeField(auto_now = True)
+
+    def __str__(self):
+        return f"{self.profile.user}'s code: {self.code}"
 
 class Organization(models.Model):
     founder = models.ForeignKey(UserProfile, verbose_name = 'user', related_name = 'founder_organizations', on_delete = models.DO_NOTHING)
@@ -67,6 +81,7 @@ class Organization(models.Model):
     phone_number = models.CharField(max_length = 20, blank = True, null = True, default = None)
     subscription = models.DateTimeField(blank = True, null = True, default = None)
     description = models.TextField()
+    active = models.BooleanField(default = False)
     created_at = models.DateTimeField(auto_now_add = True)
 
     def __str__(self):
