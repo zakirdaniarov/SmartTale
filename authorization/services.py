@@ -9,8 +9,14 @@ def create_token_and_send_to_email(user):
     code = ''
     for i in range(4):
         code += str(random.randint(0,9))
-    code, _ = ConfirmationCode.objects.update_or_create(profile = user.user_profile, code = code)
-    data = {'code': code.code,
+    try:
+        user_code = ConfirmationCode.objects.get(profile = user.user_profile)
+    except Exception:
+        user_code = ConfirmationCode.objects.create(profile = user.user_profile, code = code)
+    else:
+        user_code.code = code
+        user_code.save()
+    data = {'code': user_code.code,
             'email_subject': 'Verify your email',
             'to_email': user.email}
     html = 'authorization/email_mess.html'

@@ -1,5 +1,8 @@
+import datetime as dt
+
 from django.conf import settings
 from django.contrib.auth import authenticate
+from django.shortcuts import get_object_or_404
 from django.middleware import csrf
 from rest_framework import status
 from rest_framework.response import Response
@@ -8,7 +11,7 @@ from rest_framework.views import Response, APIView
 from rest_framework_simplejwt import tokens, views as jwt_views
 
 from .serializers import RegistrationSerializer, LoginSerializer, CookieTokenRefreshSerializer
-from .models import User, UserProfile
+from .models import User, UserProfile, ConfirmationCode
 from .services import get_tokens_for_user, create_token_and_send_to_email
 
 class SignupAPIView(APIView):
@@ -68,20 +71,53 @@ class LoginAPIView(APIView):
                 return Response({"Not verified" : "This account is not verified!"}, status = status.HTTP_403_FORBIDDEN)
         else:
             return Response({"Invalid" : "Invalid username or password!!"}, status = status.HTTP_404_NOT_FOUND)
+
+class VerifyEmailAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data['email']
+        user = get_object_or_404(User, email = email)
+        if user.is_verified == True:
+            return Response({"Already verified": "User is already verified."}, status = status.HTTP_400_BAD_REQUEST)
+        code = request.data['code']
+        actual_code = ConfirmationCode.objects.get(profile = user.user_profile)
+        if code != actual_code.code:
+            return Response({"Invalid": "Invalid token."}, status = status.HTTP_400_BAD_REQUEST)
+        current_datetime = dt.datetime.now(dt.timezone.utc)
+        print(current_datetime)
+        print(actual_code.updated_at)
+        diff = (current_datetime - actual_code.updated_at).total_seconds()
+        if diff > 300:
+            return Response({"Expired": "Activation token has expired."}, status = status.HTTP_400_BAD_REQUEST)
+        user.is_verified = True
+        user.save()
+        return Response({"Success": "User has been verified."}, status = status.HTTP_200_OK)
         
+class ResendEmailVerificationCodeAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data['email']
+        user = get_object_or_404(User, email = email)
+        create_token_and_send_to_email(user = user)
+        return Response({"Success": "The verification code has been sent."}, status = status.HTTP_200_OK)
+
 class LogoutAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         try:
-            refresh_token = request.COOKIES.get(settings.SIMPLE_JWT(['AUTH_COOKIE_REFRESH']))
+            refresh_token = request.COOKIES.get(settings.SIMPLE_JWT['AUTH_COOKIE_REFRESH'])
             token = tokens.RefreshToken(refresh_token)
             token.blacklist()
 
             response = Response()
             response.delete_cookie(settings.SIMPLE_JWT['AUTH_COOKIE'])
             response.delete_cookie(settings.SIMPLE_JWT['AUTH_COOKIE_REFRESH'])
-            response.delete_cookie('X-CRSFToken')
+            response.delete_cookie("X-CSRFToken")
+            response.delete_cookie("csrftoken")
+            response["X-CSRFToken"] = None
             response.status_code = 200
             return response
         except:
