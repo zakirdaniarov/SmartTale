@@ -9,14 +9,28 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import Response, APIView
 from rest_framework_simplejwt import tokens, views as jwt_views
+from drf_yasg.utils import swagger_auto_schema
 
 from .serializers import RegistrationSerializer, LoginSerializer, CookieTokenRefreshSerializer
 from .models import User, UserProfile, ConfirmationCode
 from .services import get_tokens_for_user, create_token_and_send_to_email
+from .swagger import login_swagger, resend_swagger, verify_swagger, register_swagger
 
 class SignupAPIView(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        tags = ['Registration'],
+        operation_description = "Этот эндпоинт предоставляет "
+                              "возможность пользователю "
+                              "зарегистрироваться в приложении "
+                              "с помощью электронной почты.",
+        request_body = register_swagger['request_body'],                      
+        responses = {
+            201: "Success.",
+            400: "Invalid data.",
+        },
+    )
     def post(self, request):
         serializer = RegistrationSerializer(data = request.data)
         serializer.is_valid(raise_exception = True)
@@ -36,6 +50,19 @@ class SignupAPIView(APIView):
 class LoginAPIView(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        tags = ['Authorization'],
+        operation_description = "Этот эндпоинт предоставляет "
+                              "возможность пользователю "
+                              "войти в приложении "
+                              "с помощью электронной почты и пароля.",
+        request_body = login_swagger['request_body'],                      
+        responses = {
+            200: login_swagger['response'],
+            403: "Not verified.",
+            404: "Not found.",
+        },
+    )
     def post(self, request):
         serializer = LoginSerializer(data = request.data)
         serializer.is_valid(raise_exception = True)
@@ -64,7 +91,7 @@ class LoginAPIView(APIView):
                     samesite = settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE']
                 )
                 data['X-CSRFToken'] = csrf.get_token(request)
-                response.data = {"Success" : "Login successfully", "data": data}
+                response.data = data
                 response.status_code = 200
                 return response
             else:
@@ -75,6 +102,18 @@ class LoginAPIView(APIView):
 class VerifyEmailAPIView(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        tags = ['Registration'],
+        operation_description = "Этот эндпоинт предоставляет "
+                              "возможность пользователю "
+                              "верифицировать аккаунт "
+                              "с помощью кода, отправленного на почту.",
+        request_body = verify_swagger['request_body'],                      
+        responses = {
+            200: "Success.",
+            400: "Already verified or invalid/expired token.",
+        },
+    )
     def post(self, request):
         email = request.data['email']
         user = get_object_or_404(User, email = email)
@@ -97,6 +136,18 @@ class VerifyEmailAPIView(APIView):
 class ResendEmailVerificationCodeAPIView(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        tags = ['Registration'],
+        operation_description = "Этот эндпоинт предоставляет "
+                              "возможность пользователю "
+                              "снова отправить код для верификации аккаунта  "
+                              "на электронную почту.",
+        request_body = resend_swagger['request_body'],                      
+        responses = {
+            200: "Success.",
+            404: "Not found.",
+        },
+    )
     def post(self, request):
         email = request.data['email']
         user = get_object_or_404(User, email = email)
@@ -106,6 +157,16 @@ class ResendEmailVerificationCodeAPIView(APIView):
 class LogoutAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        tags = ['Authorization'],
+        operation_description = "Этот эндпоинт предоставляет "
+                              "возможность пользователю "
+                              "выйти из аккаунта. ",                   
+        responses = {
+            200: "Success.",
+            400: "Invalid.",
+        },
+    )
     def post(self, request):
         try:
             refresh_token = request.COOKIES.get(settings.SIMPLE_JWT['AUTH_COOKIE_REFRESH'])
@@ -129,12 +190,12 @@ class CookieTokenRefreshView(jwt_views.TokenRefreshView):
     def finalize_response(self, request, response, *args, **kwargs):
         if response.data.get("refresh"):
             response.set_cookie(
-                key=settings.SIMPLE_JWT['AUTH_COOKIE_REFRESH'],
-                value=response.data['refresh'],
-                expires=settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'],
-                secure=settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
-                httponly=settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
-                samesite=settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE']
+                key = settings.SIMPLE_JWT['AUTH_COOKIE_REFRESH'],
+                value = response.data['refresh'],
+                expires = settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'],
+                secure = settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
+                httponly = settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
+                samesite = settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE']
             )
 
             del response.data["refresh"]
