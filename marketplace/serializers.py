@@ -39,5 +39,5 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Equipment
-        fields = ['title', 'category', 'images', 'price', 'description',
+        fields = ['id', 'title', 'category', 'images', 'price', 'description',
                   'phone_number', 'author', 'liked_by', 'hide', 'sold']
