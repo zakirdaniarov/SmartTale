@@ -6,9 +6,10 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 
 class EquipmentCategory(models.Model):
     title = models.CharField(max_length=60)
+    slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
 
     def __str__(self):
-        return self.title
+        return f"{self.title}, slug: {self.slug}"
 
 
 class Equipment(models.Model):
@@ -39,12 +40,13 @@ class EquipmentImages(models.Model):
 
 class OrderCategory(models.Model):
     title = models.CharField(max_length=60)
+    slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
 
     def __str__(self):
-        return self.title
+        return f"{self.title}, slug: {self.slug}"
 
 
-STATUS = (('New', 'New'), ('In Progress', 'In Progress'), ('Checking', 'Checking'), ('Sent', 'Sent'), ('Arrived', 'Arrived'),)
+STATUS = (('New', 'New'), ('Process', 'Process'), ('Checking', 'Checking'), ('Sending', 'Sending'), ('Arrived', 'Arrived'),)
 
 
 class Order(models.Model):
@@ -61,8 +63,10 @@ class Order(models.Model):
     status = models.CharField(max_length=20, choices=STATUS, default='New')
     liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_orders')
     author = models.ForeignKey(UserProfile, related_name='order_ads', on_delete=models.CASCADE)
-    org_work = models.ForeignKey(Organization, related_name='received_orders')
+    org_work = models.ForeignKey(Organization, related_name='received_orders', blank=True, null=True, on_delete=models.DO_NOTHING)
     created_at = models.DateTimeField(auto_now_add=True)
+    booked_at = models.DateTimeField(blank=True, null=True)
+    finished_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.title}, slug: {self.slug}"
@@ -78,7 +82,7 @@ class OrderImages(models.Model):
 
 
 class Reviews(models.Model):
-    order = models.ForeignKey(Order, related_name='order_reviews', on_delete=models.CASCADE)
+    order = models.OneToOneField(Order, related_name='order_reviews', on_delete=models.CASCADE)
     reviewer = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='reviews')
     review_text = models.TextField()
     rating = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)], default=0)
