@@ -235,3 +235,13 @@ SIMPLE_JWT = {
   'AUTH_COOKIE_PATH': '/',        
   'AUTH_COOKIE_SAMESITE': 'Lax',  
 }
+
+SWAGGER_SETTINGS = {
+   'SECURITY_DEFINITIONS': {
+      'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header'
+      }
+   }
+}
