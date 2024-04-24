@@ -18,7 +18,7 @@ class Equipment(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(max_length=1000, null=True)
     phone_number = models.CharField(max_length=20)
-    author = models.ForeignKey(UserProfile, related_name='equipment_ads', on_delete=models.CASCADE)
+    author = models.ForeignKey(UserProfile, related_name='equipment_ads', on_delete=models.CASCADE, null=True) #ToDo удалить null
     liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_equipments')
     hide = models.BooleanField(default=False)
     sold = models.BooleanField(default=False)
@@ -61,7 +61,7 @@ class Order(models.Model):
     status = models.CharField(max_length=20, choices=STATUS, default='New')
     liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_orders')
     author = models.ForeignKey(UserProfile, related_name='order_ads', on_delete=models.CASCADE)
-    org_work = models.ForeignKey(Organization, related_name='received_orders')
+    org_work = models.ForeignKey(Organization, related_name='received_orders', on_delete=models.DO_NOTHING)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
