@@ -47,9 +47,6 @@ class UserProfile(models.Model):
     lastname = models.CharField(max_length = 50)
     middlename = models.CharField(max_length = 50)
     profile_image = models.ImageField(upload_to = 'smarttale/user_profile', blank = True, null = True, max_length = 500)
-    slug = AutoSlugField(populate_from = lambda instance: f"{instance.name}-{instance.lastname}",
-                         unique_with = ['name', 'lastname'],
-                         slugify=lambda value: value.replace(' ','-'), unique = True, always_update = True)
     gender = models.CharField(max_length = 6, choices = GENDER_CHOICES, blank = True, null = True, default = None)
     birthday = models.DateField(null = True, default = None)
     phone_number = models.CharField(max_length = 20, blank = True, null = True, default = None)
