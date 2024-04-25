@@ -6,9 +6,10 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 
 class EquipmentCategory(models.Model):
     title = models.CharField(max_length=60)
+    slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
 
     def __str__(self):
-        return self.title
+        return f"{self.title}, slug: {self.slug}"
 
 
 class Equipment(models.Model):
@@ -18,7 +19,7 @@ class Equipment(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(max_length=1000, null=True)
     phone_number = models.CharField(max_length=20)
-    author = models.ForeignKey(UserProfile, related_name='equipment_ads', on_delete=models.CASCADE, null=True) #ToDo удалить null
+    author = models.ForeignKey(UserProfile, related_name='equipment_ads', on_delete=models.CASCADE)
     liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_equipments')
     hide = models.BooleanField(default=False)
     sold = models.BooleanField(default=False)
@@ -34,17 +35,18 @@ class EquipmentImages(models.Model):
                                blank=True, null=True)
 
     def __str__(self):
-        return f'These images for {self.equipment.title}, slug: {self.slug}'
+        return f'These images for {self.equipment.title}, slug: {self.equipment.slug}'
 
 
 class OrderCategory(models.Model):
     title = models.CharField(max_length=60)
+    slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
 
     def __str__(self):
-        return self.title
+        return f"{self.title}, slug: {self.slug}"
 
 
-STATUS = (('New', 'New'), ('In Progress', 'In Progress'), ('Checking', 'Checking'), ('Sent', 'Sent'), ('Arrived', 'Arrived'),)
+STATUS = (('New', 'New'), ('Process', 'Process'), ('Checking', 'Checking'), ('Sending', 'Sending'), ('Arrived', 'Arrived'),)
 
 
 class Order(models.Model):
@@ -61,8 +63,10 @@ class Order(models.Model):
     status = models.CharField(max_length=20, choices=STATUS, default='New')
     liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_orders')
     author = models.ForeignKey(UserProfile, related_name='order_ads', on_delete=models.CASCADE)
-    org_work = models.ForeignKey(Organization, related_name='received_orders', on_delete=models.DO_NOTHING)
+    org_work = models.ForeignKey(Organization, related_name='received_orders', blank=True, null=True, on_delete=models.DO_NOTHING)
     created_at = models.DateTimeField(auto_now_add=True)
+    booked_at = models.DateTimeField(blank=True, null=True)
+    finished_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.title}, slug: {self.slug}"
@@ -74,11 +78,11 @@ class OrderImages(models.Model):
                                blank=True, null=True)
 
     def __str__(self):
-        return f'These images for {self.order.title}, slug: {self.slug}'
+        return f'These images for {self.order.title}, slug: {self.order.slug}'
 
 
 class Reviews(models.Model):
-    order = models.ForeignKey(Order, related_name='order_reviews', on_delete=models.CASCADE)
+    order = models.OneToOneField(Order, related_name='order_reviews', on_delete=models.CASCADE)
     reviewer = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='reviews')
     review_text = models.TextField()
     rating = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)], default=0)

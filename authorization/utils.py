@@ -2,7 +2,25 @@ import re
 
 from django.db import models
 from django.core.exceptions import ValidationError
+from django.core.mail import EmailMultiAlternatives
 from django.utils.translation import gettext as _
+from django.template.loader import render_to_string
+
+class EmailUtil:
+    """
+    Email sending class
+    """
+    @staticmethod
+    def send_email(data, html):
+        context = {
+            'user_code': data['code'],
+        }
+        html_content = render_to_string(
+            html, context = context
+        )
+        email = EmailMultiAlternatives(subject = data['email_subject'], to = [data['to_email']])
+        email.attach_alternative(html_content, "text/html")
+        email.send()
 
 # Overriding email field of the model
 class LowercaseEmailField(models.EmailField):
