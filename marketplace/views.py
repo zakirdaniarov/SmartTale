@@ -9,13 +9,7 @@ from drf_yasg.utils import swagger_auto_schema
 from authorization.models import UserProfile, Organization
 from rest_framework import filters
 from django_filters.rest_framework import FilterSet, DateFilter
-
 from rest_framework.filters import SearchFilter
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-
-from .models import Equipment
 from .serializers import EquipmentSerializer, EquipmentDetailSerializer
 
 
