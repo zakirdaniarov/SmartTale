@@ -11,6 +11,7 @@ from rest_framework import filters
 from django_filters.rest_framework import FilterSet, DateFilter
 from rest_framework.filters import SearchFilter
 from .serializers import EquipmentSerializer, EquipmentDetailSerializer
+from .permissions import CurrentUserOrReadOnly
 
 
 # Create your views here.
@@ -380,6 +381,8 @@ class ReviewOrderAPIView(APIView):
 
 
 class EquipmentsListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, *args, **kwargs):
         try:
             equipments = Equipment.objects.all()
@@ -390,6 +393,8 @@ class EquipmentsListAPIView(APIView):
 
 
 class CreateEquipmentAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def post(self, request, *args, **kwargs):
         equipment_serializer = EquipmentDetailSerializer(data=request.data)
         if equipment_serializer.is_valid():
@@ -399,6 +404,7 @@ class CreateEquipmentAPIView(APIView):
 
 
 class EquipmentSearchAPIView(APIView):
+    permission_classes = [IsAuthenticated]
     filter_backends = [SearchFilter]
     search_fields = ['title']
 
@@ -413,6 +419,8 @@ class EquipmentSearchAPIView(APIView):
 
 
 class EquipmentDetailPageAPIView(APIView):
+    permission_classes = [CurrentUserOrReadOnly]
+
     def get(self, request, *args, **kwargs):
         try:
             equipment = Equipment.objects.get(slug=kwargs['equipment_slug'])
