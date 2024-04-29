@@ -137,11 +137,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'ru-ru'
 
-<<<<<<< HEAD
-TIME_ZONE = 'Asia/Bishkek'
-=======
 TIME_ZONE = 'Europe/Moscow'
->>>>>>> afbc50228300828f857ccf525ae5a7f74d64d4b4
 
 USE_I18N = True
 
@@ -159,17 +155,6 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-<<<<<<< HEAD
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': os.getenv('CLOUD_NAME'),
-    'API_KEY': os.getenv('API_KEY'),
-    'API_SECRET': os.getenv('API_SECRET'),
-}
-
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-
-AUTH_USER_MODEL = "authorization.User"
-=======
 # Cloudinary settings
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': config('CLOUD_NAME'),
@@ -260,4 +245,3 @@ SWAGGER_SETTINGS = {
       }
    }
 }
->>>>>>> afbc50228300828f857ccf525ae5a7f74d64d4b4
