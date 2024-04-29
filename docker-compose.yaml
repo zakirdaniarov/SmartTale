@@ -17,7 +17,7 @@ services:
     command: ./entrypoint.sh
     volumes:
       - .:/code
-      - ./static:/static
+      - ./static:/app/static
     ports:
       - "8000:8000"
     env_file:
