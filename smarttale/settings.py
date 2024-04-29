@@ -31,6 +31,8 @@ DEBUG = config("DEBUG", cast = bool)
 ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
+    '152.42.194.121',
+    'helsinki-backender.org.kg',
 ]
 
 # Application definition
@@ -90,7 +92,7 @@ WSGI_APPLICATION = 'smarttale.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
-if not DEBUG:
+if DEBUG:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql_psycopg2',
@@ -175,6 +177,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "https://helsinki-backender.org.kg",
+    "https://smart-tale.vercel.app",
 ]
 CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
 CORS_ALLOW_CREDENTIALS = True
@@ -182,11 +186,9 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_COOKIE_SECURE = False
 CSRF_COOKIE_HTTP_ONLY = True
 CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
+    "https://helsinki-backender.org.kg",
 ]
+
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SAMESITE = 'Lax'
@@ -245,3 +247,4 @@ SWAGGER_SETTINGS = {
       }
    }
 }
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
