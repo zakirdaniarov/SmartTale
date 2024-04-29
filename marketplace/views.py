@@ -8,11 +8,9 @@ from .services import get_paginated_data
 from drf_yasg.utils import swagger_auto_schema
 from authorization.models import UserProfile, Organization
 from rest_framework import filters
-from django_filters.rest_framework import FilterSet, DateFilter
+from django_filters.rest_framework import FilterSet, DateFilter, DjangoFilterBackend
 from rest_framework.filters import SearchFilter
-from .serializers import EquipmentSerializer, EquipmentDetailSerializer
 from .permissions import CurrentUserOrReadOnly
-
 
 # Create your views here.
 class OrderCategoriesAPIView(APIView):
@@ -139,7 +137,7 @@ class OrderDateFilter(FilterSet):
 
 class OrdersHistoryListView(BaseOrderListView):
     serializer_class = OrderListAPI
-    filter_backends = [filters.DjangoFilterBackend]
+    filter_backends = [DjangoFilterBackend]
     filterset_class = OrderDateFilter
 
     def get_queryset(self):
@@ -383,6 +381,17 @@ class ReviewOrderAPIView(APIView):
 class EquipmentsListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        tags=['Equipments list'],
+        operation_description="Этот эндпоинт"
+                              "предостовляет пользователю"
+                              "все оборудования",
+        responses={
+            200: EquipmentSerializer(),
+            404: "Equipments does not exist",
+            500: "Server error",
+        }
+    )
     def get(self, request, *args, **kwargs):
         try:
             equipments = Equipment.objects.all()
@@ -393,8 +402,18 @@ class EquipmentsListAPIView(APIView):
 
 
 class CreateEquipmentAPIView(APIView):
-    permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        tags=['Equipment add'],
+        operation_description="Этот эндпоинт"
+                              "предостовляет пользователю"
+                              "добавлять свои оборудования",
+        responses={
+            201: EquipmentDetailSerializer(),
+            404: "Bad request",
+            500: "Server error",
+        }
+    )
     def post(self, request, *args, **kwargs):
         equipment_serializer = EquipmentDetailSerializer(data=request.data)
         if equipment_serializer.is_valid():
@@ -408,6 +427,18 @@ class EquipmentSearchAPIView(APIView):
     filter_backends = [SearchFilter]
     search_fields = ['title']
 
+    @swagger_auto_schema(
+        tags=['Equipments list'],
+        operation_description="Этот эндпоинт"
+                              "предостовляет пользователю"
+                              "возможность найти"
+                              "нужное оборудование",
+        responses={
+            200: EquipmentSerializer(),
+            404: "Equipments does not exist",
+            500: "Server error",
+        }
+    )
     def get(self, request, *args, **kwargs):
         try:
             search_query = request.query_params.get('search', '')
@@ -421,6 +452,20 @@ class EquipmentSearchAPIView(APIView):
 class EquipmentDetailPageAPIView(APIView):
     permission_classes = [CurrentUserOrReadOnly]
 
+    @swagger_auto_schema(
+        tags=['Equipments detail'],
+        operation_description="Этот эндпоинт"
+                              "предостовляет пользователю"
+                              "возможность посмотреть"
+                              "детальную страницу оборудования"
+                              "а также изменять его, и удалять",
+        responses={
+            200: EquipmentDetailSerializer(),
+            400: "Bad request",
+            404: "Equipments does not exist",
+            500: "Server error",
+        }
+    )
     def get(self, request, *args, **kwargs):
         try:
             equipment = Equipment.objects.get(slug=kwargs['equipment_slug'])
