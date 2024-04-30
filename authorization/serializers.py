@@ -1,7 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from rest_framework_simplejwt import serializers as jwt_serializers, exceptions as jwt_exceptions
 
 from .models import User
 
@@ -36,14 +35,3 @@ class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(
         style={"input_type": "password"}, write_only=True)
-
-class CookieTokenRefreshSerializer(jwt_serializers.TokenRefreshSerializer):
-    refresh = None
-
-    def validate(self, attrs):
-        attrs['refresh'] = self.context['request'].COOKIES.get('refresh_token')
-        if attrs['refresh']:
-            return super().validate(attrs)
-        else:
-            raise jwt_exceptions.InvalidToken(
-                'No valid token found in cookie \'refresh\'')
