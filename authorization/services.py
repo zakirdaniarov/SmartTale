@@ -17,6 +17,7 @@ def create_token_and_send_to_email(user):
         user_code.code = code
         user_code.save()
     data = {'code': user_code.code,
+            'user_name': user.user_profile.first_name,
             'email_subject': 'Verify your email',
             'to_email': user.email}
     html = 'authorization/email_mess.html'
