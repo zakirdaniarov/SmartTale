@@ -62,6 +62,9 @@ class UserProfile(models.Model):
     subscription = models.DateTimeField(blank = True, null = True, default = None)
     created_at = models.DateTimeField(auto_now_add = True)
 
+    current_org = models.OneToOneField('Organization', related_name='current_member',
+                                       blank=True, null=True, on_delete=models.SET_NULL)
+
     def __str__(self):
         return f"Name: {self.last_name} {self.first_name}; Email: {self.user}; Slug: {self.slug}"
 
