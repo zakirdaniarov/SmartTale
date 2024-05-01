@@ -1,20 +1,18 @@
 import datetime as dt
 
-from django.conf import settings
-from django.contrib.auth import authenticate
 from django.shortcuts import get_object_or_404
-from django.middleware import csrf
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import Response, APIView
-from rest_framework_simplejwt import tokens, views as jwt_views
+from rest_framework_simplejwt.views import TokenRefreshView
 from drf_yasg.utils import swagger_auto_schema
 
-from .serializers import RegistrationSerializer, LoginSerializer, CookieTokenRefreshSerializer
+from .serializers import RegistrationSerializer, LoginSerializer
 from .models import User, UserProfile, ConfirmationCode
-from .services import get_tokens_for_user, create_token_and_send_to_email
-from .swagger import login_swagger, resend_swagger, verify_swagger, register_swagger
+from .services import get_tokens_for_user, create_token_and_send_to_email, destroy_token
+from .swagger import (login_swagger, resend_swagger, verify_swagger, 
+                      register_swagger, delete_swagger, logout_swagger)
 
 class SignupAPIView(APIView):
     permission_classes = [AllowAny]
@@ -59,6 +57,7 @@ class LoginAPIView(APIView):
         request_body = login_swagger['request_body'],                      
         responses = {
             200: login_swagger['response'],
+            400: "Invalid data.",
             403: "Not verified.",
             404: "Not found.",
         },
@@ -66,38 +65,18 @@ class LoginAPIView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data = request.data)
         serializer.is_valid(raise_exception = True)
-        response = Response()
         email = serializer.validated_data['email']
         password = serializer.validated_data['password']
-        user = authenticate(email = email, password=password)
-
-        if user is not None:
-            if user.is_verified:
-                data = get_tokens_for_user(user)
-                response.set_cookie(
-                    key = settings.SIMPLE_JWT['AUTH_COOKIE'],
-                    value = data['access_token'],
-                    expires = settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'],
-                    secure = settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
-                    httponly = settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
-                    samesite = settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE']
-                )
-                response.set_cookie(
-                    key = settings.SIMPLE_JWT['AUTH_COOKIE_REFRESH'],
-                    value = data['refresh_token'],
-                    expires = settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'],
-                    secure = settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
-                    httponly = settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
-                    samesite = settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE']
-                )
-                data['X-CSRFToken'] = csrf.get_token(request)
-                response.data = data
-                response.status_code = 200
-                return response
-            else:
-                return Response({"Not verified" : "This account is not verified!"}, status = status.HTTP_403_FORBIDDEN)
-        else:
-            return Response({"Invalid" : "Invalid username or password!!"}, status = status.HTTP_404_NOT_FOUND)
+        user = User.objects.filter(email = email).first()
+        if user is None:
+            return Response({"Not found." : "User is not found!"}, status = status.HTTP_404_NOT_FOUND)
+        if not user.is_verified:
+            return Response({"Not verified." : "This account is not verified!"}, status = status.HTTP_403_FORBIDDEN)
+        if not user.check_password(password):
+            return Response({"Invalid.": "Wrong password!"}, status = status.HTTP_400_BAD_REQUEST)
+        tokens = get_tokens_for_user(user)
+        return Response(tokens, status = status.HTTP_200_OK)
+        
 
 class VerifyEmailAPIView(APIView):
     permission_classes = [AllowAny]
@@ -145,12 +124,15 @@ class ResendEmailVerificationCodeAPIView(APIView):
         request_body = resend_swagger['request_body'],                      
         responses = {
             200: "Success.",
+            400: "Already verified.",
             404: "Not found.",
         },
     )
     def post(self, request):
         email = request.data['email']
         user = get_object_or_404(User, email = email)
+        if user.is_verified == True:
+            return Response({"Already verified": "User is already verified."}, status = status.HTTP_400_BAD_REQUEST)
         create_token_and_send_to_email(user = user)
         return Response({"Success": "The verification code has been sent."}, status = status.HTTP_200_OK)
 
@@ -158,52 +140,58 @@ class LogoutAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        tags = ['Authorization'],
-        operation_description = "Этот эндпоинт предоставляет "
+        tags=['Authorization'],
+        operation_description="Этот эндпоинт предоставляет "
                               "возможность пользователю "
-                              "выйти из аккаунта. ",                   
+                              "разлогиниться из приложения "
+                              "с помощью токена обновления (Refresh Token). ",
+        request_body = logout_swagger['request_body'],
         responses = {
             200: "Success.",
-            400: "Invalid.",
+            400: "Invalid token.",
         },
     )
     def post(self, request):
+        refresh_token = request.data["refresh"]
         try:
-            refresh_token = request.COOKIES.get(settings.SIMPLE_JWT['AUTH_COOKIE_REFRESH'])
-            token = tokens.RefreshToken(refresh_token)
-            token.blacklist()
+            destroy_token(refresh_token)
+            return Response({"Message": "You have successfully logged out."}, status=status.HTTP_200_OK)
+        except Exception:
+            return Response({"Error": "Unable to log out."}, status=status.HTTP_400_BAD_REQUEST)
 
-            response = Response()
-            response.delete_cookie(settings.SIMPLE_JWT['AUTH_COOKIE'])
-            response.delete_cookie(settings.SIMPLE_JWT['AUTH_COOKIE_REFRESH'])
-            response.delete_cookie("X-CSRFToken")
-            response.delete_cookie("csrftoken")
-            response["X-CSRFToken"] = None
-            response.status_code = 200
-            return response
-        except:
-            return Response({"Invalid": "Token is invalid."}, status = status.HTTP_400_BAD_REQUEST)
-        
-class CookieTokenRefreshView(jwt_views.TokenRefreshView):
-    serializer_class = CookieTokenRefreshSerializer
-
-    def finalize_response(self, request, response, *args, **kwargs):
-        response.set_cookie(
-            key = settings.SIMPLE_JWT['AUTH_COOKIE_REFRESH'],
-            value = response.data['refresh'],
-            expires = settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME'],
-            secure = settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
-            httponly = settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
-            samesite = settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE']
-        )
-        response.set_cookie(
-            key = settings.SIMPLE_JWT['AUTH_COOKIE'],
-            value = response.data['access'],
-            expires = settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME'],
-            secure = settings.SIMPLE_JWT['AUTH_COOKIE_SECURE'],
-            httponly = settings.SIMPLE_JWT['AUTH_COOKIE_HTTP_ONLY'],
-            samesite = settings.SIMPLE_JWT['AUTH_COOKIE_SAMESITE']
-        )
-        del response.data["refresh"]
-        response["X-CSRFToken"] = request.COOKIES.get("csrftoken")
-        return super().finalize_response(request, response, *args, **kwargs)
+class TokenRefreshView(TokenRefreshView):
+    @swagger_auto_schema(
+        tags=['Authorization'],
+        operation_description="Этот эндпоинт предоставляет "
+                              "возможность пользователю "
+                              "обновить токен доступа (Access Token) "
+                              "с помощью токена обновления (Refresh Token). "
+                              "Токен обновления позволяет пользователям "
+                              "продлить срок действия своего Access Token без "
+                              "необходимости повторной аутентификации.",
+    )
+    def post(self, *args, **kwargs):
+        return super().post(*args, **kwargs)
+    
+class DeleteUserAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    @swagger_auto_schema(
+        tags = ['Authorization'],
+        operation_description = "Этот эндпоинт предоставляет "
+                              "возможность пользователю "
+                              "удалить собственный аккаунт. ",
+        request_body = delete_swagger['request_body'],
+        responses = {
+            200: "User is successfully deleted.",
+            400: "Invalid token.",
+        },
+    )
+    def delete(self, request, *args, **kwargs):
+        refresh_token = request.data['refresh']
+        user = request.user
+        try:
+            destroy_token(refresh_token)
+        except Exception:
+            return Response({"Error": "Can't delete the user."}, status = status.HTTP_400_BAD_REQUEST)
+        user.delete()
+        return Response({'Message': 'User has been successfully deleted.'}, status=status.HTTP_200_OK)
