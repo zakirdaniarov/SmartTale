@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from .services import get_paginated_data
 from drf_yasg.utils import swagger_auto_schema
 from authorization.models import UserProfile, Organization
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from django_filters.rest_framework import FilterSet, DateFilter
 
@@ -15,6 +16,11 @@ from django_filters.rest_framework import FilterSet, DateFilter
 class OrderCategoriesAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        operation_summary="Displaying lists of order categories",
+        description="This endpoint allows you to get information about various order categories",
+
+    )
     def get(self):
         categories = OrderCategory.objects.all()
         categories_api = OrderCategoryListAPI(categories, many=True)
@@ -136,7 +142,7 @@ class OrderDateFilter(FilterSet):
 
 class OrdersHistoryListView(BaseOrderListView):
     serializer_class = OrderListAPI
-    filter_backends = [filters.DjangoFilterBackend]
+    filter_backends = [DjangoFilterBackend]
     filterset_class = OrderDateFilter
 
     def get_queryset(self):

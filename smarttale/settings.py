@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'cloudinary',
     'cloudinary_storage',
     'drf_yasg',
+    'django_filters',
 
     'authorization',
     'marketplace'
