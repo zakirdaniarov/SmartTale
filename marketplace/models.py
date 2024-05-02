@@ -20,7 +20,7 @@ class Equipment(models.Model):
     description = models.TextField(max_length=1000, null=True)
     phone_number = models.CharField(max_length=20)
     author = models.ForeignKey(UserProfile, related_name='equipment_ads', on_delete=models.CASCADE)
-    liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_equipments')
+    liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_equipment')
     hide = models.BooleanField(default=False)
     sold = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -83,6 +83,7 @@ class OrderImages(models.Model):
 
 class Reviews(models.Model):
     order = models.OneToOneField(Order, related_name='order_reviews', on_delete=models.CASCADE)
+    equipment = models.OneToOneField(Equipment, related_name='equipment_reviews', on_delete=models.CASCADE)
     reviewer = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='reviews')
     review_text = models.TextField()
     rating = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)], default=0)

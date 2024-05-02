@@ -148,7 +148,7 @@ class ReviewListAPI(ModelSerializer):
 
 class EquipmentDetailSerializer(serializers.ModelSerializer):
     images = serializers.ListField(
-        child=serializers.ImageField(max_length=5, allow_empty_file=False, use_url=False),
+        child=serializers.ImageField(max_length=10000, allow_empty_file=False, use_url=False),
         write_only=True
     )
 
@@ -159,7 +159,8 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         images_data = self.context.get('request').data.get('images')
-        equipment = Equipment.objects.create(**validated_data)
+        author = self.context['request'].user
+        equipment = Equipment.objects.create(author=author, **validated_data)
         for image_data in images_data:
             image = EquipmentImages.objects.create(image=image_data)
             equipment.images.add(image)
@@ -175,5 +176,4 @@ class ReviewPostAPI(ModelSerializer):
 class EquipmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Equipment
-        fields = ['title', 'price', 'description', 'author']
-
+        fields = ['title', 'slug', 'price', 'description', 'author']

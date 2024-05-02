@@ -9,7 +9,8 @@ from .views import (
                     LikedByUserOrdersAPIView, UpdateOrderAPIView, LikeOrderAPIView,
                     SearchOrderAPIView, ReviewOrderAPIView,
                     EquipmentsListAPIView, EquipmentDetailPageAPIView,
-                    CreateEquipmentAPIView, EquipmentSearchAPIView
+                    CreateEquipmentAPIView, EquipmentSearchAPIView,
+                    ChangeEquipmentAPIView, DeleteEquipmentAPIView
 )
 
 
@@ -39,5 +40,7 @@ urlpatterns = [
     path('equipments/', EquipmentsListAPIView.as_view()),
     path('equipments/search/', EquipmentSearchAPIView.as_view()),
     path('equipments/create/', CreateEquipmentAPIView.as_view()),
+    path('equipments/<str:equipment_slug>/change/', ChangeEquipmentAPIView.as_view()),
+    path('equipments/<str:equipment_slug>/delete/', DeleteEquipmentAPIView.as_view()),
     path('equipments/<str:equipment_slug>/', EquipmentDetailPageAPIView.as_view()),
 ]
