@@ -40,7 +40,7 @@ urlpatterns = [
     path('equipments/', EquipmentsListAPIView.as_view()),
     path('equipments/search/', EquipmentSearchAPIView.as_view()),
     path('equipments/create/', CreateEquipmentAPIView.as_view()),
-    path('equipments/<str:equipment_slug>/change/', ChangeEquipmentAPIView.as_view()),
-    path('equipments/<str:equipment_slug>/delete/', DeleteEquipmentAPIView.as_view()),
+    path('equipments/change/<str:equipment_slug>/', ChangeEquipmentAPIView.as_view()),
+    path('equipments/delete/<str:equipment_slug>/', DeleteEquipmentAPIView.as_view()),
     path('equipments/<str:equipment_slug>/', EquipmentDetailPageAPIView.as_view()),
 ]

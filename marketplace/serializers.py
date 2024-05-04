@@ -118,7 +118,7 @@ class OrderPostAPI(ModelSerializer):
 
     def create(self, validated_data):
         images_data = validated_data.pop('images')
-        author = self.context['request'].user
+        author = self.context['request'].user.user_profile
         order = Order.objects.create(author=author, **validated_data)
         for image_data in images_data:
             OrderImages.objects.create(order=order, images=image_data)
@@ -146,25 +146,53 @@ class ReviewListAPI(ModelSerializer):
         fields = ['order', 'reviewer', 'review_text', 'rating', 'created_at']
 
 
+class EquipmentImagesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EquipmentImages
+        fields = '__all__'
+
+
 class EquipmentDetailSerializer(serializers.ModelSerializer):
-    images = serializers.ListField(
-        child=serializers.ImageField(max_length=10000, allow_empty_file=False, use_url=False),
+    author = serializers.PrimaryKeyRelatedField(read_only=True, default=serializers.CurrentUserDefault())
+    images = EquipmentImagesSerializer(many=True, read_only=True)
+    uploaded_images = serializers.ListField(
+        child=serializers.ImageField(max_length=100000, allow_empty_file=False, use_url=False),
         write_only=True
     )
 
     class Meta:
         model = Equipment
-        fields = ['id', 'title', 'category', 'images', 'price', 'description',
+        fields = ['id', 'title', 'category', 'images', 'uploaded_images', 'price', 'description',
                   'phone_number', 'author', 'liked_by', 'hide', 'sold']
 
     def create(self, validated_data):
-        images_data = self.context.get('request').data.get('images')
-        author = self.context['request'].user
-        equipment = Equipment.objects.create(author=author, **validated_data)
+        images_data = validated_data.pop('uploaded_images')
+        equipment = Equipment.objects.create(**validated_data)
         for image_data in images_data:
-            image = EquipmentImages.objects.create(image=image_data)
-            equipment.images.add(image)
+            EquipmentImages.objects.create(equipment=equipment, images=image_data)
         return equipment
+
+    def update(self, instance, validated_data):
+        images_data = validated_data.pop('uploaded_images', [])
+        instance.title = validated_data.pop('title', instance.title)
+        instance.description = validated_data.pop('description', instance.description)
+        instance.category = validated_data.pop('category', instance.category)
+        instance.price = validated_data.pop('price', instance.price)
+        instance.phone_number = validated_data.pop('phone_number', instance.phone_number)
+        instance.author = validated_data.pop('author', instance.author)
+        instance.hide = validated_data.pop('hide', instance.hide)
+        instance.sold = validated_data.pop('sold', instance.sold)
+        instance.save()
+
+        current_images = list(instance.images.all())
+
+        for image in current_images:
+            if image not in images_data:
+                image.delete()
+
+        for image_data in images_data:
+            EquipmentImages.objects.update_or_create(equipment=instance, images=image_data)
+        return instance
 
 
 class ReviewPostAPI(ModelSerializer):
@@ -174,6 +202,8 @@ class ReviewPostAPI(ModelSerializer):
 
 
 class EquipmentSerializer(serializers.ModelSerializer):
+    images = EquipmentImagesSerializer(many=True)
+
     class Meta:
         model = Equipment
-        fields = ['title', 'slug', 'price', 'description', 'author']
+        fields = ['title', 'slug', 'price', 'description', 'images', 'author']

@@ -379,19 +379,8 @@ class ReviewOrderAPIView(APIView):
 
 
 class EquipmentsListAPIView(APIView):
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
-    @swagger_auto_schema(
-        tags=['Equipments list'],
-        operation_description="Этот эндпоинт"
-                              "предостовляет пользователю"
-                              "все оборудования",
-        responses={
-            200: EquipmentSerializer(),
-            404: "Equipments does not exist",
-            500: "Server error",
-        }
-    )
     def get(self, request, *args, **kwargs):
         try:
             equipments = Equipment.objects.all()
@@ -405,7 +394,7 @@ class CreateEquipmentAPIView(APIView):
     permission_classes = [CurrentUserOrReadOnly]
 
     @swagger_auto_schema(
-        tags=['Equipment add'],
+        tags=['Equipments create'],
         operation_description="Этот эндпоинт"
                               "предостовляет пользователю"
                               "добавлять свои оборудования",
@@ -416,15 +405,16 @@ class CreateEquipmentAPIView(APIView):
         }
     )
     def post(self, request, *args, **kwargs):
-        equipment_serializer = EquipmentDetailSerializer(data=request.data)
+        equipment_serializer = EquipmentDetailSerializer(data=request.data, context={'request': request})
         if equipment_serializer.is_valid():
-            equipment_serializer.save()
+            author = request.user.user_profile
+            equipment_serializer.save(author=author)
             return Response(equipment_serializer.data, status=status.HTTP_201_CREATED)
         return Response(equipment_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ChangeEquipmentAPIView(APIView):
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [CurrentUserOrReadOnly]
 
     @swagger_auto_schema(
         tags=['Equipments change'],
@@ -434,6 +424,7 @@ class ChangeEquipmentAPIView(APIView):
                               "существующее оборудование",
         responses={
             200: EquipmentDetailSerializer(),
+            400: "Bad request",
             404: "Equipments does not exist",
             500: "Server error",
         }
@@ -443,12 +434,18 @@ class ChangeEquipmentAPIView(APIView):
             equipment = Equipment.objects.get(slug=kwargs['equipment_slug'])
         except Equipment.DoesNotExist:
             return Response({"error": "Equipments does not exist"}, status=status.HTTP_404_NOT_FOUND)
-        equipment_serializer = EquipmentDetailSerializer(equipment)
-        return Response(equipment_serializer.data, status=status.HTTP_200_OK)
+        equipment_serializer = EquipmentDetailSerializer(instance=equipment,
+                                                         data=request.data,
+                                                         context={'request': request})
+        if equipment_serializer.is_valid():
+            author = request.user.user_profile
+            equipment_serializer.save(author=author)
+            return Response(equipment_serializer.data, status=status.HTTP_200_OK)
+        return Response({"error": "Bad request"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class DeleteEquipmentAPIView(APIView):
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [CurrentUserOrReadOnly]
 
     @swagger_auto_schema(
         tags=['Equipments delete'],
@@ -461,17 +458,17 @@ class DeleteEquipmentAPIView(APIView):
             500: "Server error",
         }
     )
-    def delete(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         try:
             equipment = Equipment.objects.get(slug=kwargs['equipment_slug'])
         except Equipment.DoesNotExist:
-            return Response({"error": "Bad request"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Equipments does not exist"}, status=status.HTTP_404_NOT_FOUND)
         equipment.delete()
         return Response({"data": "Successfully deleted"}, status=status.HTTP_200_OK)
 
 
 class EquipmentSearchAPIView(APIView):
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     filter_backends = [SearchFilter]
     search_fields = ['title']
 
@@ -498,7 +495,7 @@ class EquipmentSearchAPIView(APIView):
 
 
 class EquipmentDetailPageAPIView(APIView):
-    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
         tags=['Equipment detail'],
@@ -521,32 +518,3 @@ class EquipmentDetailPageAPIView(APIView):
             return Response({"error": "Equipment does not exist"}, status=status.HTTP_404_NOT_FOUND)
         equipment_serializer = EquipmentDetailSerializer(equipment)
         return Response(equipment_serializer.data, status=status.HTTP_200_OK)
-
-
-# class EquipmentLikesAPIView(APIView):
-#     permission_classes = [IsAuthenticated]
-#
-#     @swagger_auto_schema(
-#         tags=['Equipments likes'],
-#         operation_description="Этот эндпоинт"
-#                               "предостовляет пользователю"
-#                               "возможность добавить"
-#                               "оборудование в избранное"
-#                               "а также изменять его, и удалять",
-#         responses={
-#             200: EquipmentDetailSerializer(),
-#             400: "Bad request",
-#             404: "Equipments does not exist",
-#             500: "Server error",
-#         }
-#     )
-#
-#     #ToDo добавить фунционал для просмотра оборудований из избранного
-#     def post(self, request, *args, **kwargs):
-#         try:
-#             equipment = Equipment.objects.get(slug=kwargs['equipment_slug'])
-#         except Equipment.DoesNotExist:
-#             return Response({"error": "Equipments does not exist"}, status=status.HTTP_404_NOT_FOUND)
-#         new_like, created = Likes.objects.get_or_create(author=request.user, equipment_id=equipment)
-#         like_serializer = LikesSerializer(new_like, created) #ToDo сериалайзер не готов, исправь !!!
-#         return Response(like_serializer.data, status=status.HTTP_201_CREATED)
