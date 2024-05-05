@@ -163,11 +163,16 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Equipment
         fields = ['id', 'title', 'category', 'images', 'uploaded_images', 'price', 'description',
-                  'phone_number', 'author', 'liked_by', 'hide', 'sold']
+                  'phone_number', 'author', 'hide', 'sold']
 
     def create(self, validated_data):
         images_data = validated_data.pop('uploaded_images')
         equipment = Equipment.objects.create(**validated_data)
+
+        max_images = 5
+        if len(images_data) > max_images:
+            raise serializers.ValidationError(f"You can't add more then {max_images} images")
+
         for image_data in images_data:
             EquipmentImages.objects.create(equipment=equipment, images=image_data)
         return equipment
@@ -186,6 +191,10 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
 
         current_images = list(instance.images.all())
 
+        max_images = 5
+        if len(images_data) + len(current_images) > max_images:
+            raise serializers.ValidationError(f"You can't add more then {max_images} images")
+
         for image in current_images:
             if image not in images_data:
                 image.delete()
@@ -202,8 +211,31 @@ class ReviewPostAPI(ModelSerializer):
 
 
 class EquipmentSerializer(serializers.ModelSerializer):
-    images = EquipmentImagesSerializer(many=True)
+    # author = serializers.ReadOnlyField(source='author.profile_image')  #ToDo вывести картинку профиля
+    author = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
+    is_liked = serializers.SerializerMethodField()
 
     class Meta:
         model = Equipment
-        fields = ['title', 'slug', 'price', 'description', 'images', 'author']
+        fields = ['title', 'slug', 'price', 'description', 'image', 'author', 'is_liked']
+
+    def get_author(self, instance):
+        author = self.context['request'].user.user_profile
+        if author.profile_image == 'null':
+            author_name = author.first_name + ' ' + author.last_name
+            return 'Profile image does not exist', author_name
+        else:
+            # author_avatar = author.profile_image
+            author_name = author.first_name + ' ' + author.last_name
+            return author_name
+
+    def get_image(self, instance):
+        image = instance.images.first()
+        if image:
+            return image.images.url
+        return 'Images does not exist'
+
+    def get_is_liked(self, instance):
+        author = self.context['request'].user.user_profile
+        return instance.liked_by.filter(slug=author.slug).exists()
