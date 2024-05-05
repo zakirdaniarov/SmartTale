@@ -88,4 +88,4 @@ class Organization(models.Model):
     created_at = models.DateTimeField(auto_now_add = True)
 
     def __str__(self):
-        return f"Title: {self.title}; Email: {self.user}; Slug: {self.slug}"
+        return f"Title: {self.title}; Email: {self.founder.user.email}; Slug: {self.slug}"
