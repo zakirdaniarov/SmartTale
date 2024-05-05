@@ -37,7 +37,7 @@ class OrderDetailAPI(ModelSerializer):
 
 
 class OrderListAPI(serializers.ModelSerializer):
-    author_name = serializers.ReadOnlyField(source='author.username')
+    author_name = serializers.ReadOnlyField(source='author.first_name')
     author_slug = serializers.ReadOnlyField(source='author.slug')
     is_liked = serializers.SerializerMethodField()
     images = serializers.SerializerMethodField()
@@ -46,7 +46,7 @@ class OrderListAPI(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ['title', 'slug', 'author_name', 'author_slug', 'category', 'images', 'description',
-                  'price', 'is_booked', 'booked_at', 'is_finished']
+                  'price', 'is_liked', 'is_booked', 'booked_at', 'is_finished']
 
     def get_images(self, instance):
         images_queryset = instance.images.all()  # Get all images associated with the order

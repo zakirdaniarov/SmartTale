@@ -1,4 +1,6 @@
 import datetime
+
+from django.utils.decorators import method_decorator
 from rest_framework.generics import ListAPIView
 from rest_framework.views import Response, status, APIView
 from .models import Equipment, Order, Reviews, EquipmentCategory, OrderCategory, EquipmentImages, OrderImages
@@ -10,6 +12,7 @@ from authorization.models import UserProfile, Organization
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from django_filters.rest_framework import FilterSet, DateFilter
+# from django.views.decorators.csrf import csrf_exempt
 
 
 # Create your views here.
@@ -21,7 +24,7 @@ class OrderCategoriesAPIView(APIView):
         description="This endpoint allows you to get information about various order categories",
 
     )
-    def get(self):
+    def get(self, request):
         categories = OrderCategory.objects.all()
         categories_api = OrderCategoryListAPI(categories, many=True)
         content = {"Categories": categories_api.data}
@@ -46,7 +49,7 @@ class BaseOrderListView(APIView):
 
 class MyOrderAdsListView(BaseOrderListView):
     def get_queryset(self):
-        return Order.objects.filter(author=self.request.user).order_by('-created_at')
+        return Order.objects.filter(author=self.request.user.user_profile).order_by('-created_at')
 
     def get_list_type(self):
         return "my-order-ads"
@@ -171,11 +174,14 @@ class OrdersHistoryListView(BaseOrderListView):
 
 class OrdersByCategoryAPIView(APIView):
     def get(self, request):
-        category = request.query_params.get('category')
-        if category not in OrderCategory.objects.all():
-            return Response({'Error': 'written category is not one of the order categories'},
-                            status=status.HTTP_403_FORBIDDEN)
-        queryset = OrderCategory.objects.filter(category=category).order_by('-created_at')
+        category_title = request.query_params.get('category')
+
+        try:
+            category = OrderCategory.objects.get(title=category_title)
+        except OrderCategory.DoesNotExist:
+            return Response({"message": "Category not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        queryset = Order.objects.filter(category=category).order_by('-created_at')
         data = get_paginated_data(queryset, request, "marketplace-orders")
         return Response(data, status=status.HTTP_200_OK)
 
@@ -198,7 +204,7 @@ class OrderDetailAPIView(APIView):
         except Exception:
             return Response({"Error": "Order is not found."}, status=status.HTTP_404_NOT_FOUND)
         author = False
-        if request.user.id == order.author.id:
+        if request.user.user_profile == order.author:
             author = True
         serializer = OrderDetailAPI(order, context={'request': request,
                                                     'author': author})
@@ -228,7 +234,7 @@ class UpdateOrderAPIView(APIView):
             return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
         user = request.user
-        if user != order.author:
+        if user.user_profile != order.author:
             return Response({'Error':'User does not have permissions to update this order.'},
                             status=status.HTTP_403_FORBIDDEN)
 
@@ -242,14 +248,14 @@ class UpdateOrderAPIView(APIView):
 class HideOrderAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def put(self, request, order_slug):
+    def post(self, request, order_slug):
         try:
             order = Order.objects.get(slug=order_slug)
         except Order.DoesNotExist:
             return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
         user = request.user
-        if user != order.author:
+        if user.user_profile != order.author:
             return Response({'Error':'User does not have permissions to hide this order.'},
                             status=status.HTTP_403_FORBIDDEN)
         if order.hide:
