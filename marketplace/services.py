@@ -1,6 +1,5 @@
 from django.core.paginator import Paginator
 from .serializers import OrderListAPI, EquipmentSerializer, MyOrdersSerializer, MyEquipmentsSerializer
-from .models import Equipment
 
 
 def get_paginated_data(queryset, request, list_type):
