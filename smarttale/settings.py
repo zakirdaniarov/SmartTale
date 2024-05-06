@@ -31,7 +31,7 @@ DEBUG = config("DEBUG", cast = bool)
 ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
-    '152.42.194.121',
+    '128.199.132.166 ',
     'helsinki-backender.org.kg',
 ]
 
