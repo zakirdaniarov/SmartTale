@@ -364,6 +364,7 @@ class LikeOrderAPIView(APIView):
 
 class SearchOrderAPIView(ListAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = OrderListAPI
     search_fields = ['title']
     filter_backends = (filters.SearchFilter,)
 

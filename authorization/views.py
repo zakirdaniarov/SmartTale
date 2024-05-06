@@ -103,8 +103,6 @@ class VerifyEmailAPIView(APIView):
         if code != actual_code.code:
             return Response({"Invalid": "Invalid token."}, status = status.HTTP_400_BAD_REQUEST)
         current_datetime = dt.datetime.now(dt.timezone.utc)
-        print(current_datetime)
-        print(actual_code.updated_at)
         diff = (current_datetime - actual_code.updated_at).total_seconds()
         if diff > 300:
             return Response({"Expired": "Activation token has expired."}, status = status.HTTP_400_BAD_REQUEST)
