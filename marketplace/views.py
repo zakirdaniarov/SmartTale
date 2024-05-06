@@ -4,7 +4,7 @@ from rest_framework.views import Response, status, APIView
 from .models import Equipment, Order, Reviews, EquipmentCategory, OrderCategory, EquipmentImages, OrderImages
 from .serializers import *
 from rest_framework.permissions import IsAuthenticated
-from .services import get_paginated_data
+from .services import get_paginated_data, equipment_paginated
 from drf_yasg.utils import swagger_auto_schema
 from authorization.models import UserProfile, Organization
 from rest_framework import filters
@@ -381,6 +381,17 @@ class ReviewOrderAPIView(APIView):
 class EquipmentsListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        tags=['Equipments list'],
+        operation_description="Этот эндпоинт"
+                              "предостовляет пользователю"
+                              "список оборудований",
+        responses={
+            201: EquipmentDetailSerializer(),
+            400: "Equipments does not exist",
+            500: "Server error",
+        }
+    )
     def get(self, request, *args, **kwargs):
         try:
             equipments = Equipment.objects.all()
@@ -391,7 +402,7 @@ class EquipmentsListAPIView(APIView):
 
 
 class CreateEquipmentAPIView(APIView):
-    permission_classes = [CurrentUserOrReadOnly]
+    permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
         tags=['Equipment create'],
@@ -424,8 +435,8 @@ class ChangeEquipmentAPIView(APIView):
                               "существующее оборудование",
         responses={
             200: EquipmentDetailSerializer(),
-            400: "Bad request",
-            404: "Equipments does not exist",
+            400: "Only the author can change",
+            404: "Equipment does not exist",
             500: "Server error",
         }
     )
@@ -433,7 +444,7 @@ class ChangeEquipmentAPIView(APIView):
         try:
             equipment = Equipment.objects.get(slug=kwargs['equipment_slug'])
         except Equipment.DoesNotExist:
-            return Response({"error": "Equipments does not exist"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Equipments doe not exist"}, status=status.HTTP_404_NOT_FOUND)
         equipment_serializer = EquipmentDetailSerializer(instance=equipment,
                                                          data=request.data,
                                                          context={'request': request})
@@ -441,7 +452,7 @@ class ChangeEquipmentAPIView(APIView):
             author = request.user.user_profile
             equipment_serializer.save(author=author)
             return Response(equipment_serializer.data, status=status.HTTP_200_OK)
-        return Response({"error": "Bad request"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"message": "Only the author can change"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class DeleteEquipmentAPIView(APIView):
@@ -451,10 +462,11 @@ class DeleteEquipmentAPIView(APIView):
         tags=['Equipment delete'],
         operation_description="Этот эндпоинт"
                               "предостовляет пользователю"
-                              "удалить оборудование",
+                              "удалить свое оборудование",
         responses={
-            200: EquipmentDetailSerializer(),
-            404: "Equipments does not exist",
+            200: "Successfully deleted",
+            400: "Only the author can delete",
+            404: "Equipment does not exist",
             500: "Server error",
         }
     )
@@ -462,8 +474,14 @@ class DeleteEquipmentAPIView(APIView):
         try:
             equipment = Equipment.objects.get(slug=kwargs['equipment_slug'])
         except Equipment.DoesNotExist:
-            return Response({"error": "Equipments does not exist"}, status=status.HTTP_404_NOT_FOUND)
-        equipment.delete()
+            return Response({"error": "Equipment does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        author = request.user.user_profile
+
+        if author == "equipment_ads":
+            equipment.delete()
+        else:
+            return Response({"message": "Only the author can delete"})
         return Response({"data": "Successfully deleted"}, status=status.HTTP_200_OK)
 
 
@@ -473,14 +491,14 @@ class EquipmentSearchAPIView(APIView):
     search_fields = ['title']
 
     @swagger_auto_schema(
-        tags=['Equipments list'],
+        tags=['Equipments search'],
         operation_description="Этот эндпоинт"
                               "предостовляет пользователю"
                               "возможность найти"
                               "нужное оборудование",
         responses={
             200: EquipmentSerializer(),
-            404: "Equipments does not exist",
+            404: "Equipment does not exist",
             500: "Server error",
         }
     )
@@ -505,8 +523,7 @@ class EquipmentDetailPageAPIView(APIView):
                               "детальную страницу оборудования",
         responses={
             200: EquipmentDetailSerializer(),
-            400: "Bad request",
-            404: "Equipments does not exist",
+            404: "Equipment does not exist",
             500: "Server error",
         }
     )
@@ -530,8 +547,8 @@ class EquipmentLikeAPIView(APIView):
                               "лайк определенному оборудованию",
         responses={
             200: EquipmentSerializer(),
-            400: "Bad request",
-            404: "Equipments does not exist",
+            400: "Error when removing or adding like",
+            404: "Equipment does not exist",
             500: "Server error",
         }
     )
@@ -544,10 +561,153 @@ class EquipmentLikeAPIView(APIView):
         author = request.user.user_profile
 
         if author in equipment.liked_by.all():
-            equipment.liked_by.remove(author)
+            try:
+                equipment.liked_by.remove(author)
+            except Exception as e:
+                return Response({"error": "Error when removing like"}, status=status.HTTP_400_BAD_REQUEST)
             return Response({"data": "Equipment's favourite status is remove successfully."},
                             status=status.HTTP_200_OK)
         else:
-            equipment.liked_by.add(author)
+            try:
+                equipment.liked_by.add(author)
+            except Exception as e:
+                return Response({"error": "Error when adding like"}, status=status.HTTP_400_BAD_REQUEST)
             return Response({"data": "Equipment's favourite status is add successfully."},
                             status=status.HTTP_200_OK)
+
+
+class EquipmentByAuthorLikeAPIView(APIView):
+    permission_classes = [CurrentUserOrReadOnly]
+
+    @swagger_auto_schema(
+        tags=['Like equipments in author profile'],
+        operation_description="Этот эндпоинт"
+                              "предостовляет пользователю"
+                              "возможность посмотреть"
+                              "залайканные оборудования"
+                              "на своей личной странице",
+        responses={
+            200: EquipmentSerializer(),
+            404: "Equipment does not exist",
+            500: "Server error",
+        }
+    )
+    def get_liked_equipments(self):
+        author = self.request.user.user_profile
+        return author.liked_equipment.all().order_by('-created_at')
+
+    def get_like_equipments(self):
+        return "my-like-equipments"
+
+    def get(self, request, *args, **kwargs):
+        like = self.get_liked_equipments()
+        data = equipment_paginated(like, request)
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class HideEquipmentAPIView(APIView):
+    permission_classes = [CurrentUserOrReadOnly]
+
+    @swagger_auto_schema(
+        tags=['Hide equipment'],
+        operation_description="Этот эндпоинт"
+                              "предостовляет пользователю"
+                              "возможность скрыть"
+                              "свои оборудования",
+        responses={
+            200: EquipmentSerializer(),
+            400: ["Only the author can hide the equipment", "Error when hiding equipment"],
+            404: "Equipment does not exist",
+            500: "Server error",
+        }
+    )
+    def put(self, request, *args, **kwargs):
+        try:
+            equipment = Equipment.objects.get(slug=kwargs['equipment_slug'])
+        except Equipment.DoesNotExist:
+            return Response({"error": "Equipment does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            if equipment.author == request.user.user_profile:
+                equipment.hide = True if not equipment.hide else False
+                equipment.save()
+            else:
+                return Response({"message": "Only the author can hide the equipment"},
+                                status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"message": "Error when hiding equipment"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        if equipment.hide:
+            return Response({"data": "Equipment hidden"})
+        else:
+            return Response({"data": "Equipment is not hidden"})
+
+
+class SoldEquipmentAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags=['Sold equipment'],
+        operation_description="Этот эндпоинт"
+                              "предостовляет пользователю"
+                              "купить оборудование",
+        responses={
+            200: "Equipment is available for purchase",
+            400: ["Equipment has already been sold", "You cannot buy your own equipment"],
+            404: "Equipment does not exist",
+            500: "Server error",
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        try:
+            equipment = Equipment.objects.get(slug=kwargs['equipment_slug'])
+        except Equipment.DoesNotExist:
+            return Response({"error": "Equipment does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        if equipment.sold:
+            return Response({"error": "Equipment has already been sold"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if equipment.author == request.user:
+            return Response({"error": "You cannot buy your own equipment"}, status=status.HTTP_400_BAD_REQUEST)
+
+        equipment.sold = True
+        equipment.save()
+
+        request.user.user_profile.add(equipment)
+
+        return Response({"message": "Equipment is available for purchase"}, status=status.HTTP_200_OK)
+
+
+class OrdersAndEquipmentsListAPIView(APIView):
+    permission_classes = [CurrentUserOrReadOnly]
+
+    @swagger_auto_schema(
+        tags=['Orders and equipments list'],
+        operation_description="Этот эндпоинт"
+                              "предостовляет пользователю"
+                              "свои заказы и оборудования",
+        responses={
+            200: "Orders and equipments list",
+            404: "Orders or Equipments does not exist",
+            500: "Server error",
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        author = request.user.user_profile
+        try:
+            orders = Order.objects.filter(author=author)
+            equipments = Equipment.objects.filter(author=author)
+        except Exception as e:
+            return Response({"error": "Orders or Equipments does not exist"},
+                            status=status.HTTP_404_NOT_FOUND)
+
+        orders_serializer = AllOrdersSerializer(orders, many=True)
+        equipments_serializer = AllEquipmentsSerializer(equipments, many=True)
+
+        content = {
+            'orders': orders_serializer.data,
+            'equipments': equipments_serializer.data
+        }
+
+        return Response(content, status=status.HTTP_200_OK)

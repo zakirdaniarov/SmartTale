@@ -1,6 +1,13 @@
 from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
+from authorization.models import UserProfile
 from .models import Equipment, Order, Reviews, EquipmentCategory, OrderCategory, EquipmentImages, OrderImages
+
+
+class AuthorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfile
+        fields = ['first_name', 'last_name', 'profile_image']
 
 
 class OrderCategoryListAPI(ModelSerializer):
@@ -153,7 +160,7 @@ class EquipmentImagesSerializer(serializers.ModelSerializer):
 
 
 class EquipmentDetailSerializer(serializers.ModelSerializer):
-    author = serializers.PrimaryKeyRelatedField(read_only=True, default=serializers.CurrentUserDefault())
+    author = AuthorSerializer(read_only=True)
     images = EquipmentImagesSerializer(many=True, read_only=True)
     uploaded_images = serializers.ListField(
         child=serializers.ImageField(max_length=100000, allow_empty_file=False, use_url=False),
@@ -192,7 +199,7 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
         current_images = list(instance.images.all())
 
         max_images = 5
-        if len(images_data) + len(current_images) > max_images:
+        if len(images_data) > max_images:
             raise serializers.ValidationError(f"You can't add more then {max_images} images")
 
         for image in current_images:
@@ -211,24 +218,13 @@ class ReviewPostAPI(ModelSerializer):
 
 
 class EquipmentSerializer(serializers.ModelSerializer):
-    # author = serializers.ReadOnlyField(source='author.profile_image')  #ToDo вывести картинку профиля
-    author = serializers.SerializerMethodField()
+    author = AuthorSerializer(read_only=True)
     image = serializers.SerializerMethodField()
-    is_liked = serializers.SerializerMethodField()
+    liked = serializers.SerializerMethodField()
 
     class Meta:
         model = Equipment
-        fields = ['title', 'slug', 'price', 'description', 'image', 'author', 'is_liked']
-
-    def get_author(self, instance):
-        author = self.context['request'].user.user_profile
-        if author.profile_image == 'null':
-            author_name = author.first_name + ' ' + author.last_name
-            return 'Profile image does not exist', author_name
-        else:
-            # author_avatar = author.profile_image
-            author_name = author.first_name + ' ' + author.last_name
-            return author_name
+        fields = ['title', 'slug', 'price', 'description', 'image', 'author', 'liked']
 
     def get_image(self, instance):
         image = instance.images.first()
@@ -236,6 +232,52 @@ class EquipmentSerializer(serializers.ModelSerializer):
             return image.images.url
         return 'Images does not exist'
 
-    def get_is_liked(self, instance):
+    def get_liked(self, instance):
         author = self.context['request'].user.user_profile
         return instance.liked_by.filter(slug=author.slug).exists()
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        likes = self.context.get('like_equipments')
+
+        if likes == 'my-like-equipments':
+            representation.pop('author')
+            representation.pop('liked')
+
+        return representation
+
+
+class AllEquipmentsSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+    service = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Equipment
+        fields = ['title', 'description', 'service', 'image']
+
+    def get_image(self, instance):
+        image = instance.images.first()
+        if image:
+            return image.images.url
+        return 'Images does not exist'
+
+    def get_service(self, instance):
+        return "Оборудование"
+
+
+class AllOrdersSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+    service = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Order
+        fields = ['title', 'description', 'service', 'image']
+
+    def get_image(self, instance):
+        image = instance.images.first()
+        if image:
+            return image.images.url
+        return 'Images does not exist'
+
+    def get_service(self, instance):
+        return "Заказ"
