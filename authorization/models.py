@@ -6,8 +6,15 @@ from operator import attrgetter
 from .utils import LowercaseEmailField
 
 GENDER_CHOICES = (
-        ('Male', 'Male'),
-        ('Female', 'Female'),
+    ('Мужской', 'Мужской'),
+    ('Женский', 'Женский'),
+)
+
+SUBCRIPTION_CHOICES = (
+    ('Тест-драйв', 'Тест-драйв'),
+    ('Базовый', 'Базовый'),
+    ('Премиум', 'Премиум'),
+    ('Нет подписки', 'Нет подписки'),
 )
 
 def get_populate_from(instance):
@@ -56,10 +63,11 @@ class UserProfile(models.Model):
     profile_image = models.ImageField(upload_to = 'smarttale/user_profile', blank = True, null = True, max_length = 500)
     slug = AutoSlugField(populate_from = get_populate_from,
                          unique_with = ['first_name', 'last_name'], always_update = True)
-    gender = models.CharField(max_length = 6, choices = GENDER_CHOICES, blank = True, null = True, default = None)
+    gender = models.CharField(max_length = 7, choices = GENDER_CHOICES, blank = True, null = True, default = None)
     birthday = models.DateField(null = True, default = None)
     phone_number = models.CharField(max_length = 20, blank = True, null = True, default = None)
     subscription = models.DateTimeField(blank = True, null = True, default = None)
+    sub_type = models.CharField(max_length = 15, choices = SUBCRIPTION_CHOICES, default = 'Нет подписки')
     created_at = models.DateTimeField(auto_now_add = True)
 
     current_org = models.OneToOneField('Organization', related_name='current_member',
@@ -82,7 +90,6 @@ class Organization(models.Model):
     title = models.CharField(max_length = 100)
     slug = AutoSlugField(populate_from = 'title', unique = True, always_update = True)
     phone_number = models.CharField(max_length = 20, blank = True, null = True, default = None)
-    subscription = models.DateTimeField(blank = True, null = True, default = None)
     description = models.TextField()
     active = models.BooleanField(default = False)
     created_at = models.DateTimeField(auto_now_add = True)
