@@ -4,7 +4,7 @@ from rest_framework.views import Response, status, APIView
 from .models import Equipment, Order, Reviews, EquipmentCategory, OrderCategory, EquipmentImages, OrderImages
 from .serializers import *
 from rest_framework.permissions import IsAuthenticated
-from .services import get_paginated_data, equipment_paginated
+from .services import get_paginated_data, get_equipment_paginated, get_order_or_equipment
 from drf_yasg.utils import swagger_auto_schema
 from authorization.models import UserProfile, Organization
 from rest_framework import filters
@@ -388,7 +388,7 @@ class EquipmentsListAPIView(APIView):
                               "список оборудований",
         responses={
             201: EquipmentDetailSerializer(),
-            400: "Equipments does not exist",
+            404: "Equipments does not exist",
             500: "Server error",
         }
     )
@@ -396,19 +396,18 @@ class EquipmentsListAPIView(APIView):
         try:
             equipments = Equipment.objects.all()
         except Equipment.DoesNotExist:
-            return Response({"error": "Equipments does not exist"}, status=status.HTTP_404_NOT_FOUND)
-        equipment_serializer = EquipmentSerializer(equipments, many=True, context={'request': request})
-        return Response(equipment_serializer.data, status=status.HTTP_200_OK)
+            return Response({"error": "Equipments does not exist"})
+        serializer = EquipmentSerializer(equipments, many=True, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class CreateEquipmentAPIView(APIView):
-    permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
         tags=['Equipment create'],
         operation_description="Этот эндпоинт"
                               "предостовляет пользователю"
-                              "добавлять свои оборудования",
+                              "добавлять собственные оборудования",
         responses={
             201: EquipmentDetailSerializer(),
             404: "Bad request",
@@ -508,7 +507,7 @@ class EquipmentSearchAPIView(APIView):
             equipment = Equipment.objects.filter(title__icontains=search_query)
         except Equipment.DoesNotExist:
             return Response({"error": "Equipment does not exist"}, status=status.HTTP_404_NOT_FOUND)
-        equipment_serializer = EquipmentSerializer(equipment, many=True)
+        equipment_serializer = EquipmentSerializer(equipment, many=True, context={"request": request})
         return Response(equipment_serializer.data, status=status.HTTP_200_OK)
 
 
@@ -547,7 +546,7 @@ class EquipmentLikeAPIView(APIView):
                               "лайк определенному оборудованию",
         responses={
             200: EquipmentSerializer(),
-            400: "Error when removing or adding like",
+            400: ["Error when removing like", "Error when adding like"],
             404: "Equipment does not exist",
             500: "Server error",
         }
@@ -580,7 +579,7 @@ class EquipmentByAuthorLikeAPIView(APIView):
     permission_classes = [CurrentUserOrReadOnly]
 
     @swagger_auto_schema(
-        tags=['Like equipments in author profile'],
+        tags=['Liked equipments in profile'],
         operation_description="Этот эндпоинт"
                               "предостовляет пользователю"
                               "возможность посмотреть"
@@ -601,7 +600,7 @@ class EquipmentByAuthorLikeAPIView(APIView):
 
     def get(self, request, *args, **kwargs):
         like = self.get_liked_equipments()
-        data = equipment_paginated(like, request)
+        data = get_equipment_paginated(like, request)
         return Response(data, status=status.HTTP_200_OK)
 
 
@@ -693,21 +692,36 @@ class OrdersAndEquipmentsListAPIView(APIView):
             500: "Server error",
         }
     )
+    # def get_orders_and_equipments(self):
+    #     author = self.request.user.user_profile
+    #
+    #     equipments = Equipment.objects.filter(author=author).order_by('-created_at')
+    #     orders = Order.objects.filter(author=author).order_by('-created_at')
+    #
+    #     return equipments, orders
+    #
+    # def get(self, request, *args, **kwargs):
+    #     equipments, orders = self.get_orders_and_equipments()
+    #     services = {
+    #         'equipments': equipments,
+    #         'orders': orders,
+    #     }
+    #     data = get_order_or_equipment(services, request)
+    #     return Response(data, status=status.HTTP_200_OK)
     def get(self, request, *args, **kwargs):
         author = request.user.user_profile
         try:
-            orders = Order.objects.filter(author=author)
             equipments = Equipment.objects.filter(author=author)
+            orders = Order.objects.filter(author=author)
         except Exception as e:
-            return Response({"error": "Orders or Equipments does not exist"},
-                            status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Orders or Equipments does not exist"}, status=status.HTTP_404_NOT_FOUND)
 
-        orders_serializer = AllOrdersSerializer(orders, many=True)
         equipments_serializer = AllEquipmentsSerializer(equipments, many=True)
+        orders_serializer = AllOrdersSerializer(orders, many=True)
 
-        content = {
-            'orders': orders_serializer.data,
-            'equipments': equipments_serializer.data
+        data = {
+            'equipment': equipments_serializer.data,
+            'order': orders_serializer.data
         }
 
-        return Response(content, status=status.HTTP_200_OK)
+        return Response(data, status=status.HTTP_200_OK)

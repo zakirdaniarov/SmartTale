@@ -39,12 +39,14 @@ urlpatterns = [
     path('order-categories/', OrderCategoriesAPIView.as_view(), name='smarttale-order-categories'),
     path('orders-by-category/', OrdersByCategoryAPIView.as_view(), name='smarttale-order--by-categories'),
     path('liked-orders/', LikedByUserOrdersAPIView.as_view(), name='smarttale-liked-orders'),
+
     path('my-services/', OrdersAndEquipmentsListAPIView.as_view()),
     path('equipments/', EquipmentsListAPIView.as_view()),
     path('equipment/search/', EquipmentSearchAPIView.as_view()),
     path('equipment/create/', CreateEquipmentAPIView.as_view()),
     path('equipment/change/<str:equipment_slug>/', ChangeEquipmentAPIView.as_view()),
     path('equipment/delete/<str:equipment_slug>/', DeleteEquipmentAPIView.as_view()),
+
     path('equipments/like/<str:equipment_slug>/', EquipmentLikeAPIView.as_view()),
     path('hide-equipment/<str:equipment_slug>/', HideEquipmentAPIView.as_view()),
     path('sold-equipment/<str:equipment_slug>/', SoldEquipmentAPIView.as_view()),

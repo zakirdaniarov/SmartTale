@@ -125,7 +125,7 @@ class OrderPostAPI(ModelSerializer):
 
     def create(self, validated_data):
         images_data = validated_data.pop('images')
-        author = self.context['request'].user.user_profile
+        author = self.context['request'].user
         order = Order.objects.create(author=author, **validated_data)
         for image_data in images_data:
             OrderImages.objects.create(order=order, images=image_data)
@@ -156,7 +156,7 @@ class ReviewListAPI(ModelSerializer):
 class EquipmentImagesSerializer(serializers.ModelSerializer):
     class Meta:
         model = EquipmentImages
-        fields = '__all__'
+        fields = ['images']
 
 
 class EquipmentDetailSerializer(serializers.ModelSerializer):
@@ -169,8 +169,8 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Equipment
-        fields = ['id', 'title', 'category', 'images', 'uploaded_images', 'price', 'description',
-                  'phone_number', 'author', 'hide', 'sold']
+        fields = ['id', 'title', 'category', 'images', 'uploaded_images', 'price',
+                  'description', 'phone_number', 'author', 'hide', 'sold']
 
     def create(self, validated_data):
         images_data = validated_data.pop('uploaded_images')
@@ -186,6 +186,23 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         images_data = validated_data.pop('uploaded_images', [])
+
+        if images_data:
+            current_images = list(instance.images.all())
+
+            max_images = 5
+            if len(images_data) > max_images:
+                raise serializers.ValidationError(f"You can't add more then {max_images} images")
+
+            for image in current_images:
+                if image not in images_data:
+                    image.delete()
+
+            for image_data in images_data:
+                EquipmentImages.objects.update_or_create(equipment=instance, images=image_data)
+        else:
+            return instance
+
         instance.title = validated_data.pop('title', instance.title)
         instance.description = validated_data.pop('description', instance.description)
         instance.category = validated_data.pop('category', instance.category)
@@ -196,18 +213,6 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
         instance.sold = validated_data.pop('sold', instance.sold)
         instance.save()
 
-        current_images = list(instance.images.all())
-
-        max_images = 5
-        if len(images_data) > max_images:
-            raise serializers.ValidationError(f"You can't add more then {max_images} images")
-
-        for image in current_images:
-            if image not in images_data:
-                image.delete()
-
-        for image_data in images_data:
-            EquipmentImages.objects.update_or_create(equipment=instance, images=image_data)
         return instance
 
 

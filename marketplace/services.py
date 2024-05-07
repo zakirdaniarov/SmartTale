@@ -1,5 +1,6 @@
 from django.core.paginator import Paginator
 from .serializers import OrderListAPI, EquipmentSerializer
+from .models import Equipment
 
 
 def get_paginated_data(queryset, request, list_type):
@@ -23,7 +24,7 @@ def get_paginated_data(queryset, request, list_type):
     return data
 
 
-def equipment_paginated(queryset, request):
+def get_equipment_paginated(queryset, request):
     page_number = request.query_params.get('page', 1)
     max_page = request.query_params.get('limit', 10)
 
@@ -40,6 +41,33 @@ def equipment_paginated(queryset, request):
         'has_prev_page': page_obj.has_previous(),
         'next_page_number': page_obj.next_page_number() if page_obj.has_next() else None,
         'prev_page_number': page_obj.previous_page_number() if page_obj.has_previous() else None,
+    }
+
+    return data
+
+
+def get_order_or_equipment(queryset, request):
+    page_number = request.query_params.get('page', 1)
+    max_page = request.query_params.get('limit', 10)
+
+    paginator = Paginator(queryset, max_page)
+    page_objs = paginator.get_page(page_number)
+
+    order_serializer = OrderListAPI(page_objs, many=True, context={"request": request})
+
+    equipments_queryset = Equipment.objects.filter(order__in=page_objs.object_list)
+
+    equipments_serializer = EquipmentSerializer(equipments_queryset, many=True, context={"request": request})
+
+    data = {
+        'order': order_serializer.data,
+        'equipment': equipments_serializer.data,
+        'total_pages': paginator.num_pages,
+        'current_page': page_objs.number,
+        'has_next_page': page_objs.has_next(),
+        'has_prev_page': page_objs.has_previous(),
+        'next_page_number': page_objs.next_page_number() if page_objs.has_next() else None,
+        'prev_page_number': page_objs.previous_page_number() if page_objs.has_previous() else None
     }
 
     return data
