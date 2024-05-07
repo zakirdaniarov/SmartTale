@@ -387,7 +387,7 @@ class EquipmentsListAPIView(APIView):
                               "предостовляет пользователю"
                               "список оборудований",
         responses={
-            201: EquipmentDetailSerializer(),
+            201: EquipmentSerializer(),
             404: "Equipments does not exist",
             500: "Server error",
         }
@@ -396,12 +396,13 @@ class EquipmentsListAPIView(APIView):
         try:
             equipments = Equipment.objects.all()
         except Equipment.DoesNotExist:
-            return Response({"error": "Equipments does not exist"})
-        serializer = EquipmentSerializer(equipments, many=True, context={"request": request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response({"error": "Equipments does not exist"}, status=status.HTTP_404_NOT_FOUND)
+        equipment_serializer = EquipmentSerializer(equipments, many=True)
+        return Response(equipment_serializer.data, status=status.HTTP_200_OK)
 
 
 class CreateEquipmentAPIView(APIView):
+    permission_classes = [CurrentUserOrReadOnly]
 
     @swagger_auto_schema(
         tags=['Equipment create'],
