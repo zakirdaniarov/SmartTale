@@ -180,6 +180,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",
     "https://helsinki-backender.org.kg",
     "https://smart-tale.vercel.app",
+    "https://smart-tale-rho.vercel.app",
 ]
 CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
 CORS_ALLOW_CREDENTIALS = True
