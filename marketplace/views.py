@@ -1,6 +1,4 @@
-import datetime
-
-from django.utils.decorators import method_decorator
+from django.utils import timezone
 from rest_framework.generics import ListAPIView
 from rest_framework.views import Response, status, APIView
 from .models import Equipment, Order, Reviews, EquipmentCategory, OrderCategory, EquipmentImages, OrderImages
@@ -12,7 +10,7 @@ from authorization.models import UserProfile, Organization
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters
 from django_filters.rest_framework import FilterSet, DateFilter
-# from django.views.decorators.csrf import csrf_exempt
+from django.db.models import Q
 
 
 # Create your views here.
@@ -98,7 +96,7 @@ class MyOrgOrdersListView(BaseOrderListView):
 
 class MarketplaceOrdersListView(BaseOrderListView):
     def get_queryset(self):
-        return Order.objects.all().order_by('-created_at')
+        return Order.objects.all().exclude(status='Arrived').order_by('-created_at')
 
     def get_list_type(self):
         return "marketplace-orders"
@@ -108,7 +106,7 @@ class ReceivedOrderStatusAPIView(APIView):
     permission_classes = [IsAuthenticated]
     serializer_class = OrderListStatusAPI
 
-    def get(self, request, org_slug):
+    def get(self, request):
         user = request.user
         organization = user.user_profile.current_org
         if not organization:
@@ -172,6 +170,15 @@ class OrdersHistoryListView(BaseOrderListView):
             return None
 
 
+class LikedByUserOrdersAPIView(BaseOrderListView):
+    def get_queryset(self):
+        user = self.request.user
+        return user.user_profile.liked_orders.all().order_by('-created_at')
+
+    def get_list_type(self):
+        return "marketplace-orders"
+
+
 class OrdersByCategoryAPIView(APIView):
     def get(self, request):
         category_title = request.query_params.get('category')
@@ -181,18 +188,9 @@ class OrdersByCategoryAPIView(APIView):
         except OrderCategory.DoesNotExist:
             return Response({"message": "Category not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        queryset = Order.objects.filter(category=category).order_by('-created_at')
+        queryset = Order.objects.filter(category=category).exclude(status='Arrived').order_by('-created_at')
         data = get_paginated_data(queryset, request, "marketplace-orders")
         return Response(data, status=status.HTTP_200_OK)
-
-
-class LikedByUserOrdersAPIView(APIView):
-    def get_queryset(self):
-        user = self.request.user
-        return user.liked_orders.all().order_by('-created_at')
-
-    def get_list_type(self):
-        return "marketplace-orders"
 
 
 class OrderDetailAPIView(APIView):
@@ -201,14 +199,21 @@ class OrderDetailAPIView(APIView):
     def get(self, request, order_slug):
         try:
             order = Order.objects.get(slug=order_slug)
-        except Exception:
+        except Order.DoesNotExist:
             return Response({"Error": "Order is not found."}, status=status.HTTP_404_NOT_FOUND)
-        author = False
-        if request.user.user_profile == order.author:
-            author = True
-        serializer = OrderDetailAPI(order, context={'request': request,
-                                                    'author': author})
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        author = request.user.user_profile == order.author
+        order_api = OrderDetailAPI(order, context={'request': request, 'author': author})
+        content = {"Order Info": order_api.data}
+
+        try:
+            review = order.order_reviews
+            review_api = ReviewListAPI(review)
+            content["Review"] = review_api.data
+        except Reviews.DoesNotExist:
+            pass
+
+        return Response(content, status=status.HTTP_200_OK)
 
 
 class AddOrderAPIView(APIView):
@@ -276,7 +281,7 @@ class DeleteOrderAPIView(APIView):
             return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
         user = request.user
-        if user != order.author:
+        if user.user_profile != order.author:
             return Response({'Error':'User does not have permissions to hide this order.'},
                             status=status.HTTP_403_FORBIDDEN)
 
@@ -287,7 +292,7 @@ class DeleteOrderAPIView(APIView):
 class BookOrderAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, order_slug, org_slug):
+    def post(self, request, order_slug):
         try:
             order = Order.objects.get(slug=order_slug)
         except Order.DoesNotExist:
@@ -305,16 +310,19 @@ class BookOrderAPIView(APIView):
 
         order.org_work = organization
         order.is_booked = True
-        order.booked_at = datetime.now()
+        order.booked_at = timezone.now()
         order.save()
 
         return Response({"Success": "Order received successfully."}, status=status.HTTP_200_OK)
 
 
+STATUS = (('New', 'New'), ('Process', 'Process'), ('Checking', 'Checking'), ('Sending', 'Sending'), ('Arrived', 'Arrived'),)
+
+
 class UpdateOrderStatusAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, order_slug, org_slug):
+    def post(self, request, order_slug):
         try:
             order = Order.objects.get(slug=order_slug)
         except Order.DoesNotExist:
@@ -335,10 +343,31 @@ class UpdateOrderStatusAPIView(APIView):
             return Response({'Error':'The new status name is incorrect. The new status has to be one of'
                                      '["New", "Process", "Checking", "Sending", "Arrived"]'},
                             status=status.HTTP_403_FORBIDDEN)
-        order.status = order_status
+
+        # Check if the current status is "Arrived"; if so, do not allow status change
+        if order.status == "Arrived":
+            return Response({'Error': 'Cannot change the status of an order that is already "Arrived"'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        # Get the current index of the order's status in the STATUS choices
+        current_status_index = [statuses[0] for statuses in STATUS].index(order.status)
+
+        # Get the index of the new status in the STATUS choices
+        new_status_index = [statuses[0] for statuses in STATUS].index(order_status)
+
+        # Check if the new status is within one position (left or right) of the current status
+        if abs(current_status_index - new_status_index) != 1:
+            return Response({'Error': 'The new status must be one position (left or right) of the current status'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        # If the new status is "Arrived", set the finished_at timestamp
         if order_status == "Arrived":
-            order.finished_at = datetime.now()
+            order.finished_at = timezone.now()
+
+        # Update the order status and save
+        order.status = order_status
         order.save()
+
         return Response({"Success": "Order status changed successfully."}, status=status.HTTP_200_OK)
 
 
@@ -353,22 +382,31 @@ class LikeOrderAPIView(APIView):
 
         user = request.user
 
-        if user in order.liked_by.all():
-            order.liked_by.remove(user)
+        if user.user_profile in order.liked_by.all():
+            order.liked_by.remove(user.user_profile)
         else:
-            order.liked_by.add(user)
+            order.liked_by.add(user.user_profile)
+        order.save()
         return Response({"Message": "Order's favourite status is changed successfully."}, status=status.HTTP_200_OK)
 
 
 class SearchOrderAPIView(ListAPIView):
     permission_classes = [IsAuthenticated]
-    search_fields = ['title']
-    filter_backends = (filters.SearchFilter,)
 
     def get(self, request, *args, **kwargs):
-        queryset = Order.objects.all()
-        queryset = self.filter_queryset(queryset)
-        data = get_paginated_data(queryset, request, "marketplace-orders")
+        # Get the search query parameter from the request
+        search_query = request.query_params.get('title', None)
+
+        if search_query:
+            # Filter recipes based on search query
+            orders = Order.objects.filter(
+                Q(title__icontains=search_query)
+            )
+        else:
+            # If no search query provided, return all recipes
+            orders = Order.objects.none()
+
+        data = get_paginated_data(orders, request, "marketplace-orders")
         return Response(data, status=status.HTTP_200_OK)
 
 
@@ -381,10 +419,18 @@ class ReviewOrderAPIView(APIView):
             order = Order.objects.get(slug=order_slug)
         except Order.DoesNotExist:
             return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if order.status != "Arrived":
+            return Response({'Error': 'Review is possible only when the order status is "Arrived"'},
+                            status=status.HTTP_403_FORBIDDEN)
         user = request.user
-        serializer = self.serializer_class(data=request.data, order=order, reviewer=user)
+        if user.user_profile != order.author:
+            return Response({'Error':'User does not have permissions to review this order.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        serializer = self.serializer_class(data=request.data, context={'order': order, 'reviewer': user.user_profile})
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(order=order, reviewer=user.user_profile)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
