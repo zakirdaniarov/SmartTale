@@ -1,7 +1,7 @@
 from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
 from .models import Equipment, Order, Reviews, EquipmentCategory, OrderCategory, EquipmentImages, OrderImages
-
+from authorization.models import UserProfile
 
 class OrderCategoryListAPI(ModelSerializer):
     class Meta:
@@ -19,26 +19,36 @@ class OrderImageSerializer(serializers.ModelSerializer):
 
 
 class OrderDetailAPI(ModelSerializer):
-    author_name = serializers.ReadOnlyField(source='author.username')
+    author_first_name = serializers.ReadOnlyField(source='author.first_name')
+    author_last_name = serializers.ReadOnlyField(source='author.last_name')
     author_slug = serializers.ReadOnlyField(source='author.slug')
+    author_image = serializers.ReadOnlyField(source='author.profile_image.url')
     images = OrderImageSerializer(many=True, read_only=True)
     category_slug = serializers.ReadOnlyField(source='category.slug')
 
     class Meta:
         model = Order
-        fields = ['title', 'slug', 'author_name', 'author_slug', 'images', 'description', 'deadline', 'price',
+        fields = ['title', 'slug', 'author_first_name', 'author_last_name', 'author_slug', 'author_image', 'images', 'description', 'deadline', 'price',
                   'category_slug', 'phone_number', 'size', 'is_booked', 'hide', 'booked_at', 'created_at']
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
-        user = self.context['request'].user
-        representation['is_liked'] = instance.liked_by.filter(user=user).exists()
+        user = self.context['request'].user if self.context.get('request') else None
+        if user and not user.is_anonymous:
+            representation['is_liked'] = instance.liked_by.filter(user=user).exists()
+        else:
+            # If user is None or anonymous, set 'is_liked' to False
+            representation['is_liked'] = False
         representation['is_finished'] = (instance.status == 'Arrived')
         if not self.context['author']:
             representation.pop('hide')
             representation.pop('booked_at')
         else:
             representation.pop('is_liked')
+            representation.pop('author_first_name')
+            representation.pop('author_last_name')
+            representation.pop('author_slug')
+            representation.pop('author_image')
         return representation
 
 
@@ -68,8 +78,10 @@ class EquipmentImagesSerializer(serializers.ModelSerializer):
 
 
 class OrderListAPI(serializers.ModelSerializer):
-    author_name = serializers.ReadOnlyField(source='author.first_name')
+    author_first_name = serializers.ReadOnlyField(source='author.first_name')
+    author_last_name = serializers.ReadOnlyField(source='author.last_name')
     author_slug = serializers.ReadOnlyField(source='author.slug')
+    author_image = serializers.ReadOnlyField(source='author.profile_image.url')
     is_liked = serializers.SerializerMethodField()
     first_image = serializers.SerializerMethodField()
     is_finished = serializers.SerializerMethodField()
@@ -77,13 +89,18 @@ class OrderListAPI(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['title', 'slug', 'author_name', 'author_slug', 'category_slug', 'first_image', 'description',
+        fields = ['title', 'slug', 'author_first_name', 'author_last_name', 'author_slug', 'author_image', 'category_slug', 'first_image', 'description',
                   'price', 'is_liked', 'is_booked', 'booked_at', 'is_finished']
 
     def get_is_liked(self, instance):
-        user = self.context['request'].user
-        return instance.liked_by.filter(user=user).exists()
+        user = self.context['request'].user if self.context.get('request') else None
+        if user and not user.is_anonymous:
+            return instance.liked_by.filter(user=user).exists()
+        else:
+            # If user is None or anonymous, set 'is_liked' to False
+            return False
 
+        
     def get_first_image(self, instance):
         first_image = instance.images.first()
         if first_image:
@@ -98,21 +115,27 @@ class OrderListAPI(serializers.ModelSerializer):
         list_type = self.context.get('list_type')
 
         if list_type == "my-order-ads":
-            representation.pop('author_name')
+            representation.pop('author_first_name')
+            representation.pop('author_last_name')
             representation.pop('author_slug')
+            representation.pop('author_image')
             representation.pop('price')
         elif list_type == "my-received-orders":
             representation.pop('is_booked')
         elif list_type in ["my-history-orders-active", "my-history-orders-finished"]:
-            representation.pop('author_name')
+            representation.pop('author_first_name')
+            representation.pop('author_last_name')
             representation.pop('author_slug')
+            representation.pop('author_image')
             representation.pop('category_slug')
-            representation.pop('images')
+            representation.pop('first_image')
             representation.pop('description')
             representation.pop('is_booked')
-        elif list_type == "my-org-orders":
-            representation.pop('author_name')
+        elif list_type in ["my-org-orders", "orders-history-active", "orders-history-finished"]:
+            representation.pop('author_first_name')
+            representation.pop('author_last_name')
             representation.pop('author_slug')
+            representation.pop('author_image')
             representation.pop('is_liked')
             representation.pop('is_booked')
         elif list_type in ["marketplace-orders", "orders-history-active", "orders-history-finished"]:

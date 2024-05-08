@@ -1,9 +1,12 @@
+from datetime import datetime
+from itertools import chain
+
 from django.utils import timezone
 from rest_framework.generics import ListAPIView
 from rest_framework.views import Response, status, APIView
 from .models import Equipment, Order, Reviews, EquipmentCategory, OrderCategory, EquipmentImages, OrderImages
 from .serializers import *
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from .services import get_paginated_data
 from drf_yasg.utils import swagger_auto_schema
 from authorization.models import UserProfile, Organization
@@ -18,7 +21,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from .models import Equipment
-from .serializers import EquipmentSerializer, EquipmentDetailSerializer
+from .serializers import EquipmentDetailSerializer
 
 
 # Create your views here.
@@ -38,7 +41,6 @@ class OrderCategoriesAPIView(APIView):
 
 
 class BaseOrderListView(APIView):
-    permission_classes = [IsAuthenticated]
     serializer_class = OrderListAPI
 
     def get_queryset(self):
@@ -54,6 +56,8 @@ class BaseOrderListView(APIView):
 
 
 class MyOrderAdsListView(BaseOrderListView):
+    permission_classes = [IsAuthenticated]
+
     def get_queryset(self):
         return Order.objects.filter(author=self.request.user.user_profile).order_by('-created_at')
 
@@ -62,6 +66,8 @@ class MyOrderAdsListView(BaseOrderListView):
 
 
 class MyReceivedOrdersListView(BaseOrderListView):
+    permission_classes = [IsAuthenticated]
+
     def get_queryset(self):
         organization = self.request.user.user_profile.current_org
         return Order.objects.filter(org_work=organization).order_by('booked_at')
@@ -71,6 +77,8 @@ class MyReceivedOrdersListView(BaseOrderListView):
 
 
 class MyHistoryOrdersListView(BaseOrderListView):
+    permission_classes = [IsAuthenticated]
+
     def get_queryset(self):
         organization = self.request.user.user_profile.current_org
         status = self.request.query_params.get('status')
@@ -80,7 +88,7 @@ class MyHistoryOrdersListView(BaseOrderListView):
             return Order.objects.filter(org_work=organization, status='Finished').order_by('booked_at')
         else:
             # Handle invalid status parameter
-            return Order.objects.none()
+            return Order.objects.all()
 
     def get_list_type(self):
         status = self.request.query_params.get('status')
@@ -94,6 +102,8 @@ class MyHistoryOrdersListView(BaseOrderListView):
 
 
 class MyOrgOrdersListView(BaseOrderListView):
+    permission_classes = [IsAuthenticated]
+
     def get_queryset(self):
         organization = self.request.user.user_profile.current_org
         return Order.objects.filter(org_work=organization).order_by('-booked_at')
@@ -103,6 +113,8 @@ class MyOrgOrdersListView(BaseOrderListView):
 
 
 class MarketplaceOrdersListView(BaseOrderListView):
+    permission_classes = [AllowAny]
+
     def get_queryset(self):
         return Order.objects.all().exclude(status='Arrived').order_by('-created_at')
 
@@ -141,31 +153,34 @@ class ReceivedOrderStatusAPIView(APIView):
         return orders_data
 
 
-class OrderDateFilter(FilterSet):
-    min_booked_at = DateFilter(field_name='booked_at', lookup_expr='gte')
-
-    class Meta:
-        model = Order
-        fields = ['min_booked_at']
-
-
 class OrdersHistoryListView(BaseOrderListView):
+    permission_classes = [IsAuthenticated]
     serializer_class = OrderListAPI
-    filter_backends = [DjangoFilterBackend]
-    filterset_class = OrderDateFilter
 
     def get_queryset(self):
         organization = self.request.user.user_profile.current_org
         status = self.request.query_params.get('status')
+        min_booked_at = self.request.query_params.get('min_booked_at')
+
+        queryset = Order.objects.filter(org_work=organization)
+
         if status == 'active':
             # Return orders with statuses other than "Arrived"
-            return Order.objects.filter(org_work=organization).exclude(status='Arrived').order_by('booked_at')
+            queryset = queryset.exclude(status='Arrived')
         elif status == 'finished':
             # Return orders with status "Arrived"
-            return Order.objects.filter(org_work=organization, status='Arrived').order_by('booked_at')
-        else:
-            # Handle invalid status parameter or return all orders
-            return Order.objects.none()
+            queryset = queryset.filter(status='Arrived')
+
+        # Apply additional filtering based on min_booked_at
+        if min_booked_at:
+            # Convert min_booked_at string to a date object
+            min_booked_date = datetime.strptime(min_booked_at, '%Y-%m-%d').date()
+            # Filter orders where booked_at date is greater than or equal to min_booked_date
+            queryset = queryset.filter(booked_at__gte=min_booked_date)
+
+        # Apply default ordering
+        queryset = queryset.order_by('booked_at')
+        return queryset
 
     def get_list_type(self):
         status = self.request.query_params.get('status')
@@ -179,6 +194,7 @@ class OrdersHistoryListView(BaseOrderListView):
 
 
 class LikedByUserOrdersAPIView(BaseOrderListView):
+    permission_classes = [IsAuthenticated]
     def get_queryset(self):
         user = self.request.user
         return user.user_profile.liked_orders.all().order_by('-created_at')
@@ -188,6 +204,7 @@ class LikedByUserOrdersAPIView(BaseOrderListView):
 
 
 class OrdersByCategoryAPIView(APIView):
+    permission_classes = [AllowAny]
     def get(self, request):
         category_title = request.query_params.get('category')
 
@@ -202,7 +219,7 @@ class OrdersByCategoryAPIView(APIView):
 
 
 class OrderDetailAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request, order_slug):
         try:
@@ -210,7 +227,7 @@ class OrderDetailAPIView(APIView):
         except Order.DoesNotExist:
             return Response({"Error": "Order is not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        author = request.user.user_profile == order.author
+        author = request.user.is_authenticated and request.user.user_profile == order.author
         order_api = OrderDetailAPI(order, context={'request': request, 'author': author})
         content = {"Order Info": order_api.data}
 
@@ -399,7 +416,7 @@ class LikeOrderAPIView(APIView):
 
 
 class SearchOrderAPIView(ListAPIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request, *args, **kwargs):
         # Get the search query parameter from the request
