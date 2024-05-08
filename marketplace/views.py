@@ -695,36 +695,20 @@ class OrdersAndEquipmentsListAPIView(APIView):
             500: "Server error",
         }
     )
-    # def get_orders_and_equipments(self):
-    #     author = self.request.user.user_profile
-    #
-    #     equipments = Equipment.objects.filter(author=author).order_by('-created_at')
-    #     orders = Order.objects.filter(author=author).order_by('-created_at')
-    #
-    #     return equipments, orders
-    #
-    # def get(self, request, *args, **kwargs):
-    #     equipments, orders = self.get_orders_and_equipments()
-    #     services = {
-    #         'equipments': equipments,
-    #         'orders': orders,
-    #     }
-    #     data = get_order_or_equipment(services, request)
-    #     return Response(data, status=status.HTTP_200_OK)
+    def get_orders_and_equipments(self):
+        author = self.request.user.user_profile
+
+        equipments = Equipment.objects.filter(author=author).order_by('-created_at')
+        orders = Order.objects.filter(author=author).order_by('-created_at')
+
+        services_queryset = list(equipments) + list(orders)
+
+        return services_queryset
+
+    def get_orders_and_equipments_type(self):
+        return 'orders-and-equipments-type'
+
     def get(self, request, *args, **kwargs):
-        author = request.user.user_profile
-        try:
-            equipments = Equipment.objects.filter(author=author)
-            orders = Order.objects.filter(author=author)
-        except Exception as e:
-            return Response({"error": "Orders or Equipments does not exist"}, status=status.HTTP_404_NOT_FOUND)
-
-        equipments_serializer = AllEquipmentsSerializer(equipments, many=True)
-        orders_serializer = AllOrdersSerializer(orders, many=True)
-
-        data = {
-            'equipment': equipments_serializer.data,
-            'order': orders_serializer.data
-        }
-
+        services = self.get_orders_and_equipments()
+        data = get_order_or_equipment(services, request, self.get_orders_and_equipments_type())
         return Response(data, status=status.HTTP_200_OK)

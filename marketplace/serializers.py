@@ -259,7 +259,7 @@ class EquipmentSerializer(serializers.ModelSerializer):
         return representation
 
 
-class AllEquipmentsSerializer(serializers.ModelSerializer):
+class MyEquipmentsSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
     service = serializers.SerializerMethodField()
 
@@ -276,8 +276,20 @@ class AllEquipmentsSerializer(serializers.ModelSerializer):
     def get_service(self, instance):
         return "Оборудование"
 
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        services = self.context.get('orders_and_equipments_type')
 
-class AllOrdersSerializer(serializers.ModelSerializer):
+        if services == "orders-and-equipments-type":
+            representation.pop('title')
+            representation.pop('description')
+            representation.pop('service')
+            representation.pop('image')
+
+        return representation
+
+
+class MyOrdersSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
     service = serializers.SerializerMethodField()
 
@@ -293,3 +305,15 @@ class AllOrdersSerializer(serializers.ModelSerializer):
 
     def get_service(self, instance):
         return "Заказ"
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        services = self.context.get('orders_and_equipments_type')
+
+        if services == "orders-and-equipments-type":
+            representation.pop('title')
+            representation.pop('description')
+            representation.pop('service')
+            representation.pop('image')
+
+        return representation
