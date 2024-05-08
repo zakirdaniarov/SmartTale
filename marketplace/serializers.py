@@ -243,9 +243,16 @@ class EquipmentSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
-        likes = self.context.get('like_equipments')
+        equipments = self.context.get('equipments_type')
 
-        if likes == 'my-like-equipments':
+        if equipments == 'my-like-equipments':
+            representation.pop('author')
+            representation.pop('liked')
+        elif equipments == 'equipments-list':
+            representation.pop('title')
+            representation.pop('slug')
+            representation.pop('price')
+            representation.pop('image')
             representation.pop('author')
             representation.pop('liked')
 

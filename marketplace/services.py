@@ -24,14 +24,14 @@ def get_paginated_data(queryset, request, list_type):
     return data
 
 
-def get_equipment_paginated(queryset, request):
+def get_equipment_paginated(queryset, request, equipment_type):
     page_number = request.query_params.get('page', 1)
     max_page = request.query_params.get('limit', 10)
 
     paginator = Paginator(queryset, max_page)
     page_obj = paginator.get_page(page_number)
 
-    serializer = EquipmentSerializer(page_obj, many=True, context={'request': request})
+    serializer = EquipmentSerializer(page_obj, many=True, context={'request': request, 'equipment_type': equipment_type})
 
     data = {
         'data': serializer.data,

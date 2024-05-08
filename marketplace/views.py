@@ -379,8 +379,6 @@ class ReviewOrderAPIView(APIView):
 
 
 class EquipmentsListAPIView(APIView):
-    permission_classes = [IsAuthenticated]
-
     @swagger_auto_schema(
         tags=['Equipments list'],
         operation_description="Этот эндпоинт"
@@ -392,13 +390,20 @@ class EquipmentsListAPIView(APIView):
             500: "Server error",
         }
     )
-    def get(self, request, *args, **kwargs):
+    def get_equipments(self):
         try:
-            equipments = Equipment.objects.all()
+            equipments = Equipment.objects.all().order_by('-created_at')
         except Equipment.DoesNotExist:
-            return Response({"error": "Equipments does not exist"}, status=status.HTTP_404_NOT_FOUND)
-        equipment_serializer = EquipmentSerializer(equipments, many=True)
-        return Response(equipment_serializer.data, status=status.HTTP_200_OK)
+            return Response({"error": "Equipments does not exist"})
+        return equipments
+
+    def get_equipments_type(self):
+        return 'equipments-list'
+
+    def get(self, request, *args, **kwargs):
+        equipments = self.get_equipments()
+        data = get_equipment_paginated(equipments, request, self.get_equipments_type())
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class CreateEquipmentAPIView(APIView):
@@ -486,7 +491,6 @@ class DeleteEquipmentAPIView(APIView):
 
 
 class EquipmentSearchAPIView(APIView):
-    permission_classes = [IsAuthenticated]
     filter_backends = [SearchFilter]
     search_fields = ['title']
 
@@ -513,8 +517,6 @@ class EquipmentSearchAPIView(APIView):
 
 
 class EquipmentDetailPageAPIView(APIView):
-    permission_classes = [IsAuthenticated]
-
     @swagger_auto_schema(
         tags=['Equipment detail'],
         operation_description="Этот эндпоинт"
@@ -596,12 +598,12 @@ class EquipmentByAuthorLikeAPIView(APIView):
         author = self.request.user.user_profile
         return author.liked_equipment.all().order_by('-created_at')
 
-    def get_like_equipments(self):
+    def get_equipments_type(self):
         return "my-like-equipments"
 
     def get(self, request, *args, **kwargs):
         like = self.get_liked_equipments()
-        data = get_equipment_paginated(like, request)
+        data = get_equipment_paginated(like, request, self.get_equipments_type())
         return Response(data, status=status.HTTP_200_OK)
 
 
