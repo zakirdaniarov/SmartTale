@@ -61,3 +61,14 @@ resend_swagger = {
     'response': None
 }
 
+logout_swagger = {
+    'parameters': None,
+    'request_body': RefreshTokenSerializer,
+    'response': None
+}
+
+delete_swagger = {
+    'parameters': None,
+    'request_body': RefreshTokenSerializer,
+    'response': None
+}

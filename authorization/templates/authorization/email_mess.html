@@ -3,16 +3,55 @@
 
 <head>
 	<title>Подтверждение регистрации</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link
+		href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap"
+		rel="stylesheet">
+	<style>
+		body {
+			font-family: "Poppins", sans-serif;
+			margin: 0;
+			padding: 0;
+			background-color: #f4f4f4;
+		}
+
+		.container {
+			width: 80%;
+			margin: auto;
+			background-color: #fff;
+			padding: 20px;
+		}
+
+		.header {
+			background-color: #fc0;
+			color: #000;
+			padding: 10px;
+			text-align: center;
+			font-weight: 500;
+		}
+
+		a {
+			display: inline-block;
+			background-color: #fc0;
+			color: #fff;
+			padding: 10px;
+			text-decoration: none;
+			margin: 10px 0;
+		}
+	</style>
 </head>
 
 <body>
-	<div>
-		<h1>Добро пожаловать в наше приложение!</h1>
-		<p>Привет!</p>
-		<p>Благодарим вас за регистрацию в нашем приложении. Пожалуйста, подтвердите свою учетную запись, перейдя по
-			введя следующий код: {{user_code}}</p>
+	<div class="container">
+		<div class="header">
+			<h1>Добро пожаловать в Smart Tale</h1>
+		</div>
+		<p>Привет, {{user_name}}!</p>
+		<p>Благодарим вас за регистрацию в нашем сайте. Код для подтверждения аккаунта:</p>
+		<h2>{{user_code}}</h2>
 		<p>Если вы не регистрировались в нашем приложении, просто проигнорируйте это письмо.</p>
-		<p>С уважением, <br>SmartTale.</p>
+		<p>С уважением,<br>разработчики Smart Tale</p>
 	</div>
 </body>
 

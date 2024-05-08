@@ -31,6 +31,8 @@ DEBUG = config("DEBUG", cast = bool)
 ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
+    '128.199.132.166 ',
+    'helsinki-backender.org.kg',
 ]
 
 # Application definition
@@ -178,33 +180,28 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "https://helsinki-backender.org.kg",
+    "https://smart-tale.vercel.app",
+    "https://smart-tale-rho.vercel.app",
 ]
 CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
 CORS_ALLOW_CREDENTIALS = True
 
-CSRF_COOKIE_SECURE = False
-CSRF_COOKIE_HTTP_ONLY = True
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
-]
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SAMESITE = 'Lax'
-SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_TRUSTED_ORIGINS = ['https://helsinki-backender.org.kg']
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'authorization.authenticate.CustomAuthentication',
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
 }
 
 AUTH_USER_MODEL = 'authorization.User'
 
 SIMPLE_JWT = {
-  'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
-  'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+  'ACCESS_TOKEN_LIFETIME': timedelta(minutes = 30),
+  'REFRESH_TOKEN_LIFETIME': timedelta(days = 7),
   'ROTATE_REFRESH_TOKENS': True,
   'BLACKLIST_AFTER_ROTATION': True,
   'UPDATE_LAST_LOGIN': False,
@@ -227,16 +224,8 @@ SIMPLE_JWT = {
   'JTI_CLAIM': 'jti',
 
   'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
-  'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
-  'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
-
-  
-  'AUTH_COOKIE': 'access_token',  
-  'AUTH_COOKIE_REFRESH': 'refresh_token',
-  'AUTH_COOKIE_SECURE': False,    
-  'AUTH_COOKIE_HTTP_ONLY' : True, 
-  'AUTH_COOKIE_PATH': '/',        
-  'AUTH_COOKIE_SAMESITE': 'Lax',  
+  'SLIDING_TOKEN_LIFETIME': timedelta(minutes=30),
+  'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=7), 
 }
 
 SWAGGER_SETTINGS = {

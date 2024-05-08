@@ -17,6 +17,7 @@ def create_token_and_send_to_email(user):
         user_code.code = code
         user_code.save()
     data = {'code': user_code.code,
+            'user_name': user.user_profile.first_name,
             'email_subject': 'Verify your email',
             'to_email': user.email}
     html = 'authorization/email_mess.html'
@@ -25,6 +26,10 @@ def create_token_and_send_to_email(user):
 def get_tokens_for_user(user):
     refresh = RefreshToken.for_user(user)
     return {
-        'refresh_token': str(refresh),
-        'access_token': str(refresh.access_token),
+        'refresh': str(refresh),
+        'access': str(refresh.access_token),
     }
+    
+def destroy_token(refresh_token):
+    token = RefreshToken(refresh_token)
+    token.blacklist()

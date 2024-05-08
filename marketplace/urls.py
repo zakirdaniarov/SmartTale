@@ -8,6 +8,8 @@ from .views import (
                     HideOrderAPIView, DeleteOrderAPIView, ReceivedOrderStatusAPIView,
                     LikedByUserOrdersAPIView, UpdateOrderAPIView, LikeOrderAPIView,
                     SearchOrderAPIView, ReviewOrderAPIView,
+                    EquipmentsListAPIView, EquipmentDetailPageAPIView,
+                    CreateEquipmentAPIView, EquipmentSearchAPIView
 )
 
 
@@ -34,5 +36,8 @@ urlpatterns = [
     path('order-categories/', OrderCategoriesAPIView.as_view(), name='smarttale-order-categories'),
     path('orders-by-category/', OrdersByCategoryAPIView.as_view(), name='smarttale-order--by-categories'),
     path('liked-orders/', LikedByUserOrdersAPIView.as_view(), name='smarttale-liked-orders'),
+    path('equipments/', EquipmentsListAPIView.as_view()),
+    path('equipments/search/', EquipmentSearchAPIView.as_view()),
+    path('equipments/create/', CreateEquipmentAPIView.as_view()),
+    path('equipments/<str:equipment_slug>/', EquipmentDetailPageAPIView.as_view()),
 ]
-
