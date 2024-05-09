@@ -981,11 +981,11 @@ class EquipmentSearchAPIView(APIView):
     def get(self, request, *args, **kwargs):
         try:
             search_query = request.query_params.get('search', '')
-            equipment = Equipment.objects.filter(title__icontains=search_query)
+            equipments = Equipment.objects.filter(title__icontains=search_query)
         except Equipment.DoesNotExist:
             return Response({"error": "Equipment does not exist"}, status=status.HTTP_404_NOT_FOUND)
-        equipment_serializer = EquipmentSerializer(equipment, many=True, context={"request": request})
-        return Response(equipment_serializer.data, status=status.HTTP_200_OK)
+        search_equipments = get_equipment_paginated(equipments, request, "equipments-list")
+        return Response(search_equipments, status=status.HTTP_200_OK)
 
 
 class EquipmentDetailPageAPIView(APIView):
