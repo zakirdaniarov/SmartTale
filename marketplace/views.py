@@ -1019,9 +1019,9 @@ class EquipmentLikeAPIView(APIView):
                               "предостовляет пользователю"
                               "возможность поставить"
                               "лайк определенному оборудованию",
-        responses={
-            200: EquipmentSerializer(),
-            400: ["Error when removing like", "Error when adding like"],
+        responses = {
+            200: EquipmentSerializer,
+            400: "Error when removing like or error when adding like",
             404: "Equipment does not exist",
             500: "Server error",
         }
@@ -1089,8 +1089,8 @@ class HideEquipmentAPIView(APIView):
                               "возможность скрыть"
                               "свои оборудования",
         responses={
-            200: EquipmentSerializer(),
-            400: ["Only the author can hide the equipment", "Error when hiding equipment"],
+            200: EquipmentSerializer,
+            400: "Only the author can hide the equipment or error when hiding equipment",
             404: "Equipment does not exist",
             500: "Server error",
         }
@@ -1128,7 +1128,7 @@ class SoldEquipmentAPIView(APIView):
                               "купить оборудование",
         responses={
             200: "Equipment is available for purchase",
-            400: ["Equipment has already been sold", "You cannot buy your own equipment"],
+            400: "Equipment has already been sold or you are trying to buy your own equipment",
             404: "Equipment does not exist",
             500: "Server error",
         }
