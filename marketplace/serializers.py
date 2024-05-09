@@ -248,11 +248,18 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
         child=serializers.ImageField(max_length=100000, allow_empty_file=False, use_url=False),
         write_only=True
     )
+    sale_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Equipment
         fields = ['id', 'title', 'category', 'images', 'uploaded_images', 'price',
-                  'description', 'phone_number', 'author', 'hide', 'sold']
+                  'description', 'phone_number', 'author', 'hide', 'sale_status']
+
+    def get_sale_status(self, instance):
+        sale_status = instance.sold
+        if sale_status:
+            return "Equipment sold"
+        return "Equipment available"
 
     def create(self, validated_data):
         images_data = validated_data.pop('uploaded_images')
@@ -308,6 +315,7 @@ class ReviewPostAPI(ModelSerializer):
         reviewer = validated_data.pop('reviewer')
         review = Reviews.objects.create(order=order, reviewer=reviewer, **validated_data)
         return review
+
 
 class EquipmentSerializer(serializers.ModelSerializer):
     author = AuthorSerializer(read_only=True)

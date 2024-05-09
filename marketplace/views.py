@@ -5,7 +5,7 @@ from rest_framework.generics import ListAPIView
 from .models import Equipment, Order, Reviews, EquipmentCategory, OrderCategory, EquipmentImages, OrderImages
 from .serializers import *
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from .services import get_paginated_data
+from .services import get_paginated_data, get_equipment_paginated, get_order_or_equipment
 from drf_yasg.utils import swagger_auto_schema
 from authorization.models import UserProfile, Organization
 from django.db.models import Q
@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import Equipment
 from .serializers import EquipmentDetailSerializer
+from .permissions import CurrentUserOrReadOnly
 
 
 # Create your views here.
@@ -980,11 +981,11 @@ class EquipmentSearchAPIView(APIView):
     def get(self, request, *args, **kwargs):
         try:
             search_query = request.query_params.get('search', '')
-            equipment = Equipment.objects.filter(title__icontains=search_query)
+            equipments = Equipment.objects.filter(title__icontains=search_query)
         except Equipment.DoesNotExist:
             return Response({"error": "Equipment does not exist"}, status=status.HTTP_404_NOT_FOUND)
-        equipment_serializer = EquipmentSerializer(equipment, many=True, context={"request": request})
-        return Response(equipment_serializer.data, status=status.HTTP_200_OK)
+        search_equipments = get_equipment_paginated(equipments, request, "equipments-list")
+        return Response(search_equipments, status=status.HTTP_200_OK)
 
 
 class EquipmentDetailPageAPIView(APIView):
