@@ -5,7 +5,7 @@ from rest_framework.generics import ListAPIView
 from .models import Equipment, Order, Reviews, EquipmentCategory, OrderCategory, EquipmentImages, OrderImages
 from .serializers import *
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from .services import get_paginated_data
+from .services import get_paginated_data, get_equipment_paginated, get_order_or_equipment
 from drf_yasg.utils import swagger_auto_schema
 from authorization.models import UserProfile, Organization
 from django.db.models import Q
@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import Equipment
 from .serializers import EquipmentDetailSerializer
+from .permissions import CurrentUserOrReadOnly
 
 
 # Create your views here.

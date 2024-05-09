@@ -309,6 +309,7 @@ class ReviewPostAPI(ModelSerializer):
         review = Reviews.objects.create(order=order, reviewer=reviewer, **validated_data)
         return review
 
+
 class EquipmentSerializer(serializers.ModelSerializer):
     author = AuthorSerializer(read_only=True)
     image = serializers.SerializerMethodField()
