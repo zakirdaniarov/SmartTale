@@ -140,7 +140,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'ru-ru'
 
+<<<<<<< HEAD
+TIME_ZONE = 'Asia/Bishkek'
+=======
 TIME_ZONE = 'Europe/Moscow'
+>>>>>>> 7c2952693b63d5c4fdb872733d7b546d4020939a
 
 USE_I18N = True
 
@@ -158,12 +162,26 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+<<<<<<< HEAD
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': config('CLOUD_NAME'),
+    'API_KEY': config('API_KEY'),
+    'API_SECRET': config('API_SECRET'),
+}
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
+AUTH_USER_MODEL = "authorization.User"
+=======
 # Cloudinary settings
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': config('CLOUD_NAME'),
     'API_KEY': config('CLOUD_API_KEY'),
     'API_SECRET': config('CLOUD_API_SECRET')
 }
+>>>>>>> 7c2952693b63d5c4fdb872733d7b546d4020939a
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 # Email settings
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -195,7 +213,6 @@ REST_FRAMEWORK = {
     ],
 }
 
-AUTH_USER_MODEL = 'authorization.User'
 
 SIMPLE_JWT = {
   'ACCESS_TOKEN_LIFETIME': timedelta(minutes = 30),

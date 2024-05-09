@@ -20,7 +20,7 @@ class Equipment(models.Model):
     description = models.TextField(max_length=1000, null=True)
     phone_number = models.CharField(max_length=20)
     author = models.ForeignKey(UserProfile, related_name='equipment_ads', on_delete=models.CASCADE)
-    liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_equipments')
+    liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_equipment')
     hide = models.BooleanField(default=False)
     sold = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -61,7 +61,7 @@ class Order(models.Model):
     hide = models.BooleanField(default=False)
     is_booked = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=STATUS, default='New')
-    liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_orders')
+    liked_by = models.ManyToManyField(UserProfile, null=True, blank=True, related_name='liked_orders')
     author = models.ForeignKey(UserProfile, related_name='order_ads', on_delete=models.CASCADE)
     org_work = models.ForeignKey(Organization, related_name='received_orders', blank=True, null=True, on_delete=models.DO_NOTHING)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -83,6 +83,7 @@ class OrderImages(models.Model):
 
 class Reviews(models.Model):
     order = models.OneToOneField(Order, related_name='order_reviews', on_delete=models.CASCADE)
+    equipment = models.OneToOneField(Equipment, related_name='equipment_reviews', on_delete=models.CASCADE)
     reviewer = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='reviews')
     review_text = models.TextField()
     rating = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)], default=0)
