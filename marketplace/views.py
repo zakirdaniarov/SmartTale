@@ -690,7 +690,7 @@ class OrdersAndEquipmentsListAPIView(APIView):
                               "предостовляет пользователю"
                               "свои заказы и оборудования",
         responses={
-            200: "Orders and equipments list",
+            200: [MyOrdersSerializer, MyEquipmentsSerializer],
             404: "Orders or Equipments does not exist",
             500: "Server error",
         }
