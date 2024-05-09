@@ -14,6 +14,7 @@ class EmailUtil:
     def send_email(data, html):
         context = {
             'user_code': data['code'],
+            'user_name': data['user_name'],
         }
         html_content = render_to_string(
             html, context = context

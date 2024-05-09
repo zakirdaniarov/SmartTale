@@ -6,8 +6,15 @@ from operator import attrgetter
 from .utils import LowercaseEmailField
 
 GENDER_CHOICES = (
-        ('Male', 'Male'),
-        ('Female', 'Female'),
+    ('Мужской', 'Мужской'),
+    ('Женский', 'Женский'),
+)
+
+SUBCRIPTION_CHOICES = (
+    ('Тест-драйв', 'Тест-драйв'),
+    ('Базовый', 'Базовый'),
+    ('Премиум', 'Премиум'),
+    ('Нет подписки', 'Нет подписки'),
 )
 
 def get_populate_from(instance):
@@ -49,6 +56,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 class UserProfile(models.Model):
     AUTOSLUG_FIELDS = ("last_name", "first_name")
 
+<<<<<<< HEAD
     user = models.OneToOneField(User, verbose_name='user', related_name='user_profile', on_delete=models.CASCADE)
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
@@ -61,12 +69,31 @@ class UserProfile(models.Model):
     phone_number = models.CharField(max_length=20, blank=True, null=True, default=None)
     subscription = models.DateTimeField(blank=True, null=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True)
+=======
+    user = models.OneToOneField(User, verbose_name = 'user', related_name = 'user_profile', on_delete = models.CASCADE)
+    first_name = models.CharField(max_length = 50)
+    last_name = models.CharField(max_length = 50)
+    middle_name = models.CharField(max_length = 50)
+    profile_image = models.ImageField(upload_to = 'smarttale/user_profile', blank = True, null = True, max_length = 500)
+    slug = AutoSlugField(populate_from = get_populate_from,
+                         unique_with = ['first_name', 'last_name'], always_update = True)
+    gender = models.CharField(max_length = 7, choices = GENDER_CHOICES, blank = True, null = True, default = None)
+    birthday = models.DateField(null = True, default = None)
+    phone_number = models.CharField(max_length = 20, blank = True, null = True, default = None)
+    subscription = models.DateTimeField(blank = True, null = True, default = None)
+    sub_type = models.CharField(max_length = 15, choices = SUBCRIPTION_CHOICES, default = 'Нет подписки')
+    created_at = models.DateTimeField(auto_now_add = True)
+>>>>>>> 7c2952693b63d5c4fdb872733d7b546d4020939a
 
     current_org = models.OneToOneField('Organization', related_name='current_member',
                                        blank=True, null=True, on_delete=models.SET_NULL)
 
+<<<<<<< HEAD
 
 def __str__(self):
+=======
+    def __str__(self):
+>>>>>>> 7c2952693b63d5c4fdb872733d7b546d4020939a
         return f"Name: {self.last_name} {self.first_name}; Email: {self.user}; Slug: {self.slug}"
 
 class ConfirmationCode(models.Model):
@@ -83,10 +110,9 @@ class Organization(models.Model):
     title = models.CharField(max_length = 100)
     slug = AutoSlugField(populate_from = 'title', unique = True, always_update = True)
     phone_number = models.CharField(max_length = 20, blank = True, null = True, default = None)
-    subscription = models.DateTimeField(blank = True, null = True, default = None)
     description = models.TextField()
     active = models.BooleanField(default = False)
     created_at = models.DateTimeField(auto_now_add = True)
 
     def __str__(self):
-        return f"Title: {self.title}; Email: {self.user}; Slug: {self.slug}"
+        return f"Title: {self.title}; Email: {self.founder.user.email}; Slug: {self.slug}"

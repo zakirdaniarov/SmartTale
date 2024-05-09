@@ -34,11 +34,20 @@ schema_view = get_schema_view(
    permission_classes=[permissions.AllowAny]
 )
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 7c2952693b63d5c4fdb872733d7b546d4020939a
 urlpatterns = [
     re_path(r'^api/swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
     re_path(r'^api/swagger/$', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     re_path(r'^api/redoc/$', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     path('admin/', admin.site.urls),
+<<<<<<< HEAD
     path('marketplace/', include('marketplace.urls')),
     path('', include('authorization.urls')),
+=======
+    path('', include('authorization.urls')),
+    path('', include('marketplace.urls')),
+>>>>>>> 7c2952693b63d5c4fdb872733d7b546d4020939a
 ]
