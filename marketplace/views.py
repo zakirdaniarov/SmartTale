@@ -283,36 +283,36 @@ class ReceivedOrderStatusAPIView(APIView):
         return orders_data
 
 
-class OrdersHistoryListView(BaseOrderListView):
-    permission_classes = [IsAuthenticated]
-    serializer_class = OrderListAPI
-    filter_backends = [DjangoFilterBackend]
-    filterset_class = OrderDateFilter
+# class OrdersHistoryListView(BaseOrderListView):
+#     permission_classes = [IsAuthenticated]
+#     serializer_class = OrderListAPI
+#     filter_backends = [DjangoFilterBackend]
+#     filterset_class = OrderDateFilter
 
-    def get_queryset(self):
-        organization = self.request.user.user_profile.current_org
-        status = self.request.query_params.get('status')
-        min_booked_at = self.request.query_params.get('min_booked_at')
+#     def get_queryset(self):
+#         organization = self.request.user.user_profile.current_org
+#         status = self.request.query_params.get('status')
+#         min_booked_at = self.request.query_params.get('min_booked_at')
 
-        queryset = Order.objects.filter(org_work=organization)
+#         queryset = Order.objects.filter(org_work=organization)
 
-        if status == 'active':
-            # Return orders with statuses other than "Arrived"
-            queryset = queryset.exclude(status='Arrived')
-        elif status == 'finished':
-            # Return orders with status "Arrived"
-            queryset = queryset.filter(status='Arrived')
+#         if status == 'active':
+#             # Return orders with statuses other than "Arrived"
+#             queryset = queryset.exclude(status='Arrived')
+#         elif status == 'finished':
+#             # Return orders with status "Arrived"
+#             queryset = queryset.filter(status='Arrived')
 
-        # Apply additional filtering based on min_booked_at
-        if min_booked_at:
-            # Convert min_booked_at string to a date object
-            min_booked_date = datetime.strptime(min_booked_at, '%Y-%m-%d').date()
-            # Filter orders where booked_at date is greater than or equal to min_booked_date
-            queryset = queryset.filter(booked_at__gte=min_booked_date)
+#         # Apply additional filtering based on min_booked_at
+#         if min_booked_at:
+#             # Convert min_booked_at string to a date object
+#             min_booked_date = datetime.strptime(min_booked_at, '%Y-%m-%d').date()
+#             # Filter orders where booked_at date is greater than or equal to min_booked_date
+#             queryset = queryset.filter(booked_at__gte=min_booked_date)
 
-        # Apply default ordering
-        queryset = queryset.order_by('booked_at')
-        return queryset
+#         # Apply default ordering
+#         queryset = queryset.order_by('booked_at')
+#         return queryset
 
     def get_list_type(self):
         status = self.request.query_params.get('status')
