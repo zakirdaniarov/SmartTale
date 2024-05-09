@@ -1,25 +1,18 @@
 from datetime import datetime
-from itertools import chain
-
 from django.utils import timezone
+from drf_yasg import openapi
 from rest_framework.generics import ListAPIView
-from rest_framework.views import Response, status, APIView
 from .models import Equipment, Order, Reviews, EquipmentCategory, OrderCategory, EquipmentImages, OrderImages
 from .serializers import *
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .services import get_paginated_data
 from drf_yasg.utils import swagger_auto_schema
 from authorization.models import UserProfile, Organization
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import filters
-from django_filters.rest_framework import FilterSet, DateFilter
 from django.db.models import Q
-
 from rest_framework.filters import SearchFilter
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-
 from .models import Equipment
 from .serializers import EquipmentDetailSerializer
 
@@ -30,8 +23,9 @@ class OrderCategoriesAPIView(APIView):
 
     @swagger_auto_schema(
         operation_summary="Displaying lists of order categories",
-        description="This endpoint allows you to get information about various order categories",
-
+        operation_description="This endpoint allows you to get information about various order categories",
+        responses={200: OrderCategoryListAPI},
+        tags=["Order"]
     )
     def get(self, request):
         categories = OrderCategory.objects.all()
@@ -41,7 +35,6 @@ class OrderCategoriesAPIView(APIView):
 
 
 class BaseOrderListView(APIView):
-    serializer_class = OrderListAPI
 
     def get_queryset(self):
         raise NotImplementedError("Subclasses must implement get_queryset method.")
@@ -57,6 +50,7 @@ class BaseOrderListView(APIView):
 
 class MyOrderAdsListView(BaseOrderListView):
     permission_classes = [IsAuthenticated]
+    serializer_class = OrderListAPI
 
     def get_queryset(self):
         return Order.objects.filter(author=self.request.user.user_profile).order_by('-created_at')
@@ -64,9 +58,19 @@ class MyOrderAdsListView(BaseOrderListView):
     def get_list_type(self):
         return "my-order-ads"
 
+    @swagger_auto_schema(
+        operation_summary="List of orders created by the current user",
+        operation_description="Retrieve a list of orders created by the current authenticated user.",
+        responses={200: serializer_class},
+        tags=["Order List"]
+    )
+    def get(self, request):
+        return super().get(request)
+
 
 class MyReceivedOrdersListView(BaseOrderListView):
     permission_classes = [IsAuthenticated]
+    serializer_class = OrderListAPI
 
     def get_queryset(self):
         organization = self.request.user.user_profile.current_org
@@ -75,9 +79,19 @@ class MyReceivedOrdersListView(BaseOrderListView):
     def get_list_type(self):
         return "my-received-orders"
 
+    @swagger_auto_schema(
+        operation_summary="List of orders received by the current user's organization",
+        operation_description="Retrieve a list of orders received by the current authenticated user's organization.",
+        responses={200: serializer_class},
+        tags=["Order List"]
+    )
+    def get(self, request):
+        return super().get(request)
+
 
 class MyHistoryOrdersListView(BaseOrderListView):
     permission_classes = [IsAuthenticated]
+    serializer_class = OrderListAPI
 
     def get_queryset(self):
         organization = self.request.user.user_profile.current_org
@@ -100,9 +114,19 @@ class MyHistoryOrdersListView(BaseOrderListView):
             # Handle invalid status parameter
             return None
 
+    @swagger_auto_schema(
+        operation_summary="List of received orders for the current user org",
+        operation_description="Retrieve a list of received orders for the current authenticated user org.",
+        responses={200: serializer_class},
+        tags=["Order List"]
+    )
+    def get(self, request):
+        return super().get(request)
+
 
 class MyOrgOrdersListView(BaseOrderListView):
     permission_classes = [IsAuthenticated]
+    serializer_class = OrderListAPI
 
     def get_queryset(self):
         organization = self.request.user.user_profile.current_org
@@ -111,9 +135,19 @@ class MyOrgOrdersListView(BaseOrderListView):
     def get_list_type(self):
         return "my-org-orders"
 
+    @swagger_auto_schema(
+        operation_summary="List of received orders for the current user's organization",
+        operation_description="Retrieve a list of received orders for the current authenticated user's organization.",
+        responses={200: serializer_class},
+        tags=["Order List"]
+    )
+    def get(self, request):
+        return super().get(request)
+
 
 class MarketplaceOrdersListView(BaseOrderListView):
     permission_classes = [AllowAny]
+    serializer_class = OrderListAPI
 
     def get_queryset(self):
         return Order.objects.all().exclude(status='Arrived').order_by('-created_at')
@@ -121,11 +155,29 @@ class MarketplaceOrdersListView(BaseOrderListView):
     def get_list_type(self):
         return "marketplace-orders"
 
+    @swagger_auto_schema(
+        operation_summary="List of orders available in the marketplace",
+        operation_description="Retrieve a list of orders available in the marketplace.",
+        responses={200: serializer_class},
+        tags=["Order List"]
+    )
+    def get(self, request):
+        return super().get(request)
+
 
 class ReceivedOrderStatusAPIView(APIView):
     permission_classes = [IsAuthenticated]
     serializer_class = OrderListStatusAPI
 
+    @swagger_auto_schema(
+        tags=["Order List"],
+        operation_summary="Get received order status",
+        operation_description="Get the status of orders received by the user's organization.",
+        responses={
+            200: serializer_class,
+            403: "User does not have access to the organization or organization not found.",
+        }
+    )
     def get(self, request):
         user = request.user
         organization = user.user_profile.current_org
@@ -192,9 +244,20 @@ class OrdersHistoryListView(BaseOrderListView):
             # Handle invalid status parameter or return None
             return None
 
+    @swagger_auto_schema(
+        operation_summary="List of received orders state in user's org history",
+        operation_description="Retrieve a list of received orders state from the user's org history.",
+        responses={200: serializer_class},
+        tags=["Order List"]
+    )
+    def get(self, request):
+        return super().get(request)
+
 
 class LikedByUserOrdersAPIView(BaseOrderListView):
     permission_classes = [IsAuthenticated]
+    serializer_class = OrderListAPI
+
     def get_queryset(self):
         user = self.request.user
         return user.user_profile.liked_orders.all().order_by('-created_at')
@@ -202,9 +265,37 @@ class LikedByUserOrdersAPIView(BaseOrderListView):
     def get_list_type(self):
         return "marketplace-orders"
 
+    @swagger_auto_schema(
+        operation_summary="List of orders liked by the current user",
+        operation_description="Retrieve a list of orders that are liked by the current authenticated user.",
+        responses={200: "OK"},
+        tags=["Order List"]
+    )
+    def get(self, request):
+        return super().get(request)
+
 
 class OrdersByCategoryAPIView(APIView):
     permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        tags=["Order List"],
+        operation_summary="Get orders by category",
+        operation_description="Get a list of orders belonging to a specific category.",
+        manual_parameters=[
+            openapi.Parameter(
+                "category",
+                openapi.IN_QUERY,
+                description="Slug of the category",
+                type=openapi.TYPE_STRING,
+                required=True,
+            )
+        ],
+        responses={
+            200: OrderListAPI,
+            404: "Category not found",
+        }
+    )
     def get(self, request):
         category_title = request.query_params.get('category')
 
@@ -221,6 +312,24 @@ class OrdersByCategoryAPIView(APIView):
 class OrderDetailAPIView(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_summary="Get order details",
+        operation_description="Get details of a specific order by its slug.",
+        manual_parameters=[
+            openapi.Parameter(
+                "order_slug",
+                openapi.IN_PATH,
+                description="Slug of the order",
+                type=openapi.TYPE_STRING,
+                required=True,
+            )
+        ],
+        responses={
+            200: OrderDetailAPI,
+            404: "Order not found",
+        },
+        tags=["Order"]
+    )
     def get(self, request, order_slug):
         try:
             order = Order.objects.get(slug=order_slug)
@@ -245,6 +354,33 @@ class AddOrderAPIView(APIView):
     serializer_class = OrderPostAPI
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        operation_summary="Create a new order",
+        operation_description="Endpoint to create a new order.",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["title", "uploaded_images", "description", "deadline", "price", "category_slug", "phone_number", "size"],
+            properties={
+                "title": openapi.Schema(type=openapi.TYPE_STRING, description="Title of the order"),
+                "uploaded_images": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(type=openapi.TYPE_STRING, format="binary"),
+                    description="List of uploaded images"
+                ),
+                "description": openapi.Schema(type=openapi.TYPE_STRING, description="Description of the order"),
+                "deadline": openapi.Schema(type=openapi.TYPE_STRING, format="date", description="Deadline of the order"),
+                "price": openapi.Schema(type=openapi.TYPE_NUMBER, description="Price of the order"),
+                "category_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Slug of the order category"),
+                "phone_number": openapi.Schema(type=openapi.TYPE_STRING, description="Phone number for contact"),
+                "size": openapi.Schema(type=openapi.TYPE_STRING, description="Size of the order")
+            },
+        ),
+        responses={
+            201: "Created",
+            400: "Bad Request"
+        },
+        tags=["Order"]
+    )
     def post(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data, context={'request': request})
         if serializer.is_valid():
@@ -257,6 +393,44 @@ class UpdateOrderAPIView(APIView):
     serializer_class = OrderPostAPI
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        operation_summary="Update an existing order",
+        operation_description="Endpoint to update an existing order.",
+        manual_parameters=[
+            openapi.Parameter(
+                "order_slug",
+                openapi.IN_PATH,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="Slug of the order to be updated",
+            ),
+        ],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=[],
+            properties={
+                "title": openapi.Schema(type=openapi.TYPE_STRING, description="Title of the order (optional)"),
+                "uploaded_images": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(type=openapi.TYPE_STRING, format="binary"),
+                    description="List of uploaded images (optional)"
+                ),
+                "description": openapi.Schema(type=openapi.TYPE_STRING, description="Description of the order (optional)"),
+                "deadline": openapi.Schema(type=openapi.TYPE_STRING, format="date", description="Deadline of the order (optional)"),
+                "price": openapi.Schema(type=openapi.TYPE_NUMBER, description="Price of the order (optional)"),
+                "category_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Slug of the order category (optional)"),
+                "phone_number": openapi.Schema(type=openapi.TYPE_STRING, description="Phone number for contact (optional)"),
+                "size": openapi.Schema(type=openapi.TYPE_STRING, description="Size of the order (optional)")
+            },
+        ),
+        responses={
+            201: "Created",
+            400: "Bad Request",
+            403: "Forbidden",
+            404: "Not Found"
+        },
+        tags=["Order"]
+    )
     def put(self, request, order_slug):
         try:
             order = Order.objects.get(slug=order_slug)
@@ -278,6 +452,25 @@ class UpdateOrderAPIView(APIView):
 class HideOrderAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        operation_summary="Hide or unhide an order",
+        operation_description="Endpoint to toggle the hide status of an order.",
+        manual_parameters=[
+            openapi.Parameter(
+                "order_slug",
+                openapi.IN_PATH,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="Slug of the order to be hidden or unhidden",
+            ),
+        ],
+        responses={
+            200: "OK",
+            403: "Forbidden",
+            404: "Not Found"
+        },
+        tags=["Order"]
+    )
     def post(self, request, order_slug):
         try:
             order = Order.objects.get(slug=order_slug)
@@ -299,6 +492,25 @@ class HideOrderAPIView(APIView):
 class DeleteOrderAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        operation_summary="Delete an order",
+        operation_description="Endpoint to delete an order.",
+        manual_parameters=[
+            openapi.Parameter(
+                "order_slug",
+                openapi.IN_PATH,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="Slug of the order to be deleted",
+            ),
+        ],
+        responses={
+            200: "OK",
+            403: "Forbidden",
+            404: "Not Found"
+        },
+        tags=["Order"]
+    )
     def post(self, request, order_slug):
         try:
             order = Order.objects.get(slug=order_slug)
@@ -317,6 +529,25 @@ class DeleteOrderAPIView(APIView):
 class BookOrderAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        operation_summary="Book an order",
+        operation_description="Endpoint to book an order for the current organization.",
+        manual_parameters=[
+            openapi.Parameter(
+                "order_slug",
+                openapi.IN_PATH,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="Slug of the order to be booked",
+            ),
+        ],
+        responses={
+            200: "OK",
+            403: "Forbidden",
+            404: "Not Found"
+        },
+        tags=["Order"]
+    )
     def post(self, request, order_slug):
         try:
             order = Order.objects.get(slug=order_slug)
@@ -347,6 +578,32 @@ STATUS = (('New', 'New'), ('Process', 'Process'), ('Checking', 'Checking'), ('Se
 class UpdateOrderStatusAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        operation_summary="Update order status",
+        operation_description="Endpoint to update the status of an order.",
+        manual_parameters=[
+            openapi.Parameter(
+                "order_slug",
+                openapi.IN_PATH,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="Slug of the order to update status",
+            ),
+            openapi.Parameter(
+                "status",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="New status of the order. Must be one of ['New', 'Process', 'Checking', 'Sending', 'Arrived']",
+            ),
+        ],
+        responses={
+            200: "OK",
+            403: "Forbidden",
+            404: "Not Found"
+        },
+        tags=["Order"]
+    )
     def post(self, request, order_slug):
         try:
             order = Order.objects.get(slug=order_slug)
@@ -398,7 +655,24 @@ class UpdateOrderStatusAPIView(APIView):
 
 class LikeOrderAPIView(APIView):
     permission_classes = [IsAuthenticated]
-
+    @swagger_auto_schema(
+        operation_summary="Like or unlike an order",
+        operation_description="Endpoint to like or unlike an order.",
+        manual_parameters=[
+            openapi.Parameter(
+                "order_slug",
+                openapi.IN_PATH,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="Slug of the order to like/unlike",
+            ),
+        ],
+        responses={
+            200: "OK",
+            404: "Not Found"
+        },
+        tags=["Order"]
+    )
     def post(self, request, order_slug):
         try:
             order = Order.objects.get(slug=order_slug)
@@ -418,6 +692,24 @@ class LikeOrderAPIView(APIView):
 class SearchOrderAPIView(ListAPIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_summary="Search orders by title",
+        operation_description="Endpoint to search orders by title.",
+        manual_parameters=[
+            openapi.Parameter(
+                "title",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Search query to filter orders by title (case-insensitive)",
+            ),
+        ],
+        responses={
+            200: "OK",
+            400: "Bad Request"
+        },
+        tags=["Order"]
+    )
     def get(self, request, *args, **kwargs):
         # Get the search query parameter from the request
         search_query = request.query_params.get('title', None)
@@ -439,6 +731,34 @@ class ReviewOrderAPIView(APIView):
     serializer_class = ReviewPostAPI
     permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        operation_summary="Review an order",
+        operation_description="Endpoint to review an order when its status is 'Arrived'.",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["rating", "comment"],
+            properties={
+                "rating": openapi.Schema(
+                    type=openapi.TYPE_INTEGER,
+                    format=openapi.FORMAT_INT32,
+                    description="Rating for the order (1-5)",
+                    minimum=1,
+                    maximum=5
+                ),
+                "comment": openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="Comment for the review"
+                )
+            },
+        ),
+        responses={
+            201: "Created",
+            400: "Bad Request",
+            403: "Forbidden",
+            404: "Not Found"
+        },
+        tags=["Order"]
+    )
     def post(self, request, order_slug):
         try:
             order = Order.objects.get(slug=order_slug)
@@ -466,7 +786,7 @@ class EquipmentsListAPIView(APIView):
             equipments = Equipment.objects.all()
         except Equipment.DoesNotExist:
             return Response({"error": "Equipments does not exist"}, status=status.HTTP_404_NOT_FOUND)
-        equipment_serializer = EquipmentSerializer(equipments, many=True)
+        equipment_serializer = EquipmentDetailSerializer(equipments, many=True)
         return Response(equipment_serializer.data, status=status.HTTP_200_OK)
 
 
@@ -489,7 +809,7 @@ class EquipmentSearchAPIView(APIView):
             equipment = Equipment.objects.filter(title__icontains=search_query)
         except Equipment.DoesNotExist:
             return Response({"error": "Equipment does not exist"}, status=status.HTTP_404_NOT_FOUND)
-        equipment_serializer = EquipmentSerializer(equipment, many=True)
+        equipment_serializer = EquipmentDetailSerializer(equipment, many=True)
         return Response(equipment_serializer.data, status=status.HTTP_200_OK)
 
 

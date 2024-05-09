@@ -100,7 +100,6 @@ class OrderListAPI(serializers.ModelSerializer):
             # If user is None or anonymous, set 'is_liked' to False
             return False
 
-        
     def get_first_image(self, instance):
         first_image = instance.images.first()
         if first_image:
