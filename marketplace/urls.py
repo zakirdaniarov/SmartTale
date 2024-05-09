@@ -7,8 +7,7 @@ from .views import (
                     UpdateOrderStatusAPIView, OrderDetailAPIView, BookOrderAPIView,
                     HideOrderAPIView, DeleteOrderAPIView, ReceivedOrderStatusAPIView,
                     LikedByUserOrdersAPIView, UpdateOrderAPIView, LikeOrderAPIView,
-                    SearchOrderAPIView, ReviewOrderAPIView,
-                    EquipmentsListAPIView, EquipmentDetailPageAPIView,
+                    ReviewOrderAPIView, EquipmentsListAPIView, EquipmentDetailPageAPIView,
                     CreateEquipmentAPIView, EquipmentSearchAPIView
 )
 
@@ -29,7 +28,6 @@ urlpatterns = [
     path('order-delete/<slug:order_slug>/', DeleteOrderAPIView.as_view(), name='smarttale-delete-order'),
     path('order-book/<slug:order_slug>/', BookOrderAPIView.as_view(), name='smarttale-receive-order'),
     path('update-status/<slug:order_slug>/', UpdateOrderStatusAPIView.as_view(), name='smarttale-receive-order'),
-    path('search-order/', SearchOrderAPIView.as_view(), name='smarttale-search-orders'),
 
     path('like-order/<slug:order_slug>/', LikeOrderAPIView.as_view(), name='smarttale-like-order'),
     path('review-order/<slug:order_slug>/', ReviewOrderAPIView.as_view(), name='smarttale-review-orders'),

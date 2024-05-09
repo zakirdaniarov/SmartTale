@@ -42,8 +42,21 @@ class BaseOrderListView(APIView):
     def get_list_type(self):
         raise NotImplementedError("Subclasses must implement get_list_type method.")
 
+    def get_search_query(self):
+        return self.request.query_params.get('title', '')
+
+    def filter_queryset_by_search(self, queryset):
+        search_query = self.get_search_query()
+        if search_query:
+            queryset = queryset.filter(Q(title__icontains=search_query))
+        return queryset
+
     def get(self, request):
         queryset = self.get_queryset()
+        print(queryset)
+        if isinstance(queryset, Response):
+            return queryset
+        queryset = self.filter_queryset_by_search(queryset)
         paginated_data = get_paginated_data(queryset, request, self.get_list_type())
         return Response(paginated_data, status=status.HTTP_200_OK)
 
@@ -61,6 +74,15 @@ class MyOrderAdsListView(BaseOrderListView):
     @swagger_auto_schema(
         operation_summary="List of orders created by the current user",
         operation_description="Retrieve a list of orders created by the current authenticated user.",
+        manual_parameters=[
+            openapi.Parameter(
+                "title",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Search query to filter orders by title (case-insensitive)",
+            ),
+        ],
         responses={200: serializer_class},
         tags=["Order List"]
     )
@@ -82,6 +104,15 @@ class MyReceivedOrdersListView(BaseOrderListView):
     @swagger_auto_schema(
         operation_summary="List of orders received by the current user's organization",
         operation_description="Retrieve a list of orders received by the current authenticated user's organization.",
+        manual_parameters=[
+            openapi.Parameter(
+                "title",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Search query to filter orders by title (case-insensitive)",
+            ),
+        ],
         responses={200: serializer_class},
         tags=["Order List"]
     )
@@ -117,6 +148,15 @@ class MyHistoryOrdersListView(BaseOrderListView):
     @swagger_auto_schema(
         operation_summary="List of received orders for the current user org",
         operation_description="Retrieve a list of received orders for the current authenticated user org.",
+        manual_parameters=[
+            openapi.Parameter(
+                "title",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Search query to filter orders by title (case-insensitive)",
+            ),
+        ],
         responses={200: serializer_class},
         tags=["Order List"]
     )
@@ -138,6 +178,15 @@ class MyOrgOrdersListView(BaseOrderListView):
     @swagger_auto_schema(
         operation_summary="List of received orders for the current user's organization",
         operation_description="Retrieve a list of received orders for the current authenticated user's organization.",
+        manual_parameters=[
+            openapi.Parameter(
+                "title",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Search query to filter orders by title (case-insensitive)",
+            ),
+        ],
         responses={200: serializer_class},
         tags=["Order List"]
     )
@@ -150,7 +199,7 @@ class MarketplaceOrdersListView(BaseOrderListView):
     serializer_class = OrderListAPI
 
     def get_queryset(self):
-        return Order.objects.all().exclude(status='Arrived').order_by('-created_at')
+        return Order.objects.exclude(status='Arrived').filter(hide=False).order_by('-created_at')
 
     def get_list_type(self):
         return "marketplace-orders"
@@ -158,6 +207,15 @@ class MarketplaceOrdersListView(BaseOrderListView):
     @swagger_auto_schema(
         operation_summary="List of orders available in the marketplace",
         operation_description="Retrieve a list of orders available in the marketplace.",
+        manual_parameters=[
+            openapi.Parameter(
+                "title",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Search query to filter orders by title (case-insensitive)",
+            ),
+        ],
         responses={200: serializer_class},
         tags=["Order List"]
     )
@@ -169,10 +227,28 @@ class ReceivedOrderStatusAPIView(APIView):
     permission_classes = [IsAuthenticated]
     serializer_class = OrderListStatusAPI
 
+    def get_search_query(self):
+        return self.request.query_params.get('title', '')
+
+    def filter_queryset_by_search(self, queryset):
+        search_query = self.get_search_query()
+        if search_query:
+            queryset = queryset.filter(Q(title__icontains=search_query))
+        return queryset
+
     @swagger_auto_schema(
         tags=["Order List"],
         operation_summary="Get received order status",
         operation_description="Get the status of orders received by the user's organization.",
+        manual_parameters=[
+            openapi.Parameter(
+                "title",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Search query to filter orders by title (case-insensitive)",
+            ),
+        ],
         responses={
             200: serializer_class,
             403: "User does not have access to the organization or organization not found.",
@@ -198,6 +274,7 @@ class ReceivedOrderStatusAPIView(APIView):
         }
 
         queryset = Order.objects.filter(org_work=org)
+        queryset = self.filter_queryset_by_search(queryset)
         for order in queryset:
             status_key = order.status
             if status_key:
@@ -247,6 +324,15 @@ class OrdersHistoryListView(BaseOrderListView):
     @swagger_auto_schema(
         operation_summary="List of received orders state in user's org history",
         operation_description="Retrieve a list of received orders state from the user's org history.",
+        manual_parameters=[
+            openapi.Parameter(
+                "title",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Search query to filter orders by title (case-insensitive)",
+            ),
+        ],
         responses={200: serializer_class},
         tags=["Order List"]
     )
@@ -268,6 +354,15 @@ class LikedByUserOrdersAPIView(BaseOrderListView):
     @swagger_auto_schema(
         operation_summary="List of orders liked by the current user",
         operation_description="Retrieve a list of orders that are liked by the current authenticated user.",
+        manual_parameters=[
+            openapi.Parameter(
+                "title",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Search query to filter orders by title (case-insensitive)",
+            ),
+        ],
         responses={200: "OK"},
         tags=["Order List"]
     )
@@ -275,8 +370,20 @@ class LikedByUserOrdersAPIView(BaseOrderListView):
         return super().get(request)
 
 
-class OrdersByCategoryAPIView(APIView):
+class OrdersByCategoryAPIView(BaseOrderListView):
     permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        category_title = self.request.query_params.get('category')
+        try:
+            category = OrderCategory.objects.get(title=category_title)
+        except OrderCategory.DoesNotExist:
+            return Response({"message": "Category not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        return Order.objects.filter(category=category).exclude(status='Arrived').order_by('-created_at')
+
+    def get_list_type(self):
+        return "marketplace-orders"
 
     @swagger_auto_schema(
         tags=["Order List"],
@@ -289,6 +396,13 @@ class OrdersByCategoryAPIView(APIView):
                 description="Slug of the category",
                 type=openapi.TYPE_STRING,
                 required=True,
+            ),
+            openapi.Parameter(
+                "title",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Search query to filter orders by title (case-insensitive)",
             )
         ],
         responses={
@@ -297,16 +411,7 @@ class OrdersByCategoryAPIView(APIView):
         }
     )
     def get(self, request):
-        category_title = request.query_params.get('category')
-
-        try:
-            category = OrderCategory.objects.get(title=category_title)
-        except OrderCategory.DoesNotExist:
-            return Response({"message": "Category not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        queryset = Order.objects.filter(category=category).exclude(status='Arrived').order_by('-created_at')
-        data = get_paginated_data(queryset, request, "marketplace-orders")
-        return Response(data, status=status.HTTP_200_OK)
+        return super().get(request)
 
 
 class OrderDetailAPIView(APIView):
@@ -687,44 +792,6 @@ class LikeOrderAPIView(APIView):
             order.liked_by.add(user.user_profile)
         order.save()
         return Response({"Message": "Order's favourite status is changed successfully."}, status=status.HTTP_200_OK)
-
-
-class SearchOrderAPIView(ListAPIView):
-    permission_classes = [AllowAny]
-
-    @swagger_auto_schema(
-        operation_summary="Search orders by title",
-        operation_description="Endpoint to search orders by title.",
-        manual_parameters=[
-            openapi.Parameter(
-                "title",
-                openapi.IN_QUERY,
-                type=openapi.TYPE_STRING,
-                required=False,
-                description="Search query to filter orders by title (case-insensitive)",
-            ),
-        ],
-        responses={
-            200: "OK",
-            400: "Bad Request"
-        },
-        tags=["Order"]
-    )
-    def get(self, request, *args, **kwargs):
-        # Get the search query parameter from the request
-        search_query = request.query_params.get('title', None)
-
-        if search_query:
-            # Filter recipes based on search query
-            orders = Order.objects.filter(
-                Q(title__icontains=search_query)
-            )
-        else:
-            # If no search query provided, return all recipes
-            orders = Order.objects.none()
-
-        data = get_paginated_data(orders, request, "marketplace-orders")
-        return Response(data, status=status.HTTP_200_OK)
 
 
 class ReviewOrderAPIView(APIView):
