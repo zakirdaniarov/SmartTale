@@ -200,7 +200,7 @@ class MarketplaceOrdersListView(BaseOrderListView):
     serializer_class = OrderListAPI
 
     def get_queryset(self):
-        return Order.objects.exclude(status='Arrived').filter(hide=False).order_by('-created_at')
+        return Order.objects.filter(hide=False, is_booked=False).order_by('-created_at')
 
     def get_list_type(self):
         return "marketplace-orders"

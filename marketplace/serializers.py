@@ -35,7 +35,7 @@ class OrderDetailAPI(ModelSerializer):
     class Meta:
         model = Order
         fields = ['title', 'slug', 'author_first_name', 'author_last_name', 'author_slug', 'author_image', 'images', 'description', 'deadline', 'price',
-                  'category_slug', 'phone_number', 'size', 'is_booked', 'hide', 'booked_at', 'created_at']
+                  'category_slug', 'phone_number', 'size', 'hide']
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
@@ -48,13 +48,15 @@ class OrderDetailAPI(ModelSerializer):
         representation['is_finished'] = (instance.status == 'Arrived')
         if not self.context['author']:
             representation.pop('hide')
-            representation.pop('booked_at')
         else:
             representation.pop('is_liked')
             representation.pop('author_first_name')
             representation.pop('author_last_name')
             representation.pop('author_slug')
             representation.pop('author_image')
+            representation['booked_at'] = instance.booked_at
+            representation['created_at'] = instance.created_at
+            representation['is_booked'] = instance.is_booked
         return representation
 
 
