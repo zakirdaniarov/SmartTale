@@ -105,9 +105,17 @@ class OrderListAPI(serializers.ModelSerializer):
             representation.pop('author_last_name')
             representation.pop('author_slug')
             representation.pop('author_image')
+            # representation.pop('category_slug')
             representation.pop('price')
+            representation['created_at'] = instance.created_at
+            representation.pop('is_liked')
+            representation.pop('booked_at')
         elif list_type == "my-received-orders":
+            representation.pop('category_slug')
             representation.pop('is_booked')
+            representation.pop('is_liked')
+            representation.pop('booked_at')
+            representation.pop('is_finished')
         elif list_type in ["my-history-orders-active", "my-history-orders-finished"]:
             representation.pop('author_first_name')
             representation.pop('author_last_name')
@@ -117,19 +125,28 @@ class OrderListAPI(serializers.ModelSerializer):
             representation.pop('first_image')
             representation.pop('description')
             representation.pop('is_booked')
+            representation.pop('is_liked')
+            representation.pop('is_finished')
         elif list_type in ["my-org-orders", "orders-history-active", "orders-history-finished"]:
-            representation.pop('author_first_name')
+            epresentation.pop('author_first_name')
             representation.pop('author_last_name')
             representation.pop('author_slug')
             representation.pop('author_image')
+            # representation.pop('category_slug')
+            representation.pop('price')
             representation.pop('is_liked')
             representation.pop('is_booked')
-        elif list_type in ["marketplace-orders", "orders-history-active", "orders-history-finished"]:
             representation.pop('is_finished')
+        elif list_type == "marketplace-orders":
+            representation.pop('category_slug')
+            representation.pop('is_booked')
+            representation.pop('is_liked')
             representation.pop('booked_at')
+            representation.pop('is_finished')
 
-        if list_type in ["my-history-orders-finished", "orders-history-active", "orders-history-finished"]:
+        if list_type == "my-history-orders-finished":
             representation['finished_at'] = instance.finished_at
+            representation.pop('booked_at')
 
         return representation
 
@@ -161,7 +178,7 @@ class OrderPostAPI(ModelSerializer):
             self.fields['description'].required = True
             self.fields['deadline'].required = True
             self.fields['price'].required = True
-            self.fields['category_slug'].required = True
+            self.fields['category_slug'].required = False
             self.fields['size'].required = True
             self.fields['phone_number'].required = True
         else:
