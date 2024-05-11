@@ -165,6 +165,8 @@ CLOUDINARY_STORAGE = {
     'API_SECRET': config('CLOUD_API_SECRET')
 }
 
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
 # Email settings
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
