@@ -200,7 +200,7 @@ class MarketplaceOrdersListView(BaseOrderListView):
     serializer_class = OrderListAPI
 
     def get_queryset(self):
-        return Order.objects.exclude(status='Arrived').filter(hide=False).order_by('-created_at')
+        return Order.objects.filter(hide=False, is_booked=False).order_by('-created_at')
 
     def get_list_type(self):
         return "marketplace-orders"
@@ -283,36 +283,34 @@ class ReceivedOrderStatusAPIView(APIView):
         return orders_data
 
 
-# class OrdersHistoryListView(BaseOrderListView):
-#     permission_classes = [IsAuthenticated]
-#     serializer_class = OrderListAPI
-#     filter_backends = [DjangoFilterBackend]
-#     filterset_class = OrderDateFilter
+class OrdersHistoryListView(BaseOrderListView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = OrderListAPI
 
-#     def get_queryset(self):
-#         organization = self.request.user.user_profile.current_org
-#         status = self.request.query_params.get('status')
-#         min_booked_at = self.request.query_params.get('min_booked_at')
+    def get_queryset(self):
+        organization = self.request.user.user_profile.current_org
+        status = self.request.query_params.get('status')
+        min_booked_at = self.request.query_params.get('min_booked_at')
 
-#         queryset = Order.objects.filter(org_work=organization)
+        queryset = Order.objects.filter(org_work=organization)
 
-#         if status == 'active':
-#             # Return orders with statuses other than "Arrived"
-#             queryset = queryset.exclude(status='Arrived')
-#         elif status == 'finished':
-#             # Return orders with status "Arrived"
-#             queryset = queryset.filter(status='Arrived')
+        if status == 'active':
+            # Return orders with statuses other than "Arrived"
+            queryset = queryset.exclude(status='Arrived')
+        elif status == 'finished':
+            # Return orders with status "Arrived"
+            queryset = queryset.filter(status='Arrived')
 
-#         # Apply additional filtering based on min_booked_at
-#         if min_booked_at:
-#             # Convert min_booked_at string to a date object
-#             min_booked_date = datetime.strptime(min_booked_at, '%Y-%m-%d').date()
-#             # Filter orders where booked_at date is greater than or equal to min_booked_date
-#             queryset = queryset.filter(booked_at__gte=min_booked_date)
+        # Apply additional filtering based on min_booked_at
+        if min_booked_at:
+            # Convert min_booked_at string to a date object
+            min_booked_date = datetime.strptime(min_booked_at, '%Y-%m-%d').date()
+            # Filter orders where booked_at date is greater than or equal to min_booked_date
+            queryset = queryset.filter(booked_at__gte=min_booked_date)
 
-#         # Apply default ordering
-#         queryset = queryset.order_by('booked_at')
-#         return queryset
+        # Apply default ordering
+        queryset = queryset.order_by('booked_at')
+        return queryset
 
     def get_list_type(self):
         status = self.request.query_params.get('status')
@@ -852,12 +850,12 @@ class ReviewOrderAPIView(APIView):
 
 class EquipmentsListAPIView(APIView):
     @swagger_auto_schema(
-        tags=['Equipments list'],
+        tags=['Equipment'],
         operation_description="Этот эндпоинт"
                               "предостовляет пользователю"
-                              "список оборудований",
+                              "список всех оборудований",
         responses={
-            201: EquipmentSerializer(),
+            201: EquipmentSerializer,
             404: "Equipments does not exist",
             500: "Server error",
         }
@@ -882,12 +880,12 @@ class CreateEquipmentAPIView(APIView):
     permission_classes = [CurrentUserOrReadOnly]
 
     @swagger_auto_schema(
-        tags=['Equipment create'],
+        tags=['Equipment'],
         operation_description="Этот эндпоинт"
                               "предостовляет пользователю"
                               "добавлять собственные оборудования",
         responses={
-            201: EquipmentDetailSerializer(),
+            201: EquipmentDetailSerializer,
             404: "Bad request",
             500: "Server error",
         }
@@ -905,13 +903,13 @@ class ChangeEquipmentAPIView(APIView):
     permission_classes = [CurrentUserOrReadOnly]
 
     @swagger_auto_schema(
-        tags=['Equipment change'],
+        tags=['Equipment'],
         operation_description="Этот эндпоинт"
                               "предостовляет пользователю"
                               "возможность изменить"
                               "существующее оборудование",
         responses={
-            200: EquipmentDetailSerializer(),
+            200: EquipmentDetailSerializer,
             400: "Only the author can change",
             404: "Equipment does not exist",
             500: "Server error",
@@ -936,7 +934,7 @@ class DeleteEquipmentAPIView(APIView):
     permission_classes = [CurrentUserOrReadOnly]
 
     @swagger_auto_schema(
-        tags=['Equipment delete'],
+        tags=['Equipment'],
         operation_description="Этот эндпоинт"
                               "предостовляет пользователю"
                               "удалить свое оборудование",
@@ -967,13 +965,13 @@ class EquipmentSearchAPIView(APIView):
     search_fields = ['title']
 
     @swagger_auto_schema(
-        tags=['Equipments search'],
+        tags=['Equipment'],
         operation_description="Этот эндпоинт"
                               "предостовляет пользователю"
                               "возможность найти"
                               "нужное оборудование",
         responses={
-            200: EquipmentSerializer(),
+            200: EquipmentSerializer,
             404: "Equipment does not exist",
             500: "Server error",
         }
@@ -990,13 +988,13 @@ class EquipmentSearchAPIView(APIView):
 
 class EquipmentDetailPageAPIView(APIView):
     @swagger_auto_schema(
-        tags=['Equipment detail'],
+        tags=['Equipment'],
         operation_description="Этот эндпоинт"
                               "предостовляет пользователю"
                               "возможность посмотреть"
                               "детальную страницу оборудования",
         responses={
-            200: EquipmentDetailSerializer(),
+            200: EquipmentDetailSerializer,
             404: "Equipment does not exist",
             500: "Server error",
         }
@@ -1014,7 +1012,7 @@ class EquipmentLikeAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        tags=['Equipments like'],
+        tags=['Equipment'],
         operation_description="Этот эндпоинт"
                               "предостовляет пользователю"
                               "возможность поставить"
@@ -1054,14 +1052,14 @@ class EquipmentByAuthorLikeAPIView(APIView):
     permission_classes = [CurrentUserOrReadOnly]
 
     @swagger_auto_schema(
-        tags=['Liked equipments in profile'],
+        tags=['Equipment'],
         operation_description="Этот эндпоинт"
                               "предостовляет пользователю"
                               "возможность посмотреть"
                               "залайканные оборудования"
                               "на своей личной странице",
         responses={
-            200: EquipmentSerializer(),
+            200: EquipmentSerializer,
             404: "Equipment does not exist",
             500: "Server error",
         }
@@ -1083,7 +1081,7 @@ class HideEquipmentAPIView(APIView):
     permission_classes = [CurrentUserOrReadOnly]
 
     @swagger_auto_schema(
-        tags=['Hide equipment'],
+        tags=['Equipment'],
         operation_description="Этот эндпоинт"
                               "предостовляет пользователю"
                               "возможность скрыть"
@@ -1122,7 +1120,7 @@ class SoldEquipmentAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        tags=['Sold equipment'],
+        tags=['Equipment'],
         operation_description="Этот эндпоинт"
                               "предостовляет пользователю"
                               "купить оборудование",
@@ -1157,12 +1155,12 @@ class OrdersAndEquipmentsListAPIView(APIView):
     permission_classes = [CurrentUserOrReadOnly]
 
     @swagger_auto_schema(
-        tags=['Orders and equipments list'],
+        tags=['Equipment'],
         operation_description="Этот эндпоинт"
                               "предостовляет пользователю"
                               "свои заказы и оборудования",
         responses={
-            200: [MyOrdersSerializer, MyEquipmentsSerializer],
+            200: "Orders and equipments list",
             404: "Orders or Equipments does not exist",
             500: "Server error",
         }

@@ -14,7 +14,7 @@ class EquipmentCategory(models.Model):
 
 class Equipment(models.Model):
     title = models.CharField(max_length=70)
-    category = models.ForeignKey(EquipmentCategory, related_name='equipments', on_delete=models.DO_NOTHING)
+    category = models.ForeignKey(EquipmentCategory, related_name='equipments', null=True, blank=True, on_delete=models.DO_NOTHING)
     slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(max_length=1000, null=True)
@@ -52,7 +52,7 @@ STATUS = (('New', 'New'), ('Process', 'Process'), ('Checking', 'Checking'), ('Se
 class Order(models.Model):
     title = models.CharField(max_length=60)
     slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
-    category = models.ForeignKey(OrderCategory, related_name='orders', on_delete=models.DO_NOTHING)
+    category = models.ForeignKey(OrderCategory, related_name='orders', null=True, blank=True, on_delete=models.DO_NOTHING)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(max_length=1000, null=True)
     size = models.CharField(max_length=100)
@@ -83,7 +83,6 @@ class OrderImages(models.Model):
 
 class Reviews(models.Model):
     order = models.OneToOneField(Order, related_name='order_reviews', on_delete=models.CASCADE)
-    equipment = models.OneToOneField(Equipment, related_name='equipment_reviews', on_delete=models.CASCADE)
     reviewer = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='reviews')
     review_text = models.TextField()
     rating = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)], default=0)
