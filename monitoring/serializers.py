@@ -8,11 +8,13 @@ class JobTitleSeriailizer(serializers.ModelSerializer):
 
     class Meta:
         model = JobTitle
-        fields = ['org', 'title', 'description']
+        fields = ['title', 'description', 'flag_create_jobtitle',
+                  'flag_remove_jobtitle', 'flag_update_access',
+                  'flag_add_employee', 'flag_remove_employee',
+                  'flag_update_order', 'flag_delete_order']
 
     def create(self, validated_data):
-        validated_data.pop('org')
-        org = self.context['request'].user
+        org = self.context['org']
         job_title = JobTitle.objects.create(org = org, **validated_data)
         return job_title
 
@@ -21,7 +23,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Organization
-        fields = ['founder', 'owner', 'title', 'description']
+        fields = ['title', 'description']
 
     def create(self, validated_data):
         user = self.context['user']
@@ -29,7 +31,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
         return org
     
 class ProfileDetailSerializer(serializers.ModelSerializer):
-    email = serializers.RelatedField(source = 'user.email', read_only = True)
+    email = serializers.ReadOnlyField(source = 'user.email')
 
     class Meta:
         model = UserProfile
@@ -42,14 +44,45 @@ class OrderTitleSerializer(serializers.ModelSerializer):
         fields = ['title', 'slug']
 
 class EmployeeListSerializer(serializers.ModelSerializer):
-    first_name = serializers.RelatedField(source = 'user.user.first_name', read_only = True)
-    last_name = serializers.RelatedField(source = 'user.user.last_name', read_only = True)
-    middle_name = serializers.RelatedField(source = 'user.user.middle_name', read_only = True)
-    email = serializers.RelatedField(source = 'user.user.email', read_only = True)
+    first_name = serializers.ReadOnlyField(source = 'user.first_name')
+    last_name = serializers.ReadOnlyField(source = 'user.last_name')
+    middle_name = serializers.ReadOnlyField(source = 'user.middle_name')
+    email = serializers.ReadOnlyField(source = 'user.user.email')
+    user_slug = serializers.ReadOnlyField(source = 'user.slug')
     order = OrderTitleSerializer(many = True, read_only = True)
-    job_title = serializers.RelatedField(source = 'job_title.title', read_only = True)
+    job_title = serializers.ReadOnlyField(source = 'job_title.title')
 
     class Meta:
         model = Employee
-        fields = ['first_name', 'last_name', 'middle_name', 'email',
+        fields = ['first_name', 'last_name', 'middle_name', 'email', 'user_slug',
                   'order', 'job_title','status']
+        
+class EmployeeDetailSerializer(serializers.ModelSerializer):
+    first_name = serializers.ReadOnlyField(source = 'user.first_name')
+    last_name = serializers.ReadOnlyField(source = 'user.last_name')
+    middle_name = serializers.ReadOnlyField(source = 'user.middle_name')
+    email = serializers.ReadOnlyField(source = 'user.user.email')
+    user_slug = serializers.ReadOnlyField(source = 'user.slug')
+    phone_number = serializers.ReadOnlyField(source = 'user.phone_number')
+    job_title = serializers.ReadOnlyField(source = 'job_title.title')
+    job_title_flag_create_jobtitle = serializers.ReadOnlyField(source = 'job_title.flag_create_jobtitle')
+    job_title_flag_remove_jobtitle = serializers.ReadOnlyField(source = 'job_title.flag_remove_jobtitle')
+    job_title_flag_update_access = serializers.ReadOnlyField(source = 'job_title.flag_update_access')
+    job_title_flag_add_employee = serializers.ReadOnlyField(source = 'job_title.flag_add_employee')
+    job_title_flag_remove_employee = serializers.ReadOnlyField(source = 'job_title.flag_remove_employee')
+    job_title_flag_update_order = serializers.ReadOnlyField(source = 'job_title.flag_update_order')
+    job_title_flag_delete_order = serializers.ReadOnlyField(source = 'job_title.flag_delete_order')
+
+    class Meta:
+        model = Employee
+        fields = ['first_name', 'last_name', 'middle_name', 'email', 'phone_number', 'user_slug',
+                  'job_title', 'job_title_flag_create_jobtitle',
+                  'job_title_flag_remove_jobtitle', 'job_title_flag_update_access',
+                  'job_title_flag_add_employee', 'job_title_flag_remove_employee',
+                  'job_title_flag_update_order', 'job_title_flag_delete_order']
+        
+class JobTitleSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = JobTitle
+        fields = ['title', 'description']

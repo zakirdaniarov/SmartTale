@@ -34,5 +34,6 @@ class Employee(models.Model):
     job_title = models.ForeignKey(JobTitle, verbose_name = 'job_title', related_name = 'jt_employees', null = True, blank = True, on_delete = models.SET_NULL)
     status = models.CharField(max_length = 25, choices = STATUS_CHOICES, default = 'Авторизован')
     created_at = models.DateTimeField(auto_now_add = True)
+
     def __str__(self):
-        return "Organization: {}; User: {}".format()
+        return "Organization: {}; User: {}".format(self.org, self.user)

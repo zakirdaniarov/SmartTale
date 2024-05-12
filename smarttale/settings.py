@@ -55,7 +55,8 @@ INSTALLED_APPS = [
     'django_filters',
 
     'authorization',
-    'marketplace'
+    'marketplace',
+    'monitoring',
 ]
 
 MIDDLEWARE = [
