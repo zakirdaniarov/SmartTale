@@ -142,7 +142,7 @@ class MyReceivedOrdersListView(BaseOrderListView):
     serializer_class = OrderListAPI
 
     def get_queryset(self):
-        organization = self.request.user.user_profile.current_org
+        organization = self.request.user.user_profile.working_org.org
         return Order.objects.filter(org_work=organization).order_by('booked_at')
 
     def get_list_type(self):
@@ -172,8 +172,8 @@ class MyHistoryOrdersListView(BaseOrderListView):
     serializer_class = OrderListAPI
 
     def get_queryset(self):
-        organization = self.request.user.user_profile.current_org
-        status = self.request.query_params.get('stage')
+        organization = self.request.user.user_profile.working_org.org
+        status = self.request.query_params.get('status')
         if status == 'active':
             return Order.objects.filter(org_work=organization).exclude(status='Arrived').order_by('booked_at')
         elif status == 'finished':
@@ -223,7 +223,7 @@ class MyOrgOrdersListView(BaseOrderListView):
     serializer_class = OrderListAPI
 
     def get_queryset(self):
-        organization = self.request.user.user_profile.current_org
+        organization = self.request.user.user_profile.working_org.org
         return Order.objects.filter(org_work=organization).order_by('-booked_at')
 
     def get_list_type(self):
@@ -310,7 +310,7 @@ class ReceivedOrderStatusAPIView(APIView):
     )
     def get(self, request):
         user = request.user
-        organization = user.user_profile.current_org
+        organization = user.user_profile.working_org.org
         if not organization:
             return Response({'Error': 'User does not have access to this organization or organization not found.'},
                             status=status.HTTP_403_FORBIDDEN)
@@ -341,8 +341,8 @@ class OrdersHistoryListView(BaseOrderListView):
     serializer_class = OrderListAPI
 
     def get_queryset(self):
-        organization = self.request.user.user_profile.current_org
-        status = self.request.query_params.get('stage')
+        organization = self.request.user.user_profile.working_org.org
+        status = self.request.query_params.get('status')
         min_booked_at = self.request.query_params.get('min_booked_at')
 
         queryset = Order.objects.filter(org_work=organization)
@@ -755,7 +755,7 @@ class ApplyOrderAPIView(APIView):
                             status=status.HTTP_403_FORBIDDEN)
 
         user = request.user
-        organization = user.user_profile.current_org
+        organization = user.user_profile.working_org.org
         if not organization:
             return Response({'Error':'User does not have access to this organization or organization not found.'},
                             status=status.HTTP_403_FORBIDDEN)
@@ -860,7 +860,7 @@ class UpdateOrderStatusAPIView(APIView):
             return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
         user = request.user
-        organization = user.user_profile.current_org
+        organization = user.user_profile.working_org.org
         if not organization:
             return Response({'Error': 'User does not have access to this organization or organization not found.'},
                             status=status.HTTP_403_FORBIDDEN)
@@ -992,6 +992,16 @@ class ReviewOrderAPIView(APIView):
 
 
 class EquipmentsListAPIView(APIView):
+    def get_equipments(self):
+        try:
+            equipments = Equipment.objects.all().order_by('-created_at')
+        except Equipment.DoesNotExist:
+            return Response({"error": "Equipments does not exist"})
+        return equipments
+
+    def get_equipments_type(self):
+        return 'equipments-list'
+
     @swagger_auto_schema(
         tags=['Equipment'],
         operation_description="Этот эндпоинт"
@@ -1003,16 +1013,6 @@ class EquipmentsListAPIView(APIView):
             500: "Server error",
         }
     )
-    def get_equipments(self):
-        try:
-            equipments = Equipment.objects.all().order_by('-created_at')
-        except Equipment.DoesNotExist:
-            return Response({"error": "Equipments does not exist"})
-        return equipments
-
-    def get_equipments_type(self):
-        return 'equipments-list'
-
     def get(self, request, *args, **kwargs):
         equipments = self.get_equipments()
         data = get_equipment_paginated(equipments, request, self.get_equipments_type())
@@ -1194,6 +1194,13 @@ class EquipmentLikeAPIView(APIView):
 class EquipmentByAuthorLikeAPIView(APIView):
     permission_classes = [CurrentUserOrReadOnly]
 
+    def get_liked_equipments(self):
+        author = self.request.user.user_profile
+        return author.liked_equipment.all().order_by('-created_at')
+
+    def get_equipments_type(self):
+        return "my-like-equipments"
+
     @swagger_auto_schema(
         tags=['Equipment'],
         operation_description="Этот эндпоинт"
@@ -1207,13 +1214,6 @@ class EquipmentByAuthorLikeAPIView(APIView):
             500: "Server error",
         }
     )
-    def get_liked_equipments(self):
-        author = self.request.user.user_profile
-        return author.liked_equipment.all().order_by('-created_at')
-
-    def get_equipments_type(self):
-        return "my-like-equipments"
-
     def get(self, request, *args, **kwargs):
         like = self.get_liked_equipments()
         data = get_equipment_paginated(like, request, self.get_equipments_type())
@@ -1297,17 +1297,6 @@ class SoldEquipmentAPIView(APIView):
 class OrdersAndEquipmentsListAPIView(APIView):
     permission_classes = [CurrentUserOrReadOnly]
 
-    @swagger_auto_schema(
-        tags=['Equipment'],
-        operation_description="Этот эндпоинт"
-                              "предостовляет пользователю"
-                              "свои заказы и оборудования",
-        responses={
-            200: "Orders and equipments list",
-            404: "Orders or Equipments does not exist",
-            500: "Server error",
-        }
-    )
     def get_orders_and_equipments(self):
         author = self.request.user.user_profile
 
@@ -1321,6 +1310,17 @@ class OrdersAndEquipmentsListAPIView(APIView):
     def get_orders_and_equipments_type(self):
         return 'orders-and-equipments-type'
 
+    @swagger_auto_schema(
+        tags=['Equipment'],
+        operation_description="Этот эндпоинт"
+                              "предостовляет пользователю"
+                              "свои заказы и оборудования",
+        responses={
+            200: "Orders and equipments list",
+            404: "Orders or Equipments does not exist",
+            500: "Server error",
+        }
+    )
     def get(self, request, *args, **kwargs):
         services = self.get_orders_and_equipments()
         data = get_order_or_equipment(services, request, self.get_orders_and_equipments_type())
