@@ -85,8 +85,8 @@ class ConfirmationCode(models.Model):
         return f"{self.profile.user}'s code: {self.code}"
 
 class Organization(models.Model):
-    founder = models.ForeignKey(UserProfile, verbose_name = 'user', related_name = 'founder_organizations', on_delete = models.DO_NOTHING)
-    owner = models.ForeignKey(UserProfile, verbose_name = 'user', related_name = 'owner_organizations', on_delete = models.DO_NOTHING)
+    founder = models.ForeignKey(UserProfile, verbose_name = 'founder', related_name = 'founder_organizations', on_delete = models.DO_NOTHING)
+    owner = models.ForeignKey(UserProfile, verbose_name = 'owner', related_name = 'owner_organizations', on_delete = models.DO_NOTHING)
     title = models.CharField(max_length = 100)
     slug = AutoSlugField(populate_from = 'title', unique = True, always_update = True)
     phone_number = models.CharField(max_length = 20, blank = True, null = True, default = None)

@@ -14,7 +14,7 @@ class EquipmentCategory(models.Model):
 
 class Equipment(models.Model):
     title = models.CharField(max_length=70)
-    category = models.ForeignKey(EquipmentCategory, related_name='equipments', on_delete=models.DO_NOTHING)
+    category = models.ForeignKey(EquipmentCategory, related_name='equipments', null=True, blank=True, on_delete=models.DO_NOTHING)
     slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(max_length=1000, null=True)
@@ -38,6 +38,40 @@ class EquipmentImages(models.Model):
         return f'These images for {self.equipment.title}, slug: {self.equipment.slug}'
 
 
+class ServiceCategory(models.Model):
+    title = models.CharField(max_length=60)
+    slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
+
+    def __str__(self):
+        return f"{self.title}, slug: {self.slug}"
+
+
+class Service(models.Model):
+    title = models.CharField(max_length=70)
+    category = models.ManyToManyField(ServiceCategory, related_name='services', blank=True)
+    slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    description = models.TextField(max_length=1000, null=True)
+    size = models.CharField(max_length=100)
+    phone_number = models.CharField(max_length=20)
+    author_org = models.ForeignKey(Organization, related_name='service_ads', on_delete=models.CASCADE)
+    liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_services')
+    hide = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.title}, slug: {self.slug}"
+
+
+class ServiceImages(models.Model):
+    service = models.ForeignKey(Service, related_name='images', on_delete=models.CASCADE)
+    images = models.ImageField(verbose_name='Service images', upload_to='Service images',
+                               blank=True, null=True)
+
+    def __str__(self):
+        return f'These images for {self.service.title}, slug: {self.service.slug}'
+
+
 class OrderCategory(models.Model):
     title = models.CharField(max_length=60)
     slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
@@ -52,7 +86,7 @@ STATUS = (('New', 'New'), ('Process', 'Process'), ('Checking', 'Checking'), ('Se
 class Order(models.Model):
     title = models.CharField(max_length=60)
     slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
-    category = models.ForeignKey(OrderCategory, related_name='orders', on_delete=models.DO_NOTHING)
+    category = models.ForeignKey(OrderCategory, related_name='orders', null=True, blank=True, on_delete=models.DO_NOTHING)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(max_length=1000, null=True)
     size = models.CharField(max_length=100)
@@ -61,9 +95,10 @@ class Order(models.Model):
     hide = models.BooleanField(default=False)
     is_booked = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=STATUS, default='New')
-    liked_by = models.ManyToManyField(UserProfile, null=True, blank=True, related_name='liked_orders')
+    liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_orders')
     author = models.ForeignKey(UserProfile, related_name='order_ads', on_delete=models.CASCADE)
     org_work = models.ForeignKey(Organization, related_name='received_orders', blank=True, null=True, on_delete=models.DO_NOTHING)
+    org_applicants = models.ManyToManyField(Organization, related_name='applied_orders', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     booked_at = models.DateTimeField(blank=True, null=True)
     finished_at = models.DateTimeField(blank=True, null=True)
@@ -83,7 +118,6 @@ class OrderImages(models.Model):
 
 class Reviews(models.Model):
     order = models.OneToOneField(Order, related_name='order_reviews', on_delete=models.CASCADE)
-    equipment = models.OneToOneField(Equipment, related_name='equipment_reviews', on_delete=models.CASCADE)
     reviewer = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='reviews')
     review_text = models.TextField()
     rating = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(5)], default=0)
