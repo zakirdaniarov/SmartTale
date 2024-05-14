@@ -30,8 +30,9 @@ DEBUG = config("DEBUG", cast = bool)
 
 ALLOWED_HOSTS = [
     '127.0.0.1',
+    '0.0.0.0',
     'localhost',
-    '128.199.132.166 ',
+    '128.199.132.166',
     'helsinki-backender.org.kg',
 ]
 
@@ -56,7 +57,8 @@ INSTALLED_APPS = [
     'django_q',
 
     'authorization',
-    'marketplace'
+    'marketplace',
+    'monitoring',
 ]
 
 MIDDLEWARE = [
@@ -224,8 +226,8 @@ AUTH_USER_MODEL = 'authorization.User'
 SIMPLE_JWT = {
   'ACCESS_TOKEN_LIFETIME': timedelta(minutes = 30),
   'REFRESH_TOKEN_LIFETIME': timedelta(days = 7),
-  'ROTATE_REFRESH_TOKENS': True,
-  'BLACKLIST_AFTER_ROTATION': True,
+  'ROTATE_REFRESH_TOKENS': False,
+  'BLACKLIST_AFTER_ROTATION': False,
   'UPDATE_LAST_LOGIN': False,
 
   'ALGORITHM': 'HS256',

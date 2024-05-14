@@ -70,9 +70,6 @@ class UserProfile(models.Model):
     sub_type = models.CharField(max_length = 15, choices = SUBCRIPTION_CHOICES, default = 'Нет подписки')
     created_at = models.DateTimeField(auto_now_add = True)
 
-    current_org = models.OneToOneField('Organization', related_name='current_member',
-                                       blank=True, null=True, on_delete=models.SET_NULL)
-
     def __str__(self):
         return f"Name: {self.last_name} {self.first_name}; Email: {self.user}; Slug: {self.slug}"
 
@@ -85,8 +82,8 @@ class ConfirmationCode(models.Model):
         return f"{self.profile.user}'s code: {self.code}"
 
 class Organization(models.Model):
-    founder = models.ForeignKey(UserProfile, verbose_name = 'user', related_name = 'founder_organizations', on_delete = models.DO_NOTHING)
-    owner = models.ForeignKey(UserProfile, verbose_name = 'user', related_name = 'owner_organizations', on_delete = models.DO_NOTHING)
+    founder = models.ForeignKey(UserProfile, verbose_name = 'founder', related_name = 'founder_organizations', on_delete = models.DO_NOTHING)
+    owner = models.ForeignKey(UserProfile, verbose_name = 'owner', related_name = 'owner_organizations', on_delete = models.DO_NOTHING)
     title = models.CharField(max_length = 100)
     slug = AutoSlugField(populate_from = 'title', unique = True, always_update = True)
     phone_number = models.CharField(max_length = 20, blank = True, null = True, default = None)
