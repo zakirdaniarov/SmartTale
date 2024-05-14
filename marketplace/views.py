@@ -175,9 +175,9 @@ class MyHistoryOrdersListView(BaseOrderListView):
         organization = self.request.user.user_profile.current_org
         status = self.request.query_params.get('stage')
         if status == 'active':
-            return Order.objects.filter(org_work=organization).exclude(status='Arrived').order_by('booked_at')
+            return Order.objects.filter(org_work=organization, is_finished=False).order_by('booked_at')
         elif status == 'finished':
-            return Order.objects.filter(org_work=organization, status='Finished').order_by('booked_at')
+            return Order.objects.filter(org_work=organization, is_finished=True).order_by('booked_at')
         else:
             # Handle invalid status parameter
             return Order.objects.all()
@@ -320,7 +320,7 @@ class ReceivedOrderStatusAPIView(APIView):
 
     def get_orders_data(self, org):
         orders_data = {
-            "New": [],
+            "Waiting": [],
             "Process": [],
             "Checking": [],
             "Sending": [],
@@ -349,10 +349,10 @@ class OrdersHistoryListView(BaseOrderListView):
 
         if status == 'active':
             # Return orders with statuses other than "Arrived"
-            queryset = queryset.exclude(status='Arrived')
+            queryset = queryset.filter(is_finished=False)
         elif status == 'finished':
             # Return orders with status "Arrived"
-            queryset = queryset.filter(status='Arrived')
+            queryset = queryset.filter(is_finished=True)
 
         # Apply additional filtering based on min_booked_at
         if min_booked_at:
@@ -471,7 +471,7 @@ class OrdersByCategoryAPIView(BaseOrderListView):
         except OrderCategory.DoesNotExist:
             return Response({"message": "Category not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        return Order.objects.filter(category=category).exclude(status='Arrived').order_by('-created_at')
+        return Order.objects.filter(category=category, is_hide=False, is_booked=False).order_by('-created_at')
 
     def get_list_type(self):
         return "marketplace-orders"
@@ -685,6 +685,51 @@ class HideOrderAPIView(APIView):
         return Response({"Message": "Order hidden status is changed."}, status=status.HTTP_200_OK)
 
 
+class FinishOrderAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Finish an order",
+        operation_description="Endpoint to finish status of an order.",
+        manual_parameters=[
+            openapi.Parameter(
+                "order_slug",
+                openapi.IN_PATH,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="Slug of the order to be hidden or unhidden",
+            ),
+        ],
+        responses={
+            200: "OK",
+            403: "Forbidden",
+            404: "Not Found"
+        },
+        tags=["Order"]
+    )
+    def post(self, request, order_slug):
+        try:
+            order = Order.objects.get(slug=order_slug)
+        except Order.DoesNotExist:
+            return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        user = request.user
+        if user.user_profile != order.author:
+            return Response({'Error': 'User does not have permissions to finish this order.'},
+                            status=status.HTTP_403_FORBIDDEN)
+        if order.status != "Arrived":
+            return Response({'Error': 'The order is not arrived yet.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        if order.is_finished:
+            return Response({'Error': 'The order is already finished.'},
+                            status=status.HTTP_403_FORBIDDEN)
+        order.is_finished = True
+        order.finished_at = timezone.now()
+        order.save()
+        return Response({"Message": "Order finished status is changed."}, status=status.HTTP_200_OK)
+
+
 class DeleteOrderAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -821,7 +866,7 @@ class BookOrderAPIView(APIView):
         return Response({"Success": "Order booked successfully."}, status=status.HTTP_200_OK)
 
 
-STATUS = (('New', 'New'), ('Process', 'Process'), ('Checking', 'Checking'), ('Sending', 'Sending'), ('Arrived', 'Arrived'),)
+STATUS = (('Waiting', 'Waiting'), ('Process', 'Process'), ('Checking', 'Checking'), ('Sending', 'Sending'), ('Arrived', 'Arrived'),)
 
 
 class UpdateOrderStatusAPIView(APIView):
@@ -843,7 +888,7 @@ class UpdateOrderStatusAPIView(APIView):
                 openapi.IN_QUERY,
                 type=openapi.TYPE_STRING,
                 required=True,
-                description="New status of the order. Must be one of ['New', 'Process', 'Checking', 'Sending', 'Arrived']",
+                description="New status of the order. Must be one of ['Waiting', 'Process', 'Checking', 'Sending', 'Arrived']",
             ),
         ],
         responses={
@@ -870,9 +915,9 @@ class UpdateOrderStatusAPIView(APIView):
                             status=status.HTTP_403_FORBIDDEN)
 
         order_status = request.query_params.get('status')
-        if order_status not in ["New", "Process", "Checking", "Sending", "Arrived"]:
+        if order_status not in ["Waiting", "Process", "Checking", "Sending", "Arrived"]:
             return Response({'Error':'The new status name is incorrect. The new status has to be one of'
-                                     '["New", "Process", "Checking", "Sending", "Arrived"]'},
+                                     '["Waiting", "Process", "Checking", "Sending", "Arrived"]'},
                             status=status.HTTP_403_FORBIDDEN)
 
         # Check if the current status is "Arrived"; if so, do not allow status change
@@ -893,7 +938,7 @@ class UpdateOrderStatusAPIView(APIView):
 
         # If the new status is "Arrived", set the finished_at timestamp
         if order_status == "Arrived":
-            order.finished_at = timezone.now()
+            order.arrived_at = timezone.now()
 
         # Update the order status and save
         order.status = order_status
@@ -1375,7 +1420,7 @@ class MyServiceAdsListView(BaseServiceListView):
     serializer_class = ServiceSerializer
 
     def get_queryset(self):
-        return Service.objects.filter(author_org=self.request.user.user_profile.current_org).order_by('-created_at')
+        return Service.objects.filter(author=self.request.user.user_profile).order_by('-created_at')
 
     def get_author_type(self):
         return True
@@ -1485,7 +1530,7 @@ class ServiceDetailAPIView(APIView):
         except Service.DoesNotExist:
             return Response({"Error": "Service is not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        author = request.user.is_authenticated and request.user.user_profile.current_org == service.author_org
+        author = request.user.is_authenticated and request.user.user_profile == service.author
         service_api = ServiceSerializer(service, context={'request': request, 'author': author})
         content = {"Service Info": service_api.data}
 
@@ -1513,7 +1558,6 @@ class CreateServiceAPIView(APIView):
                 "price": openapi.Schema(type=openapi.TYPE_NUMBER, description="Price of the service"),
                 "category_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Slug of the service category"),
                 "phone_number": openapi.Schema(type=openapi.TYPE_STRING, description="Phone number for contact"),
-                "size": openapi.Schema(type=openapi.TYPE_STRING, description="Size of the service")
             },
         ),
         responses={
@@ -1525,8 +1569,8 @@ class CreateServiceAPIView(APIView):
     )
     def post(self, request, *args, **kwargs):
         user = request.user
-        if not user.user_profile.current_org:
-            return Response({'Error':'Only organization can add service ads.'},
+        if not user.user_profile:
+            return Response({'Error':'The user has to have a user profile.'},
                             status=status.HTTP_403_FORBIDDEN)
         serializer = self.serializer_class(data=request.data, context={'request': request})
         if serializer.is_valid():
@@ -1565,7 +1609,6 @@ class UpdateServiceAPIView(APIView):
                 "price": openapi.Schema(type=openapi.TYPE_NUMBER, description="Price of the service (optional)"),
                 "category_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Slug of the service category (optional)"),
                 "phone_number": openapi.Schema(type=openapi.TYPE_STRING, description="Phone number for contact (optional)"),
-                "size": openapi.Schema(type=openapi.TYPE_STRING, description="Size of the service (optional)")
             },
         ),
         responses={
@@ -1583,7 +1626,7 @@ class UpdateServiceAPIView(APIView):
             return Response({"message": "Service not found"}, status=status.HTTP_404_NOT_FOUND)
 
         user = request.user
-        if user.user_profile.current_org != service.author_org:
+        if user.user_profile != service.author:
             return Response({'Error':'User does not have permissions to update this service.'},
                             status=status.HTTP_403_FORBIDDEN)
 
@@ -1623,7 +1666,7 @@ class DeleteServiceAPIView(APIView):
             return Response({"message": "Service not found"}, status=status.HTTP_404_NOT_FOUND)
 
         user = request.user
-        if user.user_profile.current_org != service.author_org:
+        if user.user_profile != service.author:
             return Response({'Error':'User does not have permissions to update this service.'},
                             status=status.HTTP_403_FORBIDDEN)
 
@@ -1696,7 +1739,7 @@ class HideServiceAPIView(APIView):
             return Response({"message": "Service not found"}, status=status.HTTP_404_NOT_FOUND)
 
         user = request.user
-        if user.user_profile.current_org != service.author_org:
+        if user.user_profile != service.author:
             return Response({'Error':'User does not have permissions to update this service.'},
                             status=status.HTTP_403_FORBIDDEN)
         if service.hide:

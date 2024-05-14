@@ -60,7 +60,7 @@ class OrderDetailAPI(ModelSerializer):
     class Meta:
         model = Order
         fields = ['title', 'slug', 'author_first_name', 'author_last_name', 'author_slug', 'author_image', 'images', 'description', 'deadline', 'price',
-                  'category_slug', 'phone_number', 'size', 'hide']
+                  'category_slug', 'phone_number', 'size', 'hide', 'is_finished']
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
@@ -70,9 +70,9 @@ class OrderDetailAPI(ModelSerializer):
         else:
             # If user is None or anonymous, set 'is_liked' to False
             representation['is_liked'] = False
-        representation['is_finished'] = (instance.status == 'Arrived')
         if not self.context['author']:
             representation.pop('hide')
+            representation.pop('is_finished')
         else:
             representation.pop('is_liked')
             representation.pop('author_first_name')
@@ -98,14 +98,16 @@ class ServiceImagesSerializer(serializers.ModelSerializer):
 
 
 class ServiceSerializer(ModelSerializer):
-    org_title = serializers.ReadOnlyField(source='author_org.title')
-    org_slug = serializers.ReadOnlyField(source='author_org.slug')
+    author_first_name = serializers.ReadOnlyField(source='author.first_name')
+    author_last_name = serializers.ReadOnlyField(source='author.last_name')
+    author_slug = serializers.ReadOnlyField(source='author.slug')
+    author_image = serializers.ReadOnlyField(source='author.profile_image.url')
     images = ServiceImagesSerializer(many=True, read_only=True)
     category_slug = serializers.ReadOnlyField(source='category.slug')
 
     class Meta:
-        model = Order
-        fields = ['title', 'slug', 'org_title', 'org_slug', 'images', 'description', 'price',
+        model = Service
+        fields = ['title', 'slug', 'author_first_name', 'author_last_name', 'author_slug', 'author_image', 'images', 'description', 'price',
                   'category_slug', 'phone_number', 'size', 'hide', 'created_at']
 
     def to_representation(self, instance):
@@ -131,9 +133,9 @@ class ServicePostSerializer(ModelSerializer):
     )
 
     class Meta:
-        model = Order
+        model = Service
         fields = ['title', 'uploaded_images', 'description', 'price',
-                  'category_slug', 'phone_number', 'size']
+                  'category_slug', 'phone_number']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -145,7 +147,6 @@ class ServicePostSerializer(ModelSerializer):
             self.fields['description'].required = True
             self.fields['price'].required = True
             self.fields['category_slug'].required = False
-            self.fields['size'].required = True
             self.fields['phone_number'].required = True
         else:
             self.fields['title'].required = False
@@ -153,7 +154,6 @@ class ServicePostSerializer(ModelSerializer):
             self.fields['description'].required = False
             self.fields['price'].required = False
             self.fields['category_slug'].required = False
-            self.fields['size'].required = False
             self.fields['phone_number'].required = False
 
     def create(self, validated_data):
@@ -167,8 +167,8 @@ class ServicePostSerializer(ModelSerializer):
             raise serializers.ValidationError("Category with this slug does not exist")
 
         # Create the order object
-        author_org = self.context['request'].user.user_profile.current_org
-        service = Service.objects.create(author_org=author_org, **validated_data)
+        author = self.context['request'].user.user_profile
+        service = Service.objects.create(author=author, **validated_data)
         service.category.add(category)
 
         # Create OrderImages objects for uploaded images
@@ -219,7 +219,6 @@ class OrderListAPI(serializers.ModelSerializer):
     author_image = serializers.ReadOnlyField(source='author.profile_image.url')
     is_liked = serializers.SerializerMethodField()
     first_image = serializers.SerializerMethodField()
-    is_finished = serializers.SerializerMethodField()
     category_slug = serializers.ReadOnlyField(source='category.slug')
 
     class Meta:
@@ -241,9 +240,6 @@ class OrderListAPI(serializers.ModelSerializer):
             return first_image.images.url
         return None
 
-    def get_is_finished(self, instance):
-        return instance.status == 'Arrived'
-
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         list_type = self.context.get('list_type')
@@ -258,6 +254,7 @@ class OrderListAPI(serializers.ModelSerializer):
             representation['created_at'] = instance.created_at
             representation.pop('is_liked')
             representation.pop('booked_at')
+            representation['status'] = instance.status
         elif list_type == "my-received-orders":
             representation.pop('category_slug')
             representation.pop('is_booked')
@@ -300,6 +297,7 @@ class OrderListAPI(serializers.ModelSerializer):
         if list_type == "applied-orders":
             representation.pop('is_booked')
             representation.pop('is_finished')
+            representation.pop('status')
             if instance.is_booked:
                 if instance.org_work == self.context['request'].user.user_profile.current_org:
                     representation['application_status'] = "approved"

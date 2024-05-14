@@ -52,9 +52,8 @@ class Service(models.Model):
     slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(max_length=1000, null=True)
-    size = models.CharField(max_length=100)
     phone_number = models.CharField(max_length=20)
-    author_org = models.ForeignKey(Organization, related_name='service_ads', on_delete=models.CASCADE)
+    author = models.ForeignKey(UserProfile, related_name='service_ads', on_delete=models.CASCADE)
     liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_services')
     hide = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -80,7 +79,7 @@ class OrderCategory(models.Model):
         return f"{self.title}, slug: {self.slug}"
 
 
-STATUS = (('New', 'New'), ('Process', 'Process'), ('Checking', 'Checking'), ('Sending', 'Sending'), ('Arrived', 'Arrived'),)
+STATUS = (('Waiting', 'Waiting'), ('Process', 'Process'), ('Checking', 'Checking'), ('Sending', 'Sending'), ('Arrived', 'Arrived'),)
 
 
 class Order(models.Model):
@@ -94,14 +93,16 @@ class Order(models.Model):
     phone_number = models.CharField(max_length=20)
     hide = models.BooleanField(default=False)
     is_booked = models.BooleanField(default=False)
-    status = models.CharField(max_length=20, choices=STATUS, default='New')
+    status = models.CharField(max_length=20, choices=STATUS, default='Waiting')
     liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_orders')
     author = models.ForeignKey(UserProfile, related_name='order_ads', on_delete=models.CASCADE)
     org_work = models.ForeignKey(Organization, related_name='received_orders', blank=True, null=True, on_delete=models.DO_NOTHING)
     org_applicants = models.ManyToManyField(Organization, related_name='applied_orders', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     booked_at = models.DateTimeField(blank=True, null=True)
+    is_finished = models.BooleanField(default=False)
     finished_at = models.DateTimeField(blank=True, null=True)
+    arrived_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.title}, slug: {self.slug}"
