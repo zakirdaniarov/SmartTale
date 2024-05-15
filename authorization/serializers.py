@@ -8,6 +8,7 @@ class RegistrationSerializer(serializers.Serializer):
     first_name = serializers.CharField(max_length = 50)
     last_name = serializers.CharField(max_length = 50)
     middle_name = serializers.CharField(max_length = 50)
+    phone_number = serializers.CharField(max_length = 20)
     email = serializers.EmailField()
     password = serializers.CharField(max_length=15, min_length=8, write_only=True)
     password_confirm = serializers.CharField(max_length=15, min_length=8, write_only=True)

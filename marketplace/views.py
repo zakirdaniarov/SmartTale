@@ -3,9 +3,10 @@ from django.utils import timezone
 from drf_yasg import openapi
 from rest_framework.generics import ListAPIView
 from .models import Equipment, Order, Reviews, EquipmentCategory, OrderCategory, EquipmentImages, OrderImages
+from .models import ServiceCategory, ServiceImages, Service
 from .serializers import *
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from .services import get_paginated_data, get_equipment_paginated, get_order_or_equipment
+from .services import get_paginated_data, get_services_paginated_data, get_equipment_paginated, get_order_or_equipment
 from drf_yasg.utils import swagger_auto_schema
 from authorization.models import UserProfile, Organization
 from django.db.models import Q
@@ -35,6 +36,52 @@ class OrderCategoriesAPIView(APIView):
         return Response(content, status=status.HTTP_200_OK)
 
 
+class MyOrderApplicationsListView(APIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = OrgAPI
+
+    @swagger_auto_schema(
+        operation_summary="Displaying lists of applications for my order",
+        operation_description="This endpoint allows you to get information about applications for my order",
+        responses={200: OrgAPI},
+        tags=["Order"]
+    )
+    def get(self, request, order_slug):
+        try:
+            order = Order.objects.get(slug=order_slug)
+        except Order.DoesNotExist:
+            return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        user = request.user
+        if user.user_profile != order.author:
+            return Response({'Error':'User does not have permissions to see this page.'},
+                            status=status.HTTP_403_FORBIDDEN)
+        queryset = order.org_applicants.all()
+        serializer = self.serializer_class(queryset, many=True, context={'detail': False})
+        print(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class OrgDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = OrgAPI
+
+    @swagger_auto_schema(
+        operation_summary="Displaying organization detail page",
+        operation_description="This endpoint allows you to get information about detailed page about organization",
+        responses={200: OrgAPI},
+        tags=["Order"]
+    )
+    def get(self, request, org_slug):
+        try:
+            org = Organization.objects.get(slug=org_slug)
+        except Organization.DoesNotExist:
+            return Response({"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.serializer_class(org, context={'detail': True})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
 class BaseOrderListView(APIView):
 
     def get_queryset(self):
@@ -54,7 +101,6 @@ class BaseOrderListView(APIView):
 
     def get(self, request):
         queryset = self.get_queryset()
-        print(queryset)
         if isinstance(queryset, Response):
             return queryset
         queryset = self.filter_queryset_by_search(queryset)
@@ -96,7 +142,7 @@ class MyReceivedOrdersListView(BaseOrderListView):
     serializer_class = OrderListAPI
 
     def get_queryset(self):
-        organization = self.request.user.user_profile.current_org
+        organization = self.request.user.user_profile.working_org.org
         return Order.objects.filter(org_work=organization).order_by('booked_at')
 
     def get_list_type(self):
@@ -126,12 +172,12 @@ class MyHistoryOrdersListView(BaseOrderListView):
     serializer_class = OrderListAPI
 
     def get_queryset(self):
-        organization = self.request.user.user_profile.current_org
+        organization = self.request.user.user_profile.working_org.org
         status = self.request.query_params.get('status')
         if status == 'active':
-            return Order.objects.filter(org_work=organization).exclude(status='Arrived').order_by('booked_at')
+            return Order.objects.filter(org_work=organization, is_finished=False).order_by('booked_at')
         elif status == 'finished':
-            return Order.objects.filter(org_work=organization, status='Finished').order_by('booked_at')
+            return Order.objects.filter(org_work=organization, is_finished=True).order_by('booked_at')
         else:
             # Handle invalid status parameter
             return Order.objects.all()
@@ -157,6 +203,13 @@ class MyHistoryOrdersListView(BaseOrderListView):
                 required=False,
                 description="Search query to filter orders by title (case-insensitive)",
             ),
+            openapi.Parameter(
+                "stage",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Shows in which stage is order, active or finished",
+            )
         ],
         responses={200: serializer_class},
         tags=["Order List"]
@@ -170,7 +223,7 @@ class MyOrgOrdersListView(BaseOrderListView):
     serializer_class = OrderListAPI
 
     def get_queryset(self):
-        organization = self.request.user.user_profile.current_org
+        organization = self.request.user.user_profile.working_org.org
         return Order.objects.filter(org_work=organization).order_by('-booked_at')
 
     def get_list_type(self):
@@ -196,11 +249,11 @@ class MyOrgOrdersListView(BaseOrderListView):
 
 
 class MarketplaceOrdersListView(BaseOrderListView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     serializer_class = OrderListAPI
 
     def get_queryset(self):
-        return Order.objects.exclude(status='Arrived').filter(hide=False).order_by('-created_at')
+        return Order.objects.filter(hide=False, is_booked=False).order_by('-created_at')
 
     def get_list_type(self):
         return "marketplace-orders"
@@ -257,7 +310,7 @@ class ReceivedOrderStatusAPIView(APIView):
     )
     def get(self, request):
         user = request.user
-        organization = user.user_profile.current_org
+        organization = user.user_profile.working_org.org
         if not organization:
             return Response({'Error': 'User does not have access to this organization or organization not found.'},
                             status=status.HTTP_403_FORBIDDEN)
@@ -267,7 +320,7 @@ class ReceivedOrderStatusAPIView(APIView):
 
     def get_orders_data(self, org):
         orders_data = {
-            "New": [],
+            "Waiting": [],
             "Process": [],
             "Checking": [],
             "Sending": [],
@@ -283,39 +336,37 @@ class ReceivedOrderStatusAPIView(APIView):
         return orders_data
 
 
-# class OrdersHistoryListView(BaseOrderListView):
-#     permission_classes = [IsAuthenticated]
-#     serializer_class = OrderListAPI
-#     filter_backends = [DjangoFilterBackend]
-#     filterset_class = OrderDateFilter
+class OrdersHistoryListView(BaseOrderListView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = OrderListAPI
 
-#     def get_queryset(self):
-#         organization = self.request.user.user_profile.current_org
-#         status = self.request.query_params.get('status')
-#         min_booked_at = self.request.query_params.get('min_booked_at')
+    def get_queryset(self):
+        organization = self.request.user.user_profile.working_org.org
+        status = self.request.query_params.get('status')
+        min_booked_at = self.request.query_params.get('min_booked_at')
 
-#         queryset = Order.objects.filter(org_work=organization)
+        queryset = Order.objects.filter(org_work=organization)
 
-#         if status == 'active':
-#             # Return orders with statuses other than "Arrived"
-#             queryset = queryset.exclude(status='Arrived')
-#         elif status == 'finished':
-#             # Return orders with status "Arrived"
-#             queryset = queryset.filter(status='Arrived')
+        if status == 'active':
+            # Return orders with statuses other than "Arrived"
+            queryset = queryset.filter(is_finished=False)
+        elif status == 'finished':
+            # Return orders with status "Arrived"
+            queryset = queryset.filter(is_finished=True)
 
-#         # Apply additional filtering based on min_booked_at
-#         if min_booked_at:
-#             # Convert min_booked_at string to a date object
-#             min_booked_date = datetime.strptime(min_booked_at, '%Y-%m-%d').date()
-#             # Filter orders where booked_at date is greater than or equal to min_booked_date
-#             queryset = queryset.filter(booked_at__gte=min_booked_date)
+        # Apply additional filtering based on min_booked_at
+        if min_booked_at:
+            # Convert min_booked_at string to a date object
+            min_booked_date = datetime.strptime(min_booked_at, '%Y-%m-%d').date()
+            # Filter orders where booked_at date is greater than or equal to min_booked_date
+            queryset = queryset.filter(booked_at__gte=min_booked_date)
 
-#         # Apply default ordering
-#         queryset = queryset.order_by('booked_at')
-#         return queryset
+        # Apply default ordering
+        queryset = queryset.order_by('booked_at')
+        return queryset
 
     def get_list_type(self):
-        status = self.request.query_params.get('status')
+        status = self.request.query_params.get('stage')
         if status == 'active':
             return "orders-history-active"
         elif status == 'finished':
@@ -335,6 +386,13 @@ class ReceivedOrderStatusAPIView(APIView):
                 required=False,
                 description="Search query to filter orders by title (case-insensitive)",
             ),
+            openapi.Parameter(
+                "stage",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Shows in which stage is order, active or finished",
+            )
         ],
         responses={200: serializer_class},
         tags=["Order List"]
@@ -373,8 +431,38 @@ class LikedByUserOrdersAPIView(BaseOrderListView):
         return super().get(request)
 
 
+class MyAppliedOrdersListView(BaseOrderListView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = OrderListAPI
+
+    def get_queryset(self):
+        user = self.request.user
+        return user.user_profile.current_org.applied_orders.all().order_by('-created_at')
+
+    def get_list_type(self):
+        return "applied-orders"
+
+    @swagger_auto_schema(
+        operation_summary="List of orders applied by the current organization of the user",
+        operation_description="Retrieve a list of orders applied by the current organization of the user.",
+        manual_parameters=[
+            openapi.Parameter(
+                "title",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Search query to filter orders by title (case-insensitive)",
+            ),
+        ],
+        responses={200: "OK"},
+        tags=["Order List"]
+    )
+    def get(self, request):
+        return super().get(request)
+
+
 class OrdersByCategoryAPIView(BaseOrderListView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         category_title = self.request.query_params.get('category')
@@ -383,7 +471,7 @@ class OrdersByCategoryAPIView(BaseOrderListView):
         except OrderCategory.DoesNotExist:
             return Response({"message": "Category not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        return Order.objects.filter(category=category).exclude(status='Arrived').order_by('-created_at')
+        return Order.objects.filter(category=category, is_hide=False, is_booked=False).order_by('-created_at')
 
     def get_list_type(self):
         return "marketplace-orders"
@@ -418,7 +506,7 @@ class OrdersByCategoryAPIView(BaseOrderListView):
 
 
 class OrderDetailAPIView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
         operation_summary="Get order details",
@@ -597,6 +685,51 @@ class HideOrderAPIView(APIView):
         return Response({"Message": "Order hidden status is changed."}, status=status.HTTP_200_OK)
 
 
+class FinishOrderAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Finish an order",
+        operation_description="Endpoint to finish status of an order.",
+        manual_parameters=[
+            openapi.Parameter(
+                "order_slug",
+                openapi.IN_PATH,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="Slug of the order to be hidden or unhidden",
+            ),
+        ],
+        responses={
+            200: "OK",
+            403: "Forbidden",
+            404: "Not Found"
+        },
+        tags=["Order"]
+    )
+    def post(self, request, order_slug):
+        try:
+            order = Order.objects.get(slug=order_slug)
+        except Order.DoesNotExist:
+            return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        user = request.user
+        if user.user_profile != order.author:
+            return Response({'Error': 'User does not have permissions to finish this order.'},
+                            status=status.HTTP_403_FORBIDDEN)
+        if order.status != "Arrived":
+            return Response({'Error': 'The order is not arrived yet.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        if order.is_finished:
+            return Response({'Error': 'The order is already finished.'},
+                            status=status.HTTP_403_FORBIDDEN)
+        order.is_finished = True
+        order.finished_at = timezone.now()
+        order.save()
+        return Response({"Message": "Order finished status is changed."}, status=status.HTTP_200_OK)
+
+
 class DeleteOrderAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -634,19 +767,19 @@ class DeleteOrderAPIView(APIView):
         return Response({"Message": "Order has been deleted successfully."}, status=status.HTTP_200_OK)
 
 
-class BookOrderAPIView(APIView):
+class ApplyOrderAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        operation_summary="Book an order",
-        operation_description="Endpoint to book an order for the current organization.",
+        operation_summary="Apply for order",
+        operation_description="Endpoint to apply for order for the current organization.",
         manual_parameters=[
             openapi.Parameter(
                 "order_slug",
                 openapi.IN_PATH,
                 type=openapi.TYPE_STRING,
                 required=True,
-                description="Slug of the order to be booked",
+                description="Slug of the order to be applied",
             ),
         ],
         responses={
@@ -667,20 +800,73 @@ class BookOrderAPIView(APIView):
                             status=status.HTTP_403_FORBIDDEN)
 
         user = request.user
-        organization = user.user_profile.current_org
+        organization = user.user_profile.working_org.org
         if not organization:
             return Response({'Error':'User does not have access to this organization or organization not found.'},
                             status=status.HTTP_403_FORBIDDEN)
 
-        order.org_work = organization
+        order.org_applicants.add(organization)
+        order.save()
+        return Response({"Success": "Order applied successfully."}, status=status.HTTP_200_OK)
+
+
+class BookOrderAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Choose a received org for order",
+        operation_description="Endpoint to choose a received org for order.",
+        manual_parameters=[
+            openapi.Parameter(
+                "order_slug",
+                openapi.IN_PATH,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="Slug of the order to be applied",
+            ),
+            openapi.Parameter(
+                "org_slug",
+                openapi.IN_PATH,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="Slug of the org which is appled",
+            ),
+        ],
+        responses={
+            200: "OK",
+            403: "Forbidden",
+            404: "Not Found"
+        },
+        tags=["Order"]
+    )
+    def post(self, request, order_slug, org_slug):
+        try:
+            order = Order.objects.get(slug=order_slug)
+        except Order.DoesNotExist:
+            return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if order.is_booked:
+            return Response({'Message':'The order is already booked by another organization.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            org = Organization.objects.get(slug=org_slug)
+        except Organization.DoesNotExist:
+            return Response({"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        user = request.user
+        if user.user_profile != order.author:
+            return Response({'Error':'User does not have permissions to do this action.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        order.org_work = org
         order.is_booked = True
         order.booked_at = timezone.now()
         order.save()
+        return Response({"Success": "Order booked successfully."}, status=status.HTTP_200_OK)
 
-        return Response({"Success": "Order received successfully."}, status=status.HTTP_200_OK)
 
-
-STATUS = (('New', 'New'), ('Process', 'Process'), ('Checking', 'Checking'), ('Sending', 'Sending'), ('Arrived', 'Arrived'),)
+STATUS = (('Waiting', 'Waiting'), ('Process', 'Process'), ('Checking', 'Checking'), ('Sending', 'Sending'), ('Arrived', 'Arrived'),)
 
 
 class UpdateOrderStatusAPIView(APIView):
@@ -702,7 +888,7 @@ class UpdateOrderStatusAPIView(APIView):
                 openapi.IN_QUERY,
                 type=openapi.TYPE_STRING,
                 required=True,
-                description="New status of the order. Must be one of ['New', 'Process', 'Checking', 'Sending', 'Arrived']",
+                description="New status of the order. Must be one of ['Waiting', 'Process', 'Checking', 'Sending', 'Arrived']",
             ),
         ],
         responses={
@@ -719,7 +905,7 @@ class UpdateOrderStatusAPIView(APIView):
             return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
         user = request.user
-        organization = user.user_profile.current_org
+        organization = user.user_profile.working_org.org
         if not organization:
             return Response({'Error': 'User does not have access to this organization or organization not found.'},
                             status=status.HTTP_403_FORBIDDEN)
@@ -729,9 +915,9 @@ class UpdateOrderStatusAPIView(APIView):
                             status=status.HTTP_403_FORBIDDEN)
 
         order_status = request.query_params.get('status')
-        if order_status not in ["New", "Process", "Checking", "Sending", "Arrived"]:
+        if order_status not in ["Waiting", "Process", "Checking", "Sending", "Arrived"]:
             return Response({'Error':'The new status name is incorrect. The new status has to be one of'
-                                     '["New", "Process", "Checking", "Sending", "Arrived"]'},
+                                     '["Waiting", "Process", "Checking", "Sending", "Arrived"]'},
                             status=status.HTTP_403_FORBIDDEN)
 
         # Check if the current status is "Arrived"; if so, do not allow status change
@@ -752,7 +938,7 @@ class UpdateOrderStatusAPIView(APIView):
 
         # If the new status is "Arrived", set the finished_at timestamp
         if order_status == "Arrived":
-            order.finished_at = timezone.now()
+            order.arrived_at = timezone.now()
 
         # Update the order status and save
         order.status = order_status
@@ -851,6 +1037,16 @@ class ReviewOrderAPIView(APIView):
 
 
 class EquipmentsListAPIView(APIView):
+    def get_equipments(self):
+        try:
+            equipments = Equipment.objects.all().order_by('-created_at')
+        except Equipment.DoesNotExist:
+            return Response({"error": "Equipments does not exist"})
+        return equipments
+
+    def get_equipments_type(self):
+        return 'equipments-list'
+
     @swagger_auto_schema(
         tags=['Equipment'],
         operation_description="Этот эндпоинт"
@@ -862,16 +1058,6 @@ class EquipmentsListAPIView(APIView):
             500: "Server error",
         }
     )
-    def get_equipments(self):
-        try:
-            equipments = Equipment.objects.all().order_by('-created_at')
-        except Equipment.DoesNotExist:
-            return Response({"error": "Equipments does not exist"})
-        return equipments
-
-    def get_equipments_type(self):
-        return 'equipments-list'
-
     def get(self, request, *args, **kwargs):
         equipments = self.get_equipments()
         data = get_equipment_paginated(equipments, request, self.get_equipments_type())
@@ -1053,6 +1239,13 @@ class EquipmentLikeAPIView(APIView):
 class EquipmentByAuthorLikeAPIView(APIView):
     permission_classes = [CurrentUserOrReadOnly]
 
+    def get_liked_equipments(self):
+        author = self.request.user.user_profile
+        return author.liked_equipment.all().order_by('-created_at')
+
+    def get_equipments_type(self):
+        return "my-like-equipments"
+
     @swagger_auto_schema(
         tags=['Equipment'],
         operation_description="Этот эндпоинт"
@@ -1066,13 +1259,6 @@ class EquipmentByAuthorLikeAPIView(APIView):
             500: "Server error",
         }
     )
-    def get_liked_equipments(self):
-        author = self.request.user.user_profile
-        return author.liked_equipment.all().order_by('-created_at')
-
-    def get_equipments_type(self):
-        return "my-like-equipments"
-
     def get(self, request, *args, **kwargs):
         like = self.get_liked_equipments()
         data = get_equipment_paginated(like, request, self.get_equipments_type())
@@ -1156,17 +1342,6 @@ class SoldEquipmentAPIView(APIView):
 class OrdersAndEquipmentsListAPIView(APIView):
     permission_classes = [CurrentUserOrReadOnly]
 
-    @swagger_auto_schema(
-        tags=['Equipment'],
-        operation_description="Этот эндпоинт"
-                              "предостовляет пользователю"
-                              "свои заказы и оборудования",
-        responses={
-            200: "Orders and equipments list",
-            404: "Orders or Equipments does not exist",
-            500: "Server error",
-        }
-    )
     def get_orders_and_equipments(self):
         author = self.request.user.user_profile
 
@@ -1180,7 +1355,396 @@ class OrdersAndEquipmentsListAPIView(APIView):
     def get_orders_and_equipments_type(self):
         return 'orders-and-equipments-type'
 
+    @swagger_auto_schema(
+        tags=['Equipment'],
+        operation_description="Этот эндпоинт"
+                              "предостовляет пользователю"
+                              "свои заказы и оборудования",
+        responses={
+            200: "Orders and equipments list",
+            404: "Orders or Equipments does not exist",
+            500: "Server error",
+        }
+    )
     def get(self, request, *args, **kwargs):
         services = self.get_orders_and_equipments()
         data = get_order_or_equipment(services, request, self.get_orders_and_equipments_type())
         return Response(data, status=status.HTTP_200_OK)
+
+
+#Service related views
+class ServiceCategoriesAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Displaying lists of service categories",
+        operation_description="This endpoint allows you to get information about various service categories",
+        responses={200: ServiceCategoryListAPI},
+        tags=["Service"]
+    )
+    def get(self, request):
+        categories = ServiceCategory.objects.all()
+        categories_api = ServiceCategoryListAPI(categories, many=True)
+        content = {"Categories": categories_api.data}
+        return Response(content, status=status.HTTP_200_OK)
+
+
+class BaseServiceListView(APIView):
+
+    def get_queryset(self):
+        raise NotImplementedError("Subclasses must implement get_queryset method.")
+
+    def get_author_type(self):
+        raise NotImplementedError("Subclasses must implement get_queryset method.")
+
+    def get_search_query(self):
+        return self.request.query_params.get('title', '')
+
+    def filter_queryset_by_search(self, queryset):
+        search_query = self.get_search_query()
+        if search_query:
+            queryset = queryset.filter(Q(title__icontains=search_query))
+        return queryset
+
+    def get(self, request):
+        queryset = self.get_queryset()
+        if isinstance(queryset, Response):
+            return queryset
+        queryset = self.filter_queryset_by_search(queryset)
+        paginated_data = get_services_paginated_data(queryset, request, self.get_author_type())
+        return Response(paginated_data, status=status.HTTP_200_OK)
+
+
+class MyServiceAdsListView(BaseServiceListView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ServiceSerializer
+
+    def get_queryset(self):
+        return Service.objects.filter(author=self.request.user.user_profile).order_by('-created_at')
+
+    def get_author_type(self):
+        return True
+
+    @swagger_auto_schema(
+        operation_summary="List of services created by the current organization",
+        operation_description="Retrieve a list of services created by the current authenticated user organization.",
+        manual_parameters=[
+            openapi.Parameter(
+                "title",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Search query to filter services by title (case-insensitive)",
+            ),
+        ],
+        responses={200: serializer_class},
+        tags=["Service"]
+    )
+    def get(self, request):
+        return super().get(request)
+
+
+class ServicesAPIView(BaseServiceListView):
+    permission_classes = [AllowAny]
+    serializer_class = ServiceSerializer
+
+    def get_queryset(self):
+        return Service.objects.filter(hide=False).order_by('-created_at')
+
+    def get_author_type(self):
+        return False
+
+    @swagger_auto_schema(
+        operation_summary="List of all services",
+        operation_description="Retrieve a list of all services.",
+        manual_parameters=[
+            openapi.Parameter(
+                "title",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Search query to filter services by title (case-insensitive)",
+            ),
+        ],
+        responses={200: serializer_class},
+        tags=["Service"]
+    )
+    def get(self, request):
+        return super().get(request)
+
+
+class LikedByUserServicesAPIView(BaseServiceListView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ServiceSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        return user.user_profile.liked_services.all().order_by('-created_at')
+
+    def get_author_type(self):
+        return False
+
+    @swagger_auto_schema(
+        operation_summary="List of all services liked by the current user",
+        operation_description="Retrieve a list of all services liked by the current user.",
+        manual_parameters=[
+            openapi.Parameter(
+                "title",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Search query to filter services by title (case-insensitive)",
+            ),
+        ],
+        responses={200: serializer_class},
+        tags=["Service"]
+    )
+    def get(self, request):
+        return super().get(request)
+
+
+class ServiceDetailAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        operation_summary="Get service details",
+        operation_description="Get details of a specific service by its slug.",
+        manual_parameters=[
+            openapi.Parameter(
+                "service_slug",
+                openapi.IN_PATH,
+                description="Slug of the service",
+                type=openapi.TYPE_STRING,
+                required=True,
+            )
+        ],
+        responses={
+            200: ServiceSerializer,
+            404: "Service not found",
+        },
+        tags=["Service"]
+    )
+    def get(self, request, service_slug):
+        try:
+            service = Service.objects.get(slug=service_slug)
+        except Service.DoesNotExist:
+            return Response({"Error": "Service is not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        author = request.user.is_authenticated and request.user.user_profile == service.author
+        service_api = ServiceSerializer(service, context={'request': request, 'author': author})
+        content = {"Service Info": service_api.data}
+
+        return Response(content, status=status.HTTP_200_OK)
+
+
+class CreateServiceAPIView(APIView):
+    serializer_class = ServicePostSerializer
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Create a new service",
+        operation_description="Endpoint to create a new service.",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["title", "uploaded_images", "description", "price", "category_slug", "phone_number", "size"],
+            properties={
+                "title": openapi.Schema(type=openapi.TYPE_STRING, description="Title of the service"),
+                "uploaded_images": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(type=openapi.TYPE_STRING, format="binary"),
+                    description="List of uploaded images"
+                ),
+                "description": openapi.Schema(type=openapi.TYPE_STRING, description="Description of the service"),
+                "price": openapi.Schema(type=openapi.TYPE_NUMBER, description="Price of the service"),
+                "category_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Slug of the service category"),
+                "phone_number": openapi.Schema(type=openapi.TYPE_STRING, description="Phone number for contact"),
+            },
+        ),
+        responses={
+            201: "Created",
+            400: "Bad Request",
+            403: "Forbidden"
+        },
+        tags=["Service"]
+    )
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        if not user.user_profile:
+            return Response({'Error':'The user has to have a user profile.'},
+                            status=status.HTTP_403_FORBIDDEN)
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UpdateServiceAPIView(APIView):
+    serializer_class = ServicePostSerializer
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Update an existing service",
+        operation_description="Endpoint to update an existing service.",
+        manual_parameters=[
+            openapi.Parameter(
+                "service_slug",
+                openapi.IN_PATH,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="Slug of the service to be updated",
+            ),
+        ],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=[],
+            properties={
+                "title": openapi.Schema(type=openapi.TYPE_STRING, description="Title of the service (optional)"),
+                "uploaded_images": openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(type=openapi.TYPE_STRING, format="binary"),
+                    description="List of uploaded images (optional)"
+                ),
+                "description": openapi.Schema(type=openapi.TYPE_STRING, description="Description of the service (optional)"),
+                "price": openapi.Schema(type=openapi.TYPE_NUMBER, description="Price of the service (optional)"),
+                "category_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Slug of the service category (optional)"),
+                "phone_number": openapi.Schema(type=openapi.TYPE_STRING, description="Phone number for contact (optional)"),
+            },
+        ),
+        responses={
+            201: "Created",
+            400: "Bad Request",
+            403: "Forbidden",
+            404: "Not Found"
+        },
+        tags=["Service"]
+    )
+    def put(self, request, service_slug):
+        try:
+            service = Service.objects.get(slug=service_slug)
+        except Service.DoesNotExist:
+            return Response({"message": "Service not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        user = request.user
+        if user.user_profile != service.author:
+            return Response({'Error':'User does not have permissions to update this service.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        serializer = self.serializer_class(service, data=request.data, context={'request': request})
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class DeleteServiceAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Delete an service",
+        operation_description="Endpoint to delete an service.",
+        manual_parameters=[
+            openapi.Parameter(
+                "service_slug",
+                openapi.IN_PATH,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="Slug of the service to be updated",
+            ),
+        ],
+        responses={
+            200: "OK",
+            403: "Forbidden",
+            404: "Not Found"
+        },
+        tags=["Service"]
+    )
+    def post(self, request, service_slug):
+        try:
+            service = Service.objects.get(slug=service_slug)
+        except Service.DoesNotExist:
+            return Response({"message": "Service not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        user = request.user
+        if user.user_profile != service.author:
+            return Response({'Error':'User does not have permissions to update this service.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        service.delete()
+        return Response({"Message": "Service has been deleted successfully."}, status=status.HTTP_200_OK)
+
+
+class ServiceLikeAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    @swagger_auto_schema(
+        operation_summary="Like or unlike an service",
+        operation_description="Endpoint to like or unlike an service.",
+        manual_parameters=[
+            openapi.Parameter(
+                "service_slug",
+                openapi.IN_PATH,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="Slug of the service to like/unlike",
+            ),
+        ],
+        responses={
+            200: "OK",
+            404: "Not Found"
+        },
+        tags=["Service"]
+    )
+    def post(self, request, service_slug):
+        try:
+            service = Service.objects.get(slug=service_slug)
+        except Service.DoesNotExist:
+            return Response({"message": "Service not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        user = request.user
+
+        if user.user_profile in service.liked_by.all():
+            service.liked_by.remove(user.user_profile)
+        else:
+            service.liked_by.add(user.user_profile)
+        service.save()
+        return Response({"Message": "Service's favourite status is changed successfully."}, status=status.HTTP_200_OK)
+
+
+class HideServiceAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Hide or unhide a service",
+        operation_description="Endpoint to toggle the hide status of an service.",
+        manual_parameters=[
+            openapi.Parameter(
+                "service_slug",
+                openapi.IN_PATH,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="Slug of the service to be hidden or unhidden",
+            ),
+        ],
+        responses={
+            200: "OK",
+            403: "Forbidden",
+            404: "Not Found"
+        },
+        tags=["Service"]
+    )
+    def post(self, request, service_slug):
+        try:
+            service = Service.objects.get(slug=service_slug)
+        except Service.DoesNotExist:
+            return Response({"message": "Service not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        user = request.user
+        if user.user_profile != service.author:
+            return Response({'Error':'User does not have permissions to update this service.'},
+                            status=status.HTTP_403_FORBIDDEN)
+        if service.hide:
+            service.hide = False
+        else:
+            service.hide = True
+        service.save()
+        return Response({"Message": "Service hidden status is changed."}, status=status.HTTP_200_OK)

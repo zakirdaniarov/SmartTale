@@ -41,5 +41,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('authorization.urls')),
     path('', include('marketplace.urls')),
+    path('', include('monitoring.urls')),
     path('', include('job.urls')),
 ]
