@@ -252,7 +252,7 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Equipment
-        fields = ['id', 'title', 'category', 'images', 'uploaded_images', 'price',
+        fields = ['title', 'category', 'images', 'uploaded_images', 'price',
                   'description', 'phone_number', 'author', 'hide', 'sale_status']
 
     def get_sale_status(self, instance):
