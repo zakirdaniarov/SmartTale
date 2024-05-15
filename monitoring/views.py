@@ -6,7 +6,8 @@ from drf_yasg.utils import swagger_auto_schema
 from authorization.models import Organization
 
 from .serializers import (JobTitleSeriailizer, OrganizationSerializer, ProfileDetailSerializer,
-                          EmployeeListSerializer, JobTitleSerializer, EmployeeDetailSerializer)
+                          EmployeeListSerializer, JobTitleSerializer, EmployeeDetailSerializer,
+                          OrganizationDetailSerializer, OrganizationListSerializer)
 from .models import Employee, JobTitle
 from authorization.models import UserProfile
 
@@ -56,6 +57,46 @@ class OrganizationAPIView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class OrganizationDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = OrganizationDetailSerializer
+
+    @swagger_auto_schema(
+        tags = ["Organization"],
+        operation_summary = "Подробная информация об организации",
+        operation_description = "Этот эндпоинт предоставляет доступ к подробной информации об организации с помощью slug.",
+        responses = {
+            200: OrganizationDetailSerializer
+        },
+    )
+    def get(self, request, org_slug):
+        try:
+            org = Organization.objects.get(slug=org_slug)
+        except Organization.DoesNotExist:
+            return Response({"Error": "Организация не найдена."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.serializer_class(org, context={'detail': True})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+class OrganizationListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags = ['Organization'],
+        operation_summary = "Список организаций пользователя",
+        operation_description = "Этот эндпоинт предоставляет доступ к списку организаций пользователя.",
+        responses = {
+            200: OrganizationDetailSerializer
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        orgs = Organization.objects.filter(owner = user.user_profile)
+        if not orgs:
+            return Response({"Error": "You don't have organizations!"}, status = status.HTTP_404_NOT_FOUND)
+        serializer = OrganizationListSerializer(orgs, many = True)
+        return Response(serializer.data, status = status.HTTP_200_OK)
 
 # Create your views here.
 class CreateJobTitleAPIView(APIView):
@@ -185,3 +226,8 @@ class JobTitleListAPIView(APIView):
         serializer = JobTitleSerializer(jobs, many = True)
         return Response(serializer.data, status = status.HTTP_200_OK)
     
+class EmployeeAddAPIView(APIView):
+    pass 
+
+class EmployeeRemoveAPIView(APIView):
+    pass
