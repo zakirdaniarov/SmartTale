@@ -21,7 +21,6 @@ urlpatterns = [
 
     path('order-apply/<slug:order_slug>/', ApplyOrderAPIView.as_view(), name='smarttale-apply-order'),
     path('applied-orgs/<slug:order_slug>/', MyOrderApplicationsListView.as_view(), name='smarttale-my-order-applications'),
-    path('organization/<slug:org_slug>/', OrgDetailAPIView.as_view(), name='smarttale-org-detail'),
     path('order-book/<slug:order_slug>/<slug:org_slug>/', BookOrderAPIView.as_view(), name='smarttale-book-order'),
     path('my-applied-orders/', MyAppliedOrdersListView.as_view(), name='smarttale-my-applied-orders'),
 

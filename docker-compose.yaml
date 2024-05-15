@@ -1,16 +1,10 @@
 version: '3.9'
 
 services:
-
   db:
-    image: postgres:14
-    restart: always
-    ports:
-      - "5432:5432"
-    env_file:
-      - .env
+    image: sqlite:latest
     volumes:
-      - "./postgres:/var/lib/postgresql/data"
+      - ./sqlite_data:/code/
 
   app:
     build: .
@@ -26,4 +20,4 @@ services:
       - db
 
 volumes:
-  postgres:
+  sqlite_data:

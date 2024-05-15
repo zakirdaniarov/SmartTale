@@ -277,7 +277,7 @@ class OrderListAPI(serializers.ModelSerializer):
             representation.pop('is_finished')
             representation['status'] = instance.status
         elif list_type in ["my-org-orders", "orders-history-active", "orders-history-finished"]:
-            epresentation.pop('author_first_name')
+            representation.pop('author_first_name')
             representation.pop('author_last_name')
             representation.pop('author_slug')
             representation.pop('author_image')
