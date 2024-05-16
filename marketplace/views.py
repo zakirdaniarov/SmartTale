@@ -63,24 +63,7 @@ class MyOrderApplicationsListView(APIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-class OrgDetailAPIView(APIView):
-    permission_classes = [IsAuthenticated]
-    serializer_class = OrgAPI
 
-    @swagger_auto_schema(
-        operation_summary="Displaying organization detail page",
-        operation_description="This endpoint allows you to get information about detailed page about organization",
-        responses={200: OrgAPI},
-        tags=["Order"]
-    )
-    def get(self, request, org_slug):
-        try:
-            org = Organization.objects.get(slug=org_slug)
-        except Organization.DoesNotExist:
-            return Response({"message": "Organization not found"}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = self.serializer_class(org, context={'detail': True})
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class BaseOrderListView(APIView):

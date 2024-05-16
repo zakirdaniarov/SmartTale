@@ -29,7 +29,26 @@ class OrganizationSerializer(serializers.ModelSerializer):
         user = self.context['user']
         org = Organization.objects.create(founder = user, owner = user, **validated_data)
         return org
-    
+
+class OwnerSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = UserProfile
+        fields = ['slug', 'first_name', 'last_name', 'profile_image']
+
+class OrganizationDetailSerializer(serializers.ModelSerializer):
+    owner = OwnerSerializer(read_only=True)
+
+    class Meta:
+        model = Organization
+        fields = ['slug', 'title', 'owner', 'description', 'created_at']
+
+class OrganizationListSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Organization
+        fields = ['slug', 'title', 'description', 'status']
+
 class ProfileDetailSerializer(serializers.ModelSerializer):
     email = serializers.ReadOnlyField(source = 'user.email')
 
