@@ -6,7 +6,8 @@ from drf_yasg.utils import swagger_auto_schema
 from authorization.models import Organization
 
 from .serializers import (JobTitleSeriailizer, OrganizationSerializer, ProfileDetailSerializer,
-                          EmployeeListSerializer, JobTitleSerializer, EmployeeDetailSerializer)
+                          EmployeeListSerializer, JobTitleSerializer, EmployeeDetailSerializer,
+                          OrganizationDetailSerializer, OrganizationListSerializer)
 from .models import Employee, JobTitle
 from authorization.models import UserProfile
 
@@ -56,6 +57,46 @@ class OrganizationAPIView(APIView):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class OrganizationDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = OrganizationDetailSerializer
+
+    @swagger_auto_schema(
+        tags = ["Organization"],
+        operation_summary = "Подробная информация об организации",
+        operation_description = "Этот эндпоинт предоставляет доступ к подробной информации об организации с помощью slug.",
+        responses = {
+            200: OrganizationDetailSerializer
+        },
+    )
+    def get(self, request, org_slug):
+        try:
+            org = Organization.objects.get(slug=org_slug)
+        except Organization.DoesNotExist:
+            return Response({"Error": "Организация не найдена."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.serializer_class(org, context={'detail': True})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+class OrganizationListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags = ['Organization'],
+        operation_summary = "Список организаций пользователя",
+        operation_description = "Этот эндпоинт предоставляет доступ к списку организаций пользователя.",
+        responses = {
+            200: OrganizationDetailSerializer
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        orgs = Organization.objects.filter(owner = user.user_profile)
+        if not orgs:
+            return Response({"Error": "You don't have organizations!"}, status = status.HTTP_404_NOT_FOUND)
+        serializer = OrganizationListSerializer(orgs, many = True)
+        return Response(serializer.data, status = status.HTTP_200_OK)
 
 # Create your views here.
 class CreateJobTitleAPIView(APIView):
@@ -152,6 +193,44 @@ class EmployeeDetailAPIView(APIView):
             return Response({"Error.": "Пользователь не является сотрудником какой-либо компании."}, status = status.HTTP_404_NOT_FOUND)
         serializer = EmployeeDetailSerializer(user)
         return Response(serializer.data, status = status.HTTP_200_OK)
+    
+class EmployeeCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        try:
+            employee = Employee.objects.get(user = user.user_profile)
+            if not employee.job_title:
+                raise Exception("No permission")
+            elif not employee.job_title.flag_add_employee:
+                raise Exception("No permission")
+        except Exception:
+            return Response({"Error": "У Вас нет прав на добавление сотрудников!"}, status = status.HTTP_403_FORBIDDEN)
+        user = request.user
+        user_slug = request.data['user_slug']
+        org_title = request.data['org_title']
+        job_title = request.data['job_title']
+        try:
+            target_user = UserProfile.objects.get(slug = user_slug)
+        except Exception:
+            return Response({"Error": "Нет существует такого пользователя!"}, status = status.HTTP_404_NOT_FOUND)
+        try:
+            org = Organization.objects.get(title = org_title)
+        except Exception:
+            return Response({"Error": "Нет существует такой организации!"}, status = status.HTTP_404_NOT_FOUND)
+        try:
+            job = JobTitle.objects.get(org = org, job_title = job_title)
+        except Exception:
+            return Response({"Error": "Нет существует такой должности!"}, status = status.HTTP_404_NOT_FOUND)
+        Employee.objects.create(user = target_user, org = org, job_title = job)
+        return Response({"Success": "Сотрудник добавлен"}, status = status.HTTP_201_CREATED)
+
+class EmployeeDeleteAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        pass
 
 def sort_for_jobs(item):
     result = 0
@@ -184,4 +263,3 @@ class JobTitleListAPIView(APIView):
         jobs = sorted(jobs, key = lambda item: sort_for_jobs(item), reverse = True)
         serializer = JobTitleSerializer(jobs, many = True)
         return Response(serializer.data, status = status.HTTP_200_OK)
-    
