@@ -2,7 +2,8 @@ from django.urls import path, include
 
 from .views import (UserDetailAPIView, OrganizationAPIView, EmployeeListAPIView,
                     CreateJobTitleAPIView, DeleteJobTitleAPIView, JobTitleListAPIView,
-                    EmployeeDetailAPIView, OrganizationDetailAPIView, OrganizationListAPIView)
+                    EmployeeDetailAPIView, OrganizationDetailAPIView, OrganizationListAPIView,
+                    EmployeeCreateAPIView, EmployeeDeleteAPIView)
 
 
 urlpatterns = [
@@ -15,4 +16,6 @@ urlpatterns = [
     path('org-jobs/delete', DeleteJobTitleAPIView.as_view(), name = 'jobtitles-delete'),
     path('org-jobs/add', CreateJobTitleAPIView.as_view(), name = 'jobtitles-add'),
     path('org-jobs/list', JobTitleListAPIView.as_view(), name = 'jobtitles-list'),
+    path('employee/delete', EmployeeDeleteAPIView.as_view(), name = 'employee-delete'),
+    path('employee/add', EmployeeCreateAPIView.as_view(), name = 'employee-add')
 ]

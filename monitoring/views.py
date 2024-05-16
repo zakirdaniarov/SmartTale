@@ -7,9 +7,10 @@ from authorization.models import Organization
 
 from .serializers import (JobTitleSeriailizer, OrganizationSerializer, ProfileDetailSerializer,
                           EmployeeListSerializer, JobTitleSerializer, EmployeeDetailSerializer,
-                          OrganizationDetailSerializer, OrganizationListSerializer)
+                          OrganizationDetailSerializer, OrganizationListSerializer,
+                          EmployeeCreateSerializer, EmployeeDeleteSerializer)
 from .models import Employee, JobTitle
-from authorization.models import UserProfile
+from authorization.models import UserProfile, User
 
 class UserDetailAPIView(APIView):
     @swagger_auto_schema(
@@ -197,7 +198,18 @@ class EmployeeDetailAPIView(APIView):
 class EmployeeCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
+    @swagger_auto_schema(
+        tags = ["Organization"],
+        operation_summary = "Приглашение сотрудника в организаци.",
+        operation_description = "Предоставляет доступ к добавлению пользователя в организацию.",
+        request_body = EmployeeCreateSerializer,
+        responses = {
+            201: "Employee added to organization",
+            403: "No permission for adding employee",
+            404: "No such user",
+        }
+    )
+    def post(self, request, *args, **kwargs):
         user = request.user
         try:
             employee = Employee.objects.get(user = user.user_profile)
@@ -207,12 +219,12 @@ class EmployeeCreateAPIView(APIView):
                 raise Exception("No permission")
         except Exception:
             return Response({"Error": "У Вас нет прав на добавление сотрудников!"}, status = status.HTTP_403_FORBIDDEN)
-        user = request.user
-        user_slug = request.data['user_slug']
+        email = request.data['email']
         org_title = request.data['org_title']
         job_title = request.data['job_title']
         try:
-            target_user = UserProfile.objects.get(slug = user_slug)
+            target_user = User.objects.get(email = email)
+            target_user = UserProfile.objects.get(user = target_user)
         except Exception:
             return Response({"Error": "Нет существует такого пользователя!"}, status = status.HTTP_404_NOT_FOUND)
         try:
@@ -229,8 +241,40 @@ class EmployeeCreateAPIView(APIView):
 class EmployeeDeleteAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request, *args, **kwargs):
-        pass
+    @swagger_auto_schema(
+        tags = ["Organization"],
+        operation_summary = "Удаление сотрудника из организации.",
+        operation_description = "Предоставляет доступ к удалению сотрудника из организации.",
+        request_body = EmployeeDeleteSerializer,
+        responses = {
+            200: "User is deleted",
+            403: "No permission for deletion",
+            404: "Not user or employee",
+        }
+    )
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+        try:
+            employee = Employee.objects.get(user = user.user_profile)
+            if not employee.job_title:
+                raise Exception("No permission")
+            elif not employee.job_title.flag_remove_employee:
+                raise Exception("No permission")
+        except Exception:
+            return Response({"Error": "У Вас нет прав на добавление сотрудников!"}, status = status.HTTP_403_FORBIDDEN)
+        user_slug = request.data['user_slug']
+        try:
+            target_user = UserProfile.objects.get(slug = user_slug)
+        except Exception:
+            return Response({"Error": "Нет такого пользователя."}, status = status.HTTP_404_NOT_FOUND)
+        try:
+            target_employee = Employee.objects.get(user = target_user)
+        except Exception:
+            return Response({"Error": "Нет такого сотрудника."}, status = status.HTTP_404_NOT_FOUND)
+        if employee.working_org.org != target_employee.working_org.org:
+            return Response({"Error": "Нельзя удалить сотрудника не из вашей организации."}, status = status.HTTP_403_FORBIDDEN)
+        target_employee.delete()
+        return Response({"Success": "Сотрудник успешно удален."}, status = status.HTTP_200_OK)
 
 def sort_for_jobs(item):
     result = 0

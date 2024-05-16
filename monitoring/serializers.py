@@ -105,3 +105,12 @@ class JobTitleSerializer(serializers.ModelSerializer):
     class Meta:
         model = JobTitle
         fields = ['title', 'description']
+
+class EmployeeCreateSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    org_title = serializers.CharField()
+    job_title = serializers.CharField()
+
+class EmployeeDeleteSerializer(serializers.Serializer):
+    user_slug = serializers.SlugField()
+
