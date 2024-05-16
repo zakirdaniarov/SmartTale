@@ -1,6 +1,15 @@
 #!/bin/bash
+if [ "$DATABASE" = "postgres" ]
+then
+    echo "Waiting for postgres..."
 
-Collect static files
+    while ! nc -z $DB_HOST $DB_PORT; do
+      sleep 0.1
+    done
+
+    echo "PostgreSQL started"
+fi
+# Collect static files
 echo "Collect static files"
 python manage.py collectstatic --noinput
 

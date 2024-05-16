@@ -84,7 +84,7 @@ class ConfirmationCode(models.Model):
 class Organization(models.Model):
     founder = models.ForeignKey(UserProfile, verbose_name = 'founder', related_name = 'founder_organizations', on_delete = models.DO_NOTHING)
     owner = models.ForeignKey(UserProfile, verbose_name = 'owner', related_name = 'owner_organizations', on_delete = models.DO_NOTHING)
-    title = models.CharField(max_length = 100)
+    title = models.CharField(max_length = 100, unique = True)
     slug = AutoSlugField(populate_from = 'title', unique = True, always_update = True)
     phone_number = models.CharField(max_length = 20, blank = True, null = True, default = None)
     description = models.TextField()
