@@ -19,6 +19,7 @@ class Equipment(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(max_length=1000, null=True)
     phone_number = models.CharField(max_length=20)
+    email = models.EmailField(max_length=70, blank=True, unique=True)
     author = models.ForeignKey(UserProfile, related_name='equipment_ads', on_delete=models.CASCADE)
     liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_equipment')
     hide = models.BooleanField(default=False)
@@ -53,6 +54,7 @@ class Service(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(max_length=1000, null=True)
     phone_number = models.CharField(max_length=20)
+    email = models.EmailField(max_length=70, blank=True, unique=True)
     author = models.ForeignKey(UserProfile, related_name='service_ads', on_delete=models.CASCADE)
     liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_services')
     hide = models.BooleanField(default=False)
@@ -80,7 +82,7 @@ class OrderCategory(models.Model):
 
 
 STATUS = (('Waiting', 'Waiting'), ('Process', 'Process'), ('Checking', 'Checking'), ('Sending', 'Sending'), ('Arrived', 'Arrived'),)
-
+SIZE = (('40', '40'), ('42', '42'), ('46', '46'), ('48', '48'), ('S', 'S'), ('M', 'M'), ('L', 'L'), ('XL', 'XL'))
 
 class Order(models.Model):
     title = models.CharField(max_length=60)
@@ -88,9 +90,10 @@ class Order(models.Model):
     category = models.ForeignKey(OrderCategory, related_name='orders', null=True, blank=True, on_delete=models.DO_NOTHING)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(max_length=1000, null=True)
-    size = models.CharField(max_length=100)
+    size = models.CharField(max_length=10, choices=SIZE, default='40')
     deadline = models.DateField()
     phone_number = models.CharField(max_length=20)
+    email = models.EmailField(max_length=70, blank=True, unique=True)
     hide = models.BooleanField(default=False)
     is_booked = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=STATUS, default='Waiting')
