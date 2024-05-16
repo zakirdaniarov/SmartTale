@@ -16,16 +16,34 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = ['last_name', 'first_name', 'middle_name']
 
 
-class VacancySerializer(serializers.ModelSerializer):
+class VacancyListSerializer(serializers.ModelSerializer):
+
     organization = OrganizationSerializer(read_only=True)
 
     class Meta:
         model = Vacancy
-        fields = ['job_title', 'slug', 'location', 'experience', 'organization',
-                  'description', 'schedule', 'min_salary', 'max_salary', 'currency']
+        fields = ['job_title', 'slug', 'min_salary', 'max_salary',
+                  'currency', 'organization', 'location', 'experience']
 
 
-class ResumeSerializer(serializers.ModelSerializer):
+class VacancyDetailSerializer(serializers.ModelSerializer):
+    organization = OrganizationSerializer(read_only=True)
+
+    class Meta:
+        model = Vacancy
+        fields = ['job_title', 'slug', 'min_salary', 'max_salary', 'currency',
+                  'organization', 'location', 'experience', 'description', 'schedule']
+
+
+class ResumeListSerializer(serializers.ModelSerializer):
+    author = UserProfileSerializer(read_only=True)
+
+    class Meta:
+        model = Resume
+        fields = ['job_title', 'slug', 'author', 'experience']
+
+
+class ResumeDetailSerializer(serializers.ModelSerializer):
     author = UserProfileSerializer(read_only=True)
 
     class Meta:

@@ -1049,6 +1049,7 @@ class EquipmentsListAPIView(APIView):
 
     @swagger_auto_schema(
         tags=['Equipment'],
+
         operation_description="Этот эндпоинт"
                               "предостовляет пользователю"
                               "список всех оборудований",
