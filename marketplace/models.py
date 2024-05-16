@@ -19,6 +19,7 @@ class Equipment(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(max_length=1000, null=True)
     phone_number = models.CharField(max_length=20)
+    email = models.EmailField(max_length=70, blank=True, unique=True)
     author = models.ForeignKey(UserProfile, related_name='equipment_ads', on_delete=models.CASCADE)
     liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_equipment')
     hide = models.BooleanField(default=False)
@@ -52,9 +53,9 @@ class Service(models.Model):
     slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(max_length=1000, null=True)
-    size = models.CharField(max_length=100)
     phone_number = models.CharField(max_length=20)
-    author_org = models.ForeignKey(Organization, related_name='service_ads', on_delete=models.CASCADE)
+    email = models.EmailField(max_length=70, blank=True, unique=True)
+    author = models.ForeignKey(UserProfile, related_name='service_ads', on_delete=models.CASCADE)
     liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_services')
     hide = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -80,8 +81,8 @@ class OrderCategory(models.Model):
         return f"{self.title}, slug: {self.slug}"
 
 
-STATUS = (('New', 'New'), ('Process', 'Process'), ('Checking', 'Checking'), ('Sending', 'Sending'), ('Arrived', 'Arrived'),)
-
+STATUS = (('Waiting', 'Waiting'), ('Process', 'Process'), ('Checking', 'Checking'), ('Sending', 'Sending'), ('Arrived', 'Arrived'),)
+SIZE = (('40', '40'), ('42', '42'), ('46', '46'), ('48', '48'), ('S', 'S'), ('M', 'M'), ('L', 'L'), ('XL', 'XL'))
 
 class Order(models.Model):
     title = models.CharField(max_length=60)
@@ -89,19 +90,22 @@ class Order(models.Model):
     category = models.ForeignKey(OrderCategory, related_name='orders', null=True, blank=True, on_delete=models.DO_NOTHING)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(max_length=1000, null=True)
-    size = models.CharField(max_length=100)
+    size = models.CharField(max_length=10, choices=SIZE, default='40')
     deadline = models.DateField()
     phone_number = models.CharField(max_length=20)
+    email = models.EmailField(max_length=70, blank=True, unique=True)
     hide = models.BooleanField(default=False)
     is_booked = models.BooleanField(default=False)
-    status = models.CharField(max_length=20, choices=STATUS, default='New')
+    status = models.CharField(max_length=20, choices=STATUS, default='Waiting')
     liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_orders')
     author = models.ForeignKey(UserProfile, related_name='order_ads', on_delete=models.CASCADE)
     org_work = models.ForeignKey(Organization, related_name='received_orders', blank=True, null=True, on_delete=models.DO_NOTHING)
     org_applicants = models.ManyToManyField(Organization, related_name='applied_orders', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     booked_at = models.DateTimeField(blank=True, null=True)
+    is_finished = models.BooleanField(default=False)
     finished_at = models.DateTimeField(blank=True, null=True)
+    arrived_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.title}, slug: {self.slug}"

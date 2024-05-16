@@ -1,5 +1,5 @@
 from django.core.paginator import Paginator
-from .serializers import OrderListAPI, EquipmentSerializer, MyOrdersSerializer, MyEquipmentsSerializer, ServiceSerializer
+from .serializers import OrderListAPI, EquipmentSerializer, MyOrderEquipmentSerializer, ServiceSerializer
 
 
 def get_paginated_data(queryset, request, list_type):
@@ -66,22 +66,18 @@ def get_equipment_paginated(queryset, request, equipment_type):
     return data
 
 
-def get_order_or_equipment(queryset, request, services_type):
+def get_order_or_equipment(queryset, request):
     page_number = request.query_params.get('page', 1)
     max_page = request.query_params.get('limit', 10)
 
     paginator = Paginator(queryset, max_page)
     page_objs = paginator.get_page(page_number)
+    instance_list = list(page_objs.object_list)
 
-    order_serializer = MyOrdersSerializer(page_objs, many=True, context={"request": request,
-                                                                   "services_type": services_type})
-
-    equipments_serializer = MyEquipmentsSerializer(page_objs, many=True, context={"request": request,
-                                                                               "services_type": services_type})
+    serializer = MyOrderEquipmentSerializer(instance=instance_list, many=True, context={"request": request})
 
     data = {
-        'order': order_serializer.data,
-        'equipment': equipments_serializer.data,
+        'my-ads': serializer.data,
         'total_pages': paginator.num_pages,
         'current_page': page_objs.number,
         'has_next_page': page_objs.has_next(),
