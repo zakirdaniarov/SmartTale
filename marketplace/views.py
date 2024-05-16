@@ -17,6 +17,7 @@ from rest_framework import status
 from .models import Equipment
 from .serializers import EquipmentDetailSerializer
 from .permissions import CurrentUserOrReadOnly
+from operator import attrgetter
 
 
 # Create your views here.
@@ -1348,12 +1349,9 @@ class OrdersAndEquipmentsListAPIView(APIView):
         equipments = Equipment.objects.filter(author=author).order_by('-created_at')
         orders = Order.objects.filter(author=author).order_by('-created_at')
 
-        services_queryset = list(equipments) + list(orders)
-
-        return services_queryset
-
-    def get_orders_and_equipments_type(self):
-        return 'orders-and-equipments-type'
+        results_list = list(equipments) + list(orders)
+        sorted_list = sorted(results_list, key=attrgetter('created_at'), reverse=True)
+        return sorted_list
 
     @swagger_auto_schema(
         tags=['Equipment'],
@@ -1368,7 +1366,7 @@ class OrdersAndEquipmentsListAPIView(APIView):
     )
     def get(self, request, *args, **kwargs):
         services = self.get_orders_and_equipments()
-        data = get_order_or_equipment(services, request, self.get_orders_and_equipments_type())
+        data = get_order_or_equipment(services, request)
         return Response(data, status=status.HTTP_200_OK)
 
 
