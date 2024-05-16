@@ -193,6 +193,44 @@ class EmployeeDetailAPIView(APIView):
             return Response({"Error.": "Пользователь не является сотрудником какой-либо компании."}, status = status.HTTP_404_NOT_FOUND)
         serializer = EmployeeDetailSerializer(user)
         return Response(serializer.data, status = status.HTTP_200_OK)
+    
+class EmployeeCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        try:
+            employee = Employee.objects.get(user = user.user_profile)
+            if not employee.job_title:
+                raise Exception("No permission")
+            elif not employee.job_title.flag_add_employee:
+                raise Exception("No permission")
+        except Exception:
+            return Response({"Error": "У Вас нет прав на добавление сотрудников!"}, status = status.HTTP_403_FORBIDDEN)
+        user = request.user
+        user_slug = request.data['user_slug']
+        org_title = request.data['org_title']
+        job_title = request.data['job_title']
+        try:
+            target_user = UserProfile.objects.get(slug = user_slug)
+        except Exception:
+            return Response({"Error": "Нет существует такого пользователя!"}, status = status.HTTP_404_NOT_FOUND)
+        try:
+            org = Organization.objects.get(title = org_title)
+        except Exception:
+            return Response({"Error": "Нет существует такой организации!"}, status = status.HTTP_404_NOT_FOUND)
+        try:
+            job = JobTitle.objects.get(org = org, job_title = job_title)
+        except Exception:
+            return Response({"Error": "Нет существует такой должности!"}, status = status.HTTP_404_NOT_FOUND)
+        Employee.objects.create(user = target_user, org = org, job_title = job)
+        return Response({"Success": "Сотрудник добавлен"}, status = status.HTTP_201_CREATED)
+
+class EmployeeDeleteAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        pass
 
 def sort_for_jobs(item):
     result = 0
@@ -225,9 +263,3 @@ class JobTitleListAPIView(APIView):
         jobs = sorted(jobs, key = lambda item: sort_for_jobs(item), reverse = True)
         serializer = JobTitleSerializer(jobs, many = True)
         return Response(serializer.data, status = status.HTTP_200_OK)
-    
-class EmployeeAddAPIView(APIView):
-    pass 
-
-class EmployeeRemoveAPIView(APIView):
-    pass
