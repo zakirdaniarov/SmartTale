@@ -1,10 +1,17 @@
 version: '3.9'
 
 services:
-  db:
-    image: sqlite:latest
+  db2:
+    image: postgres:latest
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=smarttale
+      - POSTGRES_PASSWORD=smarttale
+      - POSTGRES_DB=smarttale
     volumes:
-      - ./sqlite_data:/code/
+      - "./postgres:/var/lib/postgresql/data"
 
   app:
     build: .
@@ -17,7 +24,7 @@ services:
     env_file:
       - .env
     depends_on:
-      - db
+      - db2
 
 volumes:
-  sqlite_data:
+  postgres:
