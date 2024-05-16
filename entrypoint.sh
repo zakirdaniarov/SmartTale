@@ -9,7 +9,7 @@ then
 
     echo "PostgreSQL started"
 fi
-Collect static files
+# Collect static files
 echo "Collect static files"
 python manage.py collectstatic --noinput
 
