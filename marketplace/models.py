@@ -4,6 +4,9 @@ from authorization.models import UserProfile, Organization
 from django.core.validators import MinValueValidator, MaxValueValidator
 
 
+CURRENCY = (('Som', 'Som'), ('Ruble', 'Ruble'), ('USD', 'USD'), ('Euro', 'Euro'))
+
+
 class EquipmentCategory(models.Model):
     title = models.CharField(max_length=60)
     slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
@@ -17,6 +20,7 @@ class Equipment(models.Model):
     category = models.ForeignKey(EquipmentCategory, related_name='equipments', null=True, blank=True, on_delete=models.DO_NOTHING)
     slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=10, choices=CURRENCY, default='Som')
     description = models.TextField(max_length=1000, null=True)
     phone_number = models.CharField(max_length=20)
     email = models.EmailField(max_length=70, blank=True, unique=True)
@@ -52,6 +56,7 @@ class Service(models.Model):
     category = models.ManyToManyField(ServiceCategory, related_name='services', blank=True)
     slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=10, choices=CURRENCY, default='Som')
     description = models.TextField(max_length=1000, null=True)
     phone_number = models.CharField(max_length=20)
     email = models.EmailField(max_length=70, blank=True, unique=True)
@@ -82,15 +87,23 @@ class OrderCategory(models.Model):
 
 
 STATUS = (('Waiting', 'Waiting'), ('Process', 'Process'), ('Checking', 'Checking'), ('Sending', 'Sending'), ('Arrived', 'Arrived'),)
-SIZE = (('40', '40'), ('42', '42'), ('46', '46'), ('48', '48'), ('S', 'S'), ('M', 'M'), ('L', 'L'), ('XL', 'XL'))
+
+
+class Size(models.Model):
+    size = models.CharField(max_length=10, unique=True)
+
+    def __str__(self):
+        return self.size
+
 
 class Order(models.Model):
     title = models.CharField(max_length=60)
     slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
     category = models.ForeignKey(OrderCategory, related_name='orders', null=True, blank=True, on_delete=models.DO_NOTHING)
     price = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=10, choices=CURRENCY, default='Som')
     description = models.TextField(max_length=1000, null=True)
-    size = models.CharField(max_length=10, choices=SIZE, default='40')
+    size = models.ManyToManyField(Size, related_name='orders')
     deadline = models.DateField()
     phone_number = models.CharField(max_length=20)
     email = models.EmailField(max_length=70, blank=True, unique=True)
