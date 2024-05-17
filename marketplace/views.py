@@ -1327,29 +1327,42 @@ class SoldEquipmentAPIView(APIView):
 class OrdersAndEquipmentsListAPIView(APIView):
     permission_classes = [CurrentUserOrReadOnly]
 
-    def get_orders_and_equipments(self):
+    def get_orders_and_equipments(self, ads=None):
         author = self.request.user.user_profile
 
-        equipments = Equipment.objects.filter(author=author).order_by('-created_at')
-        orders = Order.objects.filter(author=author).order_by('-created_at')
+        # equipments = Equipment.objects.filter(author=author).order_by('-created_at')
+        # orders = Order.objects.filter(author=author).order_by('-created_at')
+        # results_list = list(equipments) + list(orders)
+        # sorted_list = sorted(results_list, key=attrgetter('created_at'), reverse=True)
 
-        results_list = list(equipments) + list(orders)
-        sorted_list = sorted(results_list, key=attrgetter('created_at'), reverse=True)
-        return sorted_list
+        if ads == 'order':
+            queryset = Order.objects.filter(author=author).order_by('-created_at')
+        elif ads == 'equipment':
+            queryset = Equipment.objects.filter(author=author).order_by('-created_at')
+        elif ads == 'service':
+            queryset = Service.objects.filter(author=author).order_by('-created_at')
+        elif ads is None:
+            queryset = list(Equipment.objects.filter(author=author)) + list(Order.objects.filter(author=author)) + list(Service.objects.filter(author=author))
+            queryset = sorted(queryset, key=attrgetter('created_at'), reverse=True)
+        else:
+            queryset = []
+
+        return queryset
 
     @swagger_auto_schema(
         tags=['Equipment'],
         operation_description="Этот эндпоинт"
                               "предостовляет пользователю"
-                              "свои заказы и оборудования",
+                              "свои заказы и оборудования и услуги",
         responses={
-            200: "Orders and equipments list",
-            404: "Orders or Equipments does not exist",
+            200: "Orders, service and equipments list",
+            404: "Orders, Service or Equipments does not exist",
             500: "Server error",
         }
     )
     def get(self, request, *args, **kwargs):
-        services = self.get_orders_and_equipments()
+        ads = request.query_params.get('ads')
+        services = self.get_orders_and_equipments(ads)
         data = get_order_or_equipment(services, request)
         return Response(data, status=status.HTTP_200_OK)
 
