@@ -6,6 +6,7 @@ from .models import Vacancy, Resume
 from .serializers import (VacancyListSerializer, VacancyDetailSerializer,
                           ResumeListSerializer, ResumeDetailSerializer)
 from .permissions import CurrentUserOrReadOnly
+from .services import IsOrganizationFilter
 
 
 class VacancyListAPIView(views.APIView):
@@ -74,6 +75,25 @@ class DeleteVacancyAPIView(views.APIView):
         else:
             return Response({"error": "Only organization that added it can delete"}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"error": "Successfully deleted"}, status=status.HTTP_200_OK)
+
+
+class VacancyFilterAPIView(views.APIView):
+    ...
+
+
+class VacancySearchAPIView(views.APIView):
+    def get(self, request, *args, **kwargs):
+        try:
+            vacancy = request.query_params.get('job_title', None)
+            if vacancy:
+                queryset = Vacancy.objects.filter(job_title__icontains=vacancy)
+            else:
+                queryset = Vacancy.objects.all()
+        except:
+            return Response({"error": "Vacancy does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = VacancyListSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class ResumeListAPIView(views.APIView):
