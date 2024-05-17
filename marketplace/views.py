@@ -102,6 +102,8 @@ class BaseOrderListView(APIView):
 
     def get(self, request):
         queryset = self.get_queryset()
+        if not queryset:
+            return Response({"detail": "No results found."}, status=status.HTTP_404_NOT_FOUND)
         if isinstance(queryset, Response):
             return queryset
         queryset = self.filter_queryset_by_search(queryset)
@@ -329,6 +331,8 @@ class ReceivedOrderStatusAPIView(APIView):
         }
 
         queryset = Order.objects.filter(org_work=org)
+        if not queryset:
+            return Response({"detail": "No results found."}, status=status.HTTP_404_NOT_FOUND)
         queryset = self.filter_queryset_by_search(queryset)
         for order in queryset:
             status_key = order.status
@@ -556,7 +560,7 @@ class AddOrderAPIView(APIView):
         operation_description="Endpoint to create a new order.",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=["title", "uploaded_images", "description", "deadline", "price", "category_slug", "phone_number", "size"],
+            required=["title", "uploaded_images", "description", "deadline", "price", "phone_number", "size"],
             properties={
                 "title": openapi.Schema(type=openapi.TYPE_STRING, description="Title of the order"),
                 "uploaded_images": openapi.Schema(
@@ -569,6 +573,7 @@ class AddOrderAPIView(APIView):
                 "price": openapi.Schema(type=openapi.TYPE_NUMBER, description="Price of the order"),
                 "category_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Slug of the order category"),
                 "phone_number": openapi.Schema(type=openapi.TYPE_STRING, description="Phone number for contact"),
+                "email": openapi.Schema(type=openapi.TYPE_STRING, description="Email of the order"),
                 "size": openapi.Schema(type=openapi.TYPE_STRING, description="Size of the order")
             },
         ),
@@ -617,6 +622,7 @@ class UpdateOrderAPIView(APIView):
                 "price": openapi.Schema(type=openapi.TYPE_NUMBER, description="Price of the order (optional)"),
                 "category_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Slug of the order category (optional)"),
                 "phone_number": openapi.Schema(type=openapi.TYPE_STRING, description="Phone number for contact (optional)"),
+                "email": openapi.Schema(type=openapi.TYPE_STRING, description="Email of the order (optional)"),
                 "size": openapi.Schema(type=openapi.TYPE_STRING, description="Size of the order (optional)")
             },
         ),
@@ -1343,13 +1349,17 @@ class SoldEquipmentAPIView(APIView):
 class OrdersAndEquipmentsListAPIView(APIView):
     permission_classes = [CurrentUserOrReadOnly]
 
+    def get_search_query(self):
+        return self.request.query_params.get('title', '')
+
+    def filter_queryset_by_search(self, queryset):
+        search_query = self.get_search_query()
+        if search_query:
+            queryset = queryset.filter(Q(title__icontains=search_query))
+        return queryset
+
     def get_orders_and_equipments(self, ads=None):
         author = self.request.user.user_profile
-
-        # equipments = Equipment.objects.filter(author=author).order_by('-created_at')
-        # orders = Order.objects.filter(author=author).order_by('-created_at')
-        # results_list = list(equipments) + list(orders)
-        # sorted_list = sorted(results_list, key=attrgetter('created_at'), reverse=True)
 
         if ads == 'order':
             queryset = Order.objects.filter(author=author).order_by('-created_at')
@@ -1366,20 +1376,38 @@ class OrdersAndEquipmentsListAPIView(APIView):
         return queryset
 
     @swagger_auto_schema(
-        tags=['Equipment'],
-        operation_description="Этот эндпоинт"
-                              "предостовляет пользователю"
-                              "свои заказы и оборудования и услуги",
+        manual_parameters=[
+            openapi.Parameter(
+                'title',
+                openapi.IN_QUERY,
+                description="Filter the results by title (case insensitive).",
+                type=openapi.TYPE_STRING,
+                required=False
+            ),
+            openapi.Parameter(
+                'ads',
+                openapi.IN_QUERY,
+                description="Filter the results by the type of advertisement (order, equipment, service). If not provided, returns all.",
+                type=openapi.TYPE_STRING,
+                enum=['order', 'equipment', 'service'],
+                required=False
+            )
+        ],
+        tags=['Orders and Equipments'],
+        operation_description="This endpoint provides the user with their orders, equipments, and services.",
         responses={
-            200: "Orders, service and equipments list",
-            404: "Orders, Service or Equipments does not exist",
+            200: "Orders, services, and equipments list",
+            404: "Orders, services, or equipments do not exist",
             500: "Server error",
         }
     )
     def get(self, request, *args, **kwargs):
         ads = request.query_params.get('ads')
-        services = self.get_orders_and_equipments(ads)
-        data = get_order_or_equipment(services, request)
+        queryset = self.get_orders_and_equipments(ads)
+        queryset = self.filter_queryset_by_search(queryset)
+        if not queryset:
+            return Response({"detail": "No results found."}, status=status.HTTP_404_NOT_FOUND)
+        data = get_order_or_equipment(queryset, request)
         return Response(data, status=status.HTTP_200_OK)
 
 
@@ -1419,6 +1447,8 @@ class BaseServiceListView(APIView):
 
     def get(self, request):
         queryset = self.get_queryset()
+        if not queryset:
+            return Response({"detail": "No results found."}, status=status.HTTP_404_NOT_FOUND)
         if isinstance(queryset, Response):
             return queryset
         queryset = self.filter_queryset_by_search(queryset)
@@ -1438,7 +1468,7 @@ class MyServiceAdsListView(BaseServiceListView):
 
     @swagger_auto_schema(
         operation_summary="List of services created by the current organization",
-        operation_description="Retrieve a list of services created by the current authenticated user organization.",
+        operation_description="Retrieve a list of services created by the current authenticated user.",
         manual_parameters=[
             openapi.Parameter(
                 "title",
@@ -1569,6 +1599,7 @@ class CreateServiceAPIView(APIView):
                 "price": openapi.Schema(type=openapi.TYPE_NUMBER, description="Price of the service"),
                 "category_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Slug of the service category"),
                 "phone_number": openapi.Schema(type=openapi.TYPE_STRING, description="Phone number for contact"),
+                "email": openapi.Schema(type=openapi.TYPE_STRING, description="Email of the order")
             },
         ),
         responses={
@@ -1620,6 +1651,7 @@ class UpdateServiceAPIView(APIView):
                 "price": openapi.Schema(type=openapi.TYPE_NUMBER, description="Price of the service (optional)"),
                 "category_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Slug of the service category (optional)"),
                 "phone_number": openapi.Schema(type=openapi.TYPE_STRING, description="Phone number for contact (optional)"),
+                "email": openapi.Schema(type=openapi.TYPE_STRING, description="Email of the order")
             },
         ),
         responses={
