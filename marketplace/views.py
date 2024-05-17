@@ -543,7 +543,7 @@ class AddOrderAPIView(APIView):
         operation_description="Endpoint to create a new order.",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=["title", "uploaded_images", "description", "deadline", "price", "phone_number", "size"],
+            required=["title", "uploaded_images", "description", "deadline", "price", 'currency', "phone_number", "size"],
             properties={
                 "title": openapi.Schema(type=openapi.TYPE_STRING, description="Title of the order"),
                 "uploaded_images": openapi.Schema(
@@ -554,6 +554,7 @@ class AddOrderAPIView(APIView):
                 "description": openapi.Schema(type=openapi.TYPE_STRING, description="Description of the order"),
                 "deadline": openapi.Schema(type=openapi.TYPE_STRING, format="date", description="Deadline of the order"),
                 "price": openapi.Schema(type=openapi.TYPE_NUMBER, description="Price of the order"),
+                "currency": openapi.Schema(type=openapi.TYPE_NUMBER, description="Price currency"),
                 "category_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Slug of the order category"),
                 "phone_number": openapi.Schema(type=openapi.TYPE_STRING, description="Phone number for contact"),
                 "email": openapi.Schema(type=openapi.TYPE_STRING, description="Email of the order"),
@@ -603,6 +604,7 @@ class UpdateOrderAPIView(APIView):
                 "description": openapi.Schema(type=openapi.TYPE_STRING, description="Description of the order (optional)"),
                 "deadline": openapi.Schema(type=openapi.TYPE_STRING, format="date", description="Deadline of the order (optional)"),
                 "price": openapi.Schema(type=openapi.TYPE_NUMBER, description="Price of the order (optional)"),
+                "currency": openapi.Schema(type=openapi.TYPE_NUMBER, description="Price currency (optional)"),
                 "category_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Slug of the order category (optional)"),
                 "phone_number": openapi.Schema(type=openapi.TYPE_STRING, description="Phone number for contact (optional)"),
                 "email": openapi.Schema(type=openapi.TYPE_STRING, description="Email of the order (optional)"),
@@ -1570,7 +1572,7 @@ class CreateServiceAPIView(APIView):
         operation_description="Endpoint to create a new service.",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=["title", "uploaded_images", "description", "price", "category_slug", "phone_number", "size"],
+            required=["title", "uploaded_images", "description", "price", 'currency', "category_slug", "phone_number", "size"],
             properties={
                 "title": openapi.Schema(type=openapi.TYPE_STRING, description="Title of the service"),
                 "uploaded_images": openapi.Schema(
@@ -1580,6 +1582,7 @@ class CreateServiceAPIView(APIView):
                 ),
                 "description": openapi.Schema(type=openapi.TYPE_STRING, description="Description of the service"),
                 "price": openapi.Schema(type=openapi.TYPE_NUMBER, description="Price of the service"),
+                "currency": openapi.Schema(type=openapi.TYPE_NUMBER, description="Price currency"),
                 "category_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Slug of the service category"),
                 "phone_number": openapi.Schema(type=openapi.TYPE_STRING, description="Phone number for contact"),
                 "email": openapi.Schema(type=openapi.TYPE_STRING, description="Email of the order")
@@ -1632,6 +1635,7 @@ class UpdateServiceAPIView(APIView):
                 ),
                 "description": openapi.Schema(type=openapi.TYPE_STRING, description="Description of the service (optional)"),
                 "price": openapi.Schema(type=openapi.TYPE_NUMBER, description="Price of the service (optional)"),
+                "currency": openapi.Schema(type=openapi.TYPE_NUMBER, description="Price currency (optional)"),
                 "category_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Slug of the service category (optional)"),
                 "phone_number": openapi.Schema(type=openapi.TYPE_STRING, description="Phone number for contact (optional)"),
                 "email": openapi.Schema(type=openapi.TYPE_STRING, description="Email of the order")
