@@ -2,7 +2,7 @@ from django.urls import path
 
 from .views import (VacancyListAPIView, AddVacancyAPIView, ChangeVacancyAPIView, DeleteVacancyAPIView,
                     ResumeListAPIView, AddResumeAPIView, ChangeResumeAPIView, DeleteResumeAPIView,
-                    VacancySearchAPIView, SearchResumeAPIView, VacancyFilterAPIView)
+                    VacancySearchAPIView, SearchResumeAPIView, VacancyFilterAPIView, ResumeFilterAPIView)
 
 
 urlpatterns = [
@@ -18,4 +18,5 @@ urlpatterns = [
     path('change-resume/<slug:resume_slug>/', ChangeResumeAPIView.as_view()),
     path('delete-resume/<slug:resume_slug>/', DeleteResumeAPIView.as_view()),
     path('resume/search/', SearchResumeAPIView.as_view()),
+    path('resume/filter/', ResumeFilterAPIView.as_view()),
 ]
