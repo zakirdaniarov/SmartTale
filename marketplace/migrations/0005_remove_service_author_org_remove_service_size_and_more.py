@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='equipment',
             name='email',
-            field=models.EmailField(blank=True, max_length=70, unique=True),
+            field=models.EmailField(blank=True, max_length=70),
         ),
         migrations.AddField(
             model_name='order',
@@ -34,7 +34,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='order',
             name='email',
-            field=models.EmailField(blank=True, max_length=70, unique=True),
+            field=models.EmailField(blank=True, max_length=70),
         ),
         migrations.AddField(
             model_name='order',
@@ -50,7 +50,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='service',
             name='email',
-            field=models.EmailField(blank=True, max_length=70, unique=True),
+            field=models.EmailField(blank=True, max_length=70),
         ),
         migrations.AlterField(
             model_name='order',

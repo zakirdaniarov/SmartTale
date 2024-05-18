@@ -60,7 +60,7 @@ class OrderDetailAPI(ModelSerializer):
     class Meta:
         model = Order
         fields = ['title', 'slug', 'author_first_name', 'author_last_name', 'author_slug', 'author_image', 'images', 'description', 'deadline', 'price',
-                  'category_slug', 'phone_number', 'email', 'size', 'hide', 'is_finished']
+                  'category_slug', 'phone_number', 'size', 'hide', 'is_finished']
 
     def get_author_image(self, instance):
         profile_image = instance.author.profile_image
@@ -114,7 +114,7 @@ class ServiceSerializer(ModelSerializer):
     class Meta:
         model = Service
         fields = ['title', 'slug', 'author_first_name', 'author_last_name', 'author_slug', 'author_image', 'images', 'description', 'price',
-                  'category_slug', 'phone_number', 'email', 'hide', 'created_at']
+                  'category_slug', 'phone_number', 'hide', 'created_at']
 
     def get_author_image(self, instance):
         profile_image = instance.author.profile_image
@@ -147,7 +147,7 @@ class ServicePostSerializer(ModelSerializer):
     class Meta:
         model = Service
         fields = ['title', 'uploaded_images', 'description', 'price',
-                  'category_slug', 'phone_number', 'email']
+                  'category_slug', 'phone_number']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -160,7 +160,6 @@ class ServicePostSerializer(ModelSerializer):
             self.fields['price'].required = True
             self.fields['category_slug'].required = False
             self.fields['phone_number'].required = True
-            self.fields['email'].required = False
         else:
             self.fields['title'].required = False
             self.fields['uploaded_images'].required = False
@@ -168,7 +167,6 @@ class ServicePostSerializer(ModelSerializer):
             self.fields['price'].required = False
             self.fields['category_slug'].required = False
             self.fields['phone_number'].required = False
-            self.fields['email'].required = False
 
     def create(self, validated_data):
         category = None
@@ -345,7 +343,7 @@ class OrderPostAPI(ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['title', 'uploaded_images', 'description', 'deadline', 'price', 'category_slug', 'phone_number', 'email', 'size']
+        fields = ['title', 'uploaded_images', 'description', 'deadline', 'price', 'category_slug', 'phone_number', 'size']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -360,7 +358,6 @@ class OrderPostAPI(ModelSerializer):
             self.fields['category_slug'].required = False
             self.fields['size'].required = True
             self.fields['phone_number'].required = True
-            self.fields['email'].required = False
         else:
             # Fields not required for updating an existing order
             self.fields['title'].required = False
@@ -371,7 +368,6 @@ class OrderPostAPI(ModelSerializer):
             self.fields['category_slug'].required = False
             self.fields['size'].required = False
             self.fields['phone_number'].required = False
-            self.fields['email'].required = False
 
     def create(self, validated_data):
         uploaded_images = validated_data.pop('uploaded_images')
@@ -451,7 +447,7 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Equipment
         fields = ['id', 'title', 'category', 'images', 'uploaded_images', 'price',
-                  'description', 'phone_number', 'email', 'author', 'hide', 'sale_status']
+                  'description', 'phone_number', 'author', 'hide', 'sale_status']
 
     def get_sale_status(self, instance):
         sale_status = instance.sold
@@ -495,7 +491,6 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
         instance.category = validated_data.pop('category', instance.category)
         instance.price = validated_data.pop('price', instance.price)
         instance.phone_number = validated_data.pop('phone_number', instance.phone_number)
-        instance.phone_number = validated_data.pop('email', instance.email)
         instance.author = validated_data.pop('author', instance.author)
         instance.hide = validated_data.pop('hide', instance.hide)
         instance.sold = validated_data.pop('sold', instance.sold)
