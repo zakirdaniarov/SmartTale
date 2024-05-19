@@ -12,10 +12,12 @@ from .models import Vacancy, Resume
 from .serializers import (VacancyListSerializer, VacancyDetailSerializer,
                           ResumeListSerializer, ResumeDetailSerializer)
 from .permissions import CurrentUserOrReadOnly
+from .services import MyCustomPagination
 
 
 class VacancyListAPIView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = MyCustomPagination
 
     @swagger_auto_schema(
         operation_summary="Список всех вакансий",
@@ -31,7 +33,49 @@ class VacancyListAPIView(views.APIView):
             vacancy = Vacancy.objects.all().order_by('-created_at')
         except Vacancy.DoesNotExist:
             return Response({"error": "Vacancy does not exist"}, status=status.HTTP_404_NOT_FOUND)
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(vacancy, request)
+        if page is not None:
+            serializer = VacancyListSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
         serializer = VacancyListSerializer(vacancy, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class VacancyDetailAPIView(views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @swagger_auto_schema(
+        operation_summary="Детальная страница вакансии",
+        operation_description="Этот предостовляет пользователю просмотреть детальную страницу вакансии",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["vacancy_slug"],
+            properties={
+                "job_title": openapi.Schema(type=openapi.TYPE_STRING, description="Должность на вакансии"),
+                "vacancy_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Слаг вакансии"),
+                "experience": openapi.Schema(type=openapi.TYPE_STRING, description="Опыт работы"),
+                "schedule": openapi.Schema(type=openapi.TYPE_STRING, description="График работы"),
+                "location": openapi.Schema(type=openapi.TYPE_STRING, description="Место работы"),
+                "min_salary": openapi.Schema(type=openapi.TYPE_NUMBER, description="Минимальная зарплата"),
+                "max_salary": openapi.Schema(type=openapi.TYPE_NUMBER, description="Максимальная зарплата"),
+                "currency": openapi.Schema(type=openapi.TYPE_STRING, description="Валюта зарплаты"),
+                "description": openapi.Schema(type=openapi.TYPE_STRING, description="Описание работы")
+            },
+        ),
+        responses={
+            200: VacancyDetailSerializer,
+            404: "Vacancy does not exist"
+        },
+        tags=['Vacancy']
+    )
+    def get(self, request, *args, **kwargs):
+        try:
+            vacancy = Vacancy.objects.get(slug=kwargs['vacancy_slug'])
+        except Resume.DoesNotExist:
+            return Response({"error": "Vacancy does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = VacancyDetailSerializer(vacancy)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -177,6 +221,7 @@ class DeleteVacancyAPIView(views.APIView):
 
 class VacancySearchAPIView(views.APIView):
     permission_classes = [permissions.AllowAny]
+    pagination_class = MyCustomPagination
 
     @swagger_auto_schema(
         operation_summary="Поиск вакансий",
@@ -208,12 +253,19 @@ class VacancySearchAPIView(views.APIView):
         else:
             return Response({"error": "Nothing was found for your request"}, status=status.HTTP_404_NOT_FOUND)
 
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(vacancy, request)
+        if page is not None:
+            serializer = VacancyListSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+
         serializer = VacancyListSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class VacancyFilterAPIView(views.APIView):
     permission_classes = [permissions.AllowAny]
+    pagination_class = MyCustomPagination
 
     @swagger_auto_schema(
         operation_summary="Фильтр вакансий",
@@ -356,12 +408,19 @@ class VacancyFilterAPIView(views.APIView):
         if not vacancy.exists():
             return Response({"error": "Nothing was found for your request"}, status=status.HTTP_404_NOT_FOUND)
 
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(vacancy, request)
+        if page is not None:
+            serializer = VacancyListSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+
         serializer = VacancyListSerializer(vacancy, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class ResumeListAPIView(views.APIView):
     permission_classes = [permissions.AllowAny]
+    pagination_class = MyCustomPagination
 
     @swagger_auto_schema(
         operation_summary="Список всех резюме",
@@ -377,7 +436,51 @@ class ResumeListAPIView(views.APIView):
             resume = Resume.objects.all().order_by('-created_at')
         except Resume.DoesNotExist:
             return Response({"error": "Resume does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(resume, request)
+        if page is not None:
+            serializer = ResumeListSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+
         serializer = ResumeListSerializer(resume, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ResumeDetailAPIView(views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @swagger_auto_schema(
+        operation_summary="Детальная страница резюме",
+        operation_description="Этот предостовляет пользователю просмотреть детальную страницу резюме",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["resume_slug"],
+            properties={
+                "job_title": openapi.Schema(type=openapi.TYPE_STRING, description="Должность в резюме"),
+                "resume_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Слаг резюме"),
+                "experience": openapi.Schema(type=openapi.TYPE_STRING, description="Опыт работы"),
+                "schedule": openapi.Schema(type=openapi.TYPE_STRING, description="График работы"),
+                "location": openapi.Schema(type=openapi.TYPE_STRING, description="Место работы"),
+                "min_salary": openapi.Schema(type=openapi.TYPE_NUMBER, description="Минимальная зарплата"),
+                "max_salary": openapi.Schema(type=openapi.TYPE_NUMBER, description="Максимальная зарплата"),
+                "currency": openapi.Schema(type=openapi.TYPE_STRING, description="Валюта зарплаты"),
+                "about_me": openapi.Schema(type=openapi.TYPE_STRING, description="Личная информация")
+            },
+        ),
+        responses={
+            200: ResumeDetailSerializer,
+            404: "Resume does not exist"
+        },
+        tags=['Resume']
+    )
+    def get(self, request, *args, **kwargs):
+        try:
+            resume = Resume.objects.get(slug=kwargs['resume_slug'])
+        except Resume.DoesNotExist:
+            return Response({"error": "Resume does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ResumeDetailSerializer(resume)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -516,6 +619,7 @@ class DeleteResumeAPIView(views.APIView):
 
 class SearchResumeAPIView(views.APIView):
     permission_classes = [permissions.AllowAny]
+    pagination_class = MyCustomPagination
 
     @swagger_auto_schema(
         operation_summary="Поиск резюме",
@@ -547,12 +651,19 @@ class SearchResumeAPIView(views.APIView):
         else:
             return Response({"error": "Nothing was found for your request"}, status=status.HTTP_404_NOT_FOUND)
 
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(resume, request)
+        if page is not None:
+            serializer = ResumeListSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
+
         serializer = ResumeListSerializer(resume_queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class ResumeFilterAPIView(views.APIView):
     permission_classes = [permissions.AllowAny]
+    pagination_class = MyCustomPagination
 
     @swagger_auto_schema(
         operation_summary="Фильтр резюме",
@@ -616,6 +727,12 @@ class ResumeFilterAPIView(views.APIView):
 
         if not resume.exists():
             return Response({"error": "Nothing was found for your request"}, status=status.HTTP_404_NOT_FOUND)
+
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(resume, request)
+        if page is not None:
+            serializer = ResumeListSerializer(page, many=True)
+            return paginator.get_paginated_response(serializer.data)
 
         serializer = ResumeListSerializer(resume, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
