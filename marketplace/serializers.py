@@ -2,7 +2,7 @@ from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
 from authorization.models import UserProfile, Organization
 from .models import Equipment, Order, Reviews, EquipmentCategory, OrderCategory, EquipmentImages, OrderImages
-from .models import Service, ServiceCategory, ServiceImages
+from .models import Service, ServiceCategory, ServiceImages, Size
 
 
 class AuthorSerializer(serializers.ModelSerializer):
@@ -49,6 +49,12 @@ class OrderImageSerializer(serializers.ModelSerializer):
         ]
 
 
+class SizeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Size
+        fields = ['id', 'size']
+
+
 class OrderDetailAPI(ModelSerializer):
     author_first_name = serializers.ReadOnlyField(source='author.first_name')
     author_last_name = serializers.ReadOnlyField(source='author.last_name')
@@ -60,7 +66,7 @@ class OrderDetailAPI(ModelSerializer):
     class Meta:
         model = Order
         fields = ['title', 'slug', 'author_first_name', 'author_last_name', 'author_slug', 'author_image', 'images', 'description', 'deadline', 'price',
-                  'category_slug', 'phone_number', 'size', 'hide', 'is_finished']
+                  'currency', 'category_slug', 'phone_number', 'email', 'size', 'hide', 'is_finished']
 
     def get_author_image(self, instance):
         profile_image = instance.author.profile_image
@@ -114,7 +120,7 @@ class ServiceSerializer(ModelSerializer):
     class Meta:
         model = Service
         fields = ['title', 'slug', 'author_first_name', 'author_last_name', 'author_slug', 'author_image', 'images', 'description', 'price',
-                  'category_slug', 'phone_number', 'hide', 'created_at']
+                  'currency', 'category_slug', 'phone_number', 'email', 'hide', 'created_at']
 
     def get_author_image(self, instance):
         profile_image = instance.author.profile_image
@@ -146,8 +152,8 @@ class ServicePostSerializer(ModelSerializer):
 
     class Meta:
         model = Service
-        fields = ['title', 'uploaded_images', 'description', 'price',
-                  'category_slug', 'phone_number']
+        fields = ['title', 'uploaded_images', 'description', 'price', 'currency',
+                  'category_slug', 'phone_number', 'email']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -160,6 +166,8 @@ class ServicePostSerializer(ModelSerializer):
             self.fields['price'].required = True
             self.fields['category_slug'].required = False
             self.fields['phone_number'].required = True
+            self.fields['email'].required = False
+            self.fields['currency'].required = True
         else:
             self.fields['title'].required = False
             self.fields['uploaded_images'].required = False
@@ -167,6 +175,8 @@ class ServicePostSerializer(ModelSerializer):
             self.fields['price'].required = False
             self.fields['category_slug'].required = False
             self.fields['phone_number'].required = False
+            self.fields['email'].required = False
+            self.fields['currency'].required = False
 
     def create(self, validated_data):
         category = None
@@ -237,7 +247,7 @@ class OrderListAPI(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['title', 'slug', 'author_first_name', 'author_last_name', 'author_slug', 'author_image',
+        fields = ['title', 'slug', 'author_first_name', 'author_last_name', 'author_slug', 'author_image', 'currency',
                   'category_slug', 'first_image', 'description', 'price', 'is_liked', 'is_booked', 'booked_at', 'is_finished']
 
     def get_author_image(self, instance):
@@ -271,6 +281,7 @@ class OrderListAPI(serializers.ModelSerializer):
             representation.pop('author_image')
             # representation.pop('category_slug')
             representation.pop('price')
+            representation.pop('currency')
             representation['created_at'] = instance.created_at
             representation.pop('is_liked')
             representation.pop('booked_at')
@@ -300,6 +311,7 @@ class OrderListAPI(serializers.ModelSerializer):
             representation.pop('author_image')
             # representation.pop('category_slug')
             representation.pop('price')
+            representation.pop('currency')
             representation.pop('is_liked')
             representation.pop('is_booked')
             representation.pop('is_finished')
@@ -335,6 +347,7 @@ class OrderListStatusAPI(ModelSerializer):
 
 
 class OrderPostAPI(ModelSerializer):
+    size = SizeSerializer(many=True)
     category_slug = serializers.SlugField(write_only=True)
     uploaded_images = serializers.ListField(
         child=serializers.ImageField(max_length=100000, allow_empty_file=False, use_url=False),
@@ -343,7 +356,7 @@ class OrderPostAPI(ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['title', 'uploaded_images', 'description', 'deadline', 'price', 'category_slug', 'phone_number', 'size']
+        fields = ['title', 'uploaded_images', 'description', 'deadline', 'price', 'currency', 'category_slug', 'phone_number', 'email', 'size']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -358,6 +371,8 @@ class OrderPostAPI(ModelSerializer):
             self.fields['category_slug'].required = False
             self.fields['size'].required = True
             self.fields['phone_number'].required = True
+            self.fields['email'].required = False
+            self.fields['currency'].required = True
         else:
             # Fields not required for updating an existing order
             self.fields['title'].required = False
@@ -368,8 +383,11 @@ class OrderPostAPI(ModelSerializer):
             self.fields['category_slug'].required = False
             self.fields['size'].required = False
             self.fields['phone_number'].required = False
+            self.fields['email'].required = False
+            self.fields['currency'].required = False
 
     def create(self, validated_data):
+        sizes_data = validated_data.pop('size')
         uploaded_images = validated_data.pop('uploaded_images')
         category = None
         if 'category_slug' in validated_data:
@@ -383,6 +401,7 @@ class OrderPostAPI(ModelSerializer):
         # Create the order object
         author = self.context['request'].user.user_profile
         order = Order.objects.create(author=author, **validated_data)
+        order.size.set(sizes_data)
 
         # Create OrderImages objects for uploaded images
         for image_data in uploaded_images:
@@ -413,8 +432,13 @@ class OrderPostAPI(ModelSerializer):
                 # create the image
                 OrderImages.objects.create(order=instance, images=image_data)
 
+        sizes_data = validated_data.pop('size', [])
+
         for field, value in validated_data.items():
                 setattr(instance, field, value)
+
+        if sizes_data:
+            instance.size.set(sizes_data)
 
         instance.save()
         return instance
@@ -446,8 +470,8 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Equipment
-        fields = ['id', 'title', 'category', 'images', 'uploaded_images', 'price',
-                  'description', 'phone_number', 'author', 'hide', 'sale_status']
+        fields = ['id', 'title', 'category', 'images', 'uploaded_images', 'price', 'currency',
+                  'description', 'phone_number', 'email', 'author', 'hide', 'sale_status']
 
     def get_sale_status(self, instance):
         sale_status = instance.sold
@@ -468,7 +492,7 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
         return equipment
 
     def update(self, instance, validated_data):
-        images_data = validated_data.pop('uploaded_images', [])
+        images_data = validated_data.pop('uploaded_images')
 
         if images_data:
             current_images = list(instance.images.all())
@@ -490,7 +514,9 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
         instance.description = validated_data.pop('description', instance.description)
         instance.category = validated_data.pop('category', instance.category)
         instance.price = validated_data.pop('price', instance.price)
+        instance.currency = validated_data.pop('price', instance.currency)
         instance.phone_number = validated_data.pop('phone_number', instance.phone_number)
+        instance.phone_number = validated_data.pop('email', instance.email)
         instance.author = validated_data.pop('author', instance.author)
         instance.hide = validated_data.pop('hide', instance.hide)
         instance.sold = validated_data.pop('sold', instance.sold)
@@ -518,7 +544,7 @@ class EquipmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Equipment
-        fields = ['title', 'slug', 'price', 'description', 'image', 'author', 'liked']
+        fields = ['title', 'slug', 'price', 'currency', 'description', 'image', 'author', 'liked']
 
     def get_image(self, instance):
         image = instance.images.first()
@@ -541,6 +567,7 @@ class EquipmentSerializer(serializers.ModelSerializer):
             representation.pop('title')
             representation.pop('slug')
             representation.pop('price')
+            representation.pop('currency')
             representation.pop('image')
             representation.pop('author')
             representation.pop('liked')
