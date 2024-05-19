@@ -89,12 +89,10 @@ class ChangeVacancyAPIView(views.APIView):
                 openapi.IN_PATH,
                 description="Слаг вакансии",
                 type=openapi.TYPE_STRING,
-                required=True,
             )
         ],
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=[],
             properties={
                 "job_title": openapi.Schema(type=openapi.TYPE_STRING, description="Должность в вакансии"),
                 "vacancy_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Слаг вакансии"),
@@ -150,9 +148,7 @@ class DeleteVacancyAPIView(views.APIView):
         ],
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=[],
             properties={
-                "job_title": openapi.Schema(type=openapi.TYPE_STRING, description="Должность в вакансии"),
                 "vacancy_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Слаг вакансии"),
             },
         ),
@@ -184,12 +180,58 @@ class VacancySearchAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Поиск вакансий",
-        operation_description="Этот предостовляет пользователю найти определенную вакансию",
+        operation_description="Этот предостовляет пользователю найти нужную вакансию, "
+                              "можно ввести только первую букву и выводится вакансии которые начинаются на эту букву",
         manual_parameters=[
             openapi.Parameter(
                 "job_title",
                 openapi.IN_QUERY,
-                description="Фильтрация по должность",
+                description="Поиск по должности",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+        ],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+        ),
+        responses={
+            200: VacancyListSerializer,
+            403: "Nothing was found for your request",
+        },
+        tags=["Vacancy"]
+    )
+    def get(self, request, *args, **kwargs):
+        vacancy = request.query_params.get('job_title', None)
+
+        if vacancy:
+            queryset = Vacancy.objects.filter(Q(job_title__istartswith=vacancy))
+        else:
+            return Response({"error": "Nothing was found for your request"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = VacancyListSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class VacancyFilterAPIView(views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @swagger_auto_schema(
+        operation_summary="Фильтр вакансий",
+        operation_description="Этот предостовляет пользователю отфилтровать вакансии "
+                              "по должности, опыту работы, по локации, по валюте, по зарплате "
+                              "за последние сутки, неделю, месяц, по организации",
+        manual_parameters=[
+            openapi.Parameter(
+                "job_title",
+                openapi.IN_QUERY,
+                description="Фильтрация по должности",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+            openapi.Parameter(
+                "organization__title",
+                openapi.IN_QUERY,
+                description="Фильтрация по организации",
                 type=openapi.TYPE_STRING,
                 required=False,
             ),
@@ -203,7 +245,7 @@ class VacancySearchAPIView(views.APIView):
             openapi.Parameter(
                 "location",
                 openapi.IN_QUERY,
-                description="Фильтрация по местоположению",
+                description="Фильтрация по местоположении",
                 type=openapi.TYPE_STRING,
                 required=False,
             ),
@@ -225,21 +267,40 @@ class VacancySearchAPIView(views.APIView):
                 "min_salary",
                 openapi.IN_QUERY,
                 description="Фильтрация по зарплате (по возрастанию)",
-                type=openapi.TYPE_STRING,
+                type=openapi.TYPE_NUMBER,
                 required=False,
             ),
             openapi.Parameter(
                 "max_salary",
                 openapi.IN_QUERY,
                 description="Фильтрация по зарплате (по убыванию)",
-                type=openapi.TYPE_STRING,
+                type=openapi.TYPE_NUMBER,
+                required=False,
+            ),
+            openapi.Parameter(
+                "days",
+                openapi.IN_QUERY,
+                description="Фильтрация по дням",
+                type=openapi.TYPE_NUMBER,
+                required=False,
+            ),
+            openapi.Parameter(
+                "month",
+                openapi.IN_QUERY,
+                description="Фильтрация по неделе",
+                type=openapi.TYPE_NUMBER,
+                required=False,
+            ),
+            openapi.Parameter(
+                "days",
+                openapi.IN_QUERY,
+                description="Фильтрация по месяцу",
+                type=openapi.TYPE_NUMBER,
                 required=False,
             ),
         ],
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
-            required=[],
-
         ),
         responses={
             200: "Created",
@@ -249,22 +310,8 @@ class VacancySearchAPIView(views.APIView):
         tags=["Vacancy"]
     )
     def get(self, request, *args, **kwargs):
-        vacancy = request.query_params.get('job_title', None)
-
-        if vacancy:
-            queryset = Vacancy.objects.filter(Q(job_title__istartswith=vacancy))
-        else:
-            return Response({"error": "Nothing was found for your request"}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = VacancyListSerializer(queryset, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class VacancyFilterAPIView(views.APIView):
-    permission_classes = [permissions.AllowAny]
-
-    def get(self, request, *args, **kwargs):
         job_title = request.query_params.get('job_title', None)
+        organization = request.query_params.get('organization', None)
         location = request.query_params.get('location', None)
         experience = request.query_params.get('experience', None)
         schedule = request.query_params.get('schedule', None)
@@ -279,6 +326,8 @@ class VacancyFilterAPIView(views.APIView):
 
         if job_title:
             vacancy = vacancy.filter(job_title__icontains=job_title)
+        if organization:
+            vacancy = vacancy.filter(organization__title__icontains=organization)
         if location:
             vacancy = vacancy.filter(location__icontains=location)
         if experience:
@@ -314,6 +363,15 @@ class VacancyFilterAPIView(views.APIView):
 class ResumeListAPIView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
+    @swagger_auto_schema(
+        operation_summary="Список всех резюме",
+        operation_description="Этот эндпоинт предоставляет пользователю посмотреть все резюме",
+        responses={
+            200: VacancyListSerializer,
+            404: "Resume does not exist"
+        },
+        tags=["Resume"]
+    )
     def get(self, request, *args, **kwargs):
         try:
             resume = Resume.objects.all().order_by('-created_at')
@@ -326,6 +384,30 @@ class ResumeListAPIView(views.APIView):
 class AddResumeAPIView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @swagger_auto_schema(
+        operation_summary="Добавление резюме",
+        operation_description="Этот предостовляет пользователю добавить свое резюме",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=["job_title"],
+            properties={
+                "job_title": openapi.Schema(type=openapi.TYPE_STRING, description="Должность в резюме"),
+                "resume_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Слаг резюме"),
+                "experience": openapi.Schema(type=openapi.TYPE_STRING, description="Опыт работы"),
+                "schedule": openapi.Schema(type=openapi.TYPE_STRING, description="График работы"),
+                "location": openapi.Schema(type=openapi.TYPE_STRING, description="Место работы"),
+                "min_salary": openapi.Schema(type=openapi.TYPE_NUMBER, description="Минимальная зарплата"),
+                "max_salary": openapi.Schema(type=openapi.TYPE_NUMBER, description="Максимальная зарплата"),
+                "currency": openapi.Schema(type=openapi.TYPE_STRING, description="Валюта зарплаты"),
+                "about_me": openapi.Schema(type=openapi.TYPE_STRING, description="Личная информация")
+            },
+        ),
+        responses={
+            201: VacancyDetailSerializer,
+            400: "Bad Request"
+        },
+        tags=["Resume"]
+    )
     def post(self, request, *args, **kwargs):
         serializer = ResumeDetailSerializer(data=request.data)
         if serializer.is_valid():
@@ -338,6 +420,40 @@ class AddResumeAPIView(views.APIView):
 class ChangeResumeAPIView(views.APIView):
     permission_classes = [CurrentUserOrReadOnly]
 
+    @swagger_auto_schema(
+        operation_summary="Изменение резюме",
+        operation_description="Этот эндпоинт предостовляет пользователю изменять свое резюме",
+        manual_parameters=[
+            openapi.Parameter(
+                "resume_slug",
+                openapi.IN_PATH,
+                description="Слаг резюме",
+                type=openapi.TYPE_STRING,
+                required=True,
+            )
+        ],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "job_title": openapi.Schema(type=openapi.TYPE_STRING, description="Должность в резюме"),
+                "resume_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Слаг резюме"),
+                "experience": openapi.Schema(type=openapi.TYPE_STRING, description="Опыт работы"),
+                "schedule": openapi.Schema(type=openapi.TYPE_STRING, description="График работы"),
+                "location": openapi.Schema(type=openapi.TYPE_STRING, description="Место работы"),
+                "min_salary": openapi.Schema(type=openapi.TYPE_NUMBER, description="Минимальная зарплата"),
+                "max_salary": openapi.Schema(type=openapi.TYPE_NUMBER, description="Максимальная зарплата"),
+                "currency": openapi.Schema(type=openapi.TYPE_STRING, description="Валюта зарплаты"),
+                "about_me": openapi.Schema(type=openapi.TYPE_STRING, description="Личная информация")
+            },
+        ),
+        responses={
+            201: VacancyDetailSerializer,
+            400: "Bad Request",
+            403: "Only author can change",
+            404: "Resume does not exist"
+        },
+        tags=["Resume"]
+    )
     def put(self, request, *args, **kwargs):
         try:
             resume = Resume.objects.get(slug=kwargs['resume_slug'])
@@ -346,6 +462,10 @@ class ChangeResumeAPIView(views.APIView):
         serializer = ResumeDetailSerializer(instance=resume, data=request.data)
         if serializer.is_valid():
             author = request.user.user_profile
+
+            if resume.author != author:
+                return Response({"error": "Only author can change"}, status=status.HTTP_403_FORBIDDEN)
+
             serializer.save(author=author)
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -354,6 +474,31 @@ class ChangeResumeAPIView(views.APIView):
 class DeleteResumeAPIView(views.APIView):
     permission_classes = [CurrentUserOrReadOnly]
 
+    @swagger_auto_schema(
+        operation_summary="Удаление резюме",
+        operation_description="Этот предостовляет пользователю удалить свое резюме",
+        manual_parameters=[
+            openapi.Parameter(
+                "resume_slug",
+                openapi.IN_PATH,
+                description="Слаг резюме",
+                type=openapi.TYPE_STRING,
+                required=True,
+            )
+        ],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                "resume_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Слаг резюме"),
+            },
+        ),
+        responses={
+            200: "Successfully deleted",
+            403: "Only author can delete",
+            404: "Resume does not exist"
+        },
+        tags=["Resume"]
+    )
     def post(self, request, *args, **kwargs):
         try:
             resume = Resume.objects.get(slug=kwargs['resume_slug'])
@@ -365,13 +510,35 @@ class DeleteResumeAPIView(views.APIView):
         if resume.author == author:
             resume.delete()
         else:
-            return Response({"error": "Only author can delete"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Only author can delete"}, status=status.HTTP_403_FORBIDDEN)
         return Response({"error": "Successfully deleted"}, status=status.HTTP_200_OK)
 
 
 class SearchResumeAPIView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
+    @swagger_auto_schema(
+        operation_summary="Поиск резюме",
+        operation_description="Этот предостовляет пользователю найти нужное резюме, "
+                              "можно ввести только первую букву и выводится резюме которые начинаются на эту букву",
+        manual_parameters=[
+            openapi.Parameter(
+                "job_title",
+                openapi.IN_QUERY,
+                description="Поиск по должности",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+        ],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+        ),
+        responses={
+            200: ResumeListSerializer,
+            404: "Nothing was found for your request",
+        },
+        tags=["Resume"]
+    )
     def get(self, request, *args, **kwargs):
         resume = request.query_params.get('job_title', None)
 
@@ -385,6 +552,51 @@ class SearchResumeAPIView(views.APIView):
 
 
 class ResumeFilterAPIView(views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @swagger_auto_schema(
+        operation_summary="Фильтр резюме",
+        operation_description="Этот предостовляет пользователю отфильтровать резюме "
+                              "по должности, опыту работы, по локации, по графику работы",
+        manual_parameters=[
+            openapi.Parameter(
+                "job_title",
+                openapi.IN_QUERY,
+                description="Фильтрация по должности",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+            openapi.Parameter(
+                "experience",
+                openapi.IN_QUERY,
+                description="Фильтрация по опыту работы",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+            openapi.Parameter(
+                "location",
+                openapi.IN_QUERY,
+                description="Фильтрация по местоположени",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+            openapi.Parameter(
+                "schedule",
+                openapi.IN_QUERY,
+                description="Фильтрация по графику работы",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+        ],
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+        ),
+        responses={
+            200: ResumeListSerializer,
+            404: "Nothing was found for your request",
+        },
+        tags=["Resume"]
+    )
     def get(self, request, *args, **kwargs):
         job_title = request.query_params.get('job_title', None)
         experience = request.query_params.get('experience', None)
