@@ -60,11 +60,10 @@ class Resume(models.Model):
     location = models.CharField(max_length=30, choices=LOCATION, null=True, default='Бишкек')
     schedule = models.CharField(max_length=60, choices=SCHEDULE, default='Полный день')
     experience = models.CharField(max_length=30, choices=EXPERIENCE, default='Без опыта')
-    stack = models.TextField(max_length=500, null=True)
     author = models.OneToOneField(UserProfile, on_delete=models.CASCADE, related_name='author_resume')
     about_me = models.TextField(max_length=1000, null=True)
-    min_salary = models.DecimalField(max_digits=10, decimal_places=2, null=True)
-    max_salary = models.DecimalField(max_digits=10, decimal_places=2, null=True)
+    min_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    max_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     currency = models.CharField(max_length=15, choices=CURRENCY, default='Сом')
     created_at = models.DateTimeField(auto_now_add=True)
 
