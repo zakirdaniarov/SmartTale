@@ -516,7 +516,6 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
         instance.price = validated_data.pop('price', instance.price)
         instance.currency = validated_data.pop('price', instance.currency)
         instance.phone_number = validated_data.pop('phone_number', instance.phone_number)
-        instance.phone_number = validated_data.pop('email', instance.email)
         instance.author = validated_data.pop('author', instance.author)
         instance.hide = validated_data.pop('hide', instance.hide)
         instance.sold = validated_data.pop('sold', instance.sold)
