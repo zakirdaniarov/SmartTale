@@ -53,7 +53,7 @@ class ServiceCategory(models.Model):
 
 class Service(models.Model):
     title = models.CharField(max_length=70)
-    category = models.ManyToManyField(ServiceCategory, related_name='services', blank=True)
+    category = models.ForeignKey(ServiceCategory, related_name='services', null=True, blank=True, on_delete=models.DO_NOTHING)
     slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     currency = models.CharField(max_length=10, choices=CURRENCY, default='Som')

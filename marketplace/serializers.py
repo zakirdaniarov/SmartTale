@@ -39,7 +39,6 @@ class OrgAPI(ModelSerializer):
         return representation
 
 
-
 class OrderImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderImages
@@ -62,6 +61,7 @@ class OrderDetailAPI(ModelSerializer):
     author_image = serializers.SerializerMethodField()
     images = OrderImageSerializer(many=True, read_only=True)
     category_slug = serializers.ReadOnlyField(source='category.slug')
+    size = SizeSerializer(read_only=True, many=True)
 
     class Meta:
         model = Order
@@ -185,6 +185,7 @@ class ServicePostSerializer(ModelSerializer):
             # Retrieve the category instance based on the slug
             try:
                 category = ServiceCategory.objects.get(slug=category_slug)
+                validated_data['category'] = category
             except ServiceCategory.DoesNotExist:
                 raise serializers.ValidationError("Category with this slug does not exist")
         uploaded_images = validated_data.pop('uploaded_images')
@@ -192,8 +193,6 @@ class ServicePostSerializer(ModelSerializer):
         # Create the order object
         author = self.context['request'].user.user_profile
         service = Service.objects.create(author=author, **validated_data)
-        if category:
-            service.category.add(category)
 
         # Create OrderImages objects for uploaded images
         for image_data in uploaded_images:
@@ -206,7 +205,7 @@ class ServicePostSerializer(ModelSerializer):
             # Retrieve the category instance based on the slug
             try:
                 category = ServiceCategory.objects.get(slug=category_slug)
-                instance.category.add(category)
+                validated_data['category'] = category
             except ServiceCategory.DoesNotExist:
                 raise serializers.ValidationError("Category with this slug does not exist")
         if 'uploaded_images' in validated_data:
@@ -347,7 +346,6 @@ class OrderListStatusAPI(ModelSerializer):
 
 
 class OrderPostAPI(ModelSerializer):
-    size = SizeSerializer(many=True)
     category_slug = serializers.SlugField(write_only=True)
     uploaded_images = serializers.ListField(
         child=serializers.ImageField(max_length=100000, allow_empty_file=False, use_url=False),
@@ -388,8 +386,12 @@ class OrderPostAPI(ModelSerializer):
 
     def create(self, validated_data):
         sizes_data = validated_data.pop('size')
+        # if isinstance(sizes_data, list):
+        #     sizes_data = [int(size) for size in sizes_data]
+        # else:
+        #     raise serializers.ValidationError("Invalid format for size data")
+        # print("sizes_data (converted):", sizes_data)
         uploaded_images = validated_data.pop('uploaded_images')
-        category = None
         if 'category_slug' in validated_data:
             category_slug = validated_data.pop('category_slug')
             # Retrieve the category instance based on the slug
