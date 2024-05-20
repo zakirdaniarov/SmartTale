@@ -108,13 +108,17 @@ if not DEBUG:
             'PORT': config('DB_PORT'),
         },
         'qcluster': {
-            'ENGINE': 'django.db.backends.postgresql_psycopg2',
-            'NAME': config('QC_DB_NAME'),
-            'USER': config('QC_DB_USER'),
-            'PASSWORD': config('QC_DB_PASSWORD'),
-            'HOST': config('DB_HOST'),
-            'PORT': config('DB_PORT'),
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'qcluster.sqlite3',
         }
+        # 'qcluster': {
+        #     'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        #     'NAME': config('QC_DB_NAME'),
+        #     'USER': config('QC_DB_USER'),
+        #     'PASSWORD': config('QC_DB_PASSWORD'),
+        #     'HOST': config('DB_HOST'),
+        #     'PORT': config('DB_PORT'),
+        # }
     }
 else:
     DATABASES = {
