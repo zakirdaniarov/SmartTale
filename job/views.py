@@ -48,21 +48,6 @@ class VacancyDetailAPIView(views.APIView):
     @swagger_auto_schema(
         operation_summary="Детальная страница вакансии",
         operation_description="Этот предостовляет пользователю просмотреть детальную страницу вакансии",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            required=["vacancy_slug"],
-            properties={
-                "job_title": openapi.Schema(type=openapi.TYPE_STRING, description="Должность на вакансии"),
-                "vacancy_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Слаг вакансии"),
-                "experience": openapi.Schema(type=openapi.TYPE_STRING, description="Опыт работы"),
-                "schedule": openapi.Schema(type=openapi.TYPE_STRING, description="График работы"),
-                "location": openapi.Schema(type=openapi.TYPE_STRING, description="Место работы"),
-                "min_salary": openapi.Schema(type=openapi.TYPE_NUMBER, description="Минимальная зарплата"),
-                "max_salary": openapi.Schema(type=openapi.TYPE_NUMBER, description="Максимальная зарплата"),
-                "currency": openapi.Schema(type=openapi.TYPE_STRING, description="Валюта зарплаты"),
-                "description": openapi.Schema(type=openapi.TYPE_STRING, description="Описание работы")
-            },
-        ),
         responses={
             200: VacancyDetailSerializer,
             404: "Vacancy does not exist"
@@ -236,9 +221,6 @@ class VacancySearchAPIView(views.APIView):
                 required=False,
             ),
         ],
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-        ),
         responses={
             200: VacancyListSerializer,
             403: "Nothing was found for your request",
@@ -337,23 +319,20 @@ class VacancyFilterAPIView(views.APIView):
                 required=False,
             ),
             openapi.Parameter(
-                "month",
+                "week",
                 openapi.IN_QUERY,
                 description="Фильтрация по неделе",
                 type=openapi.TYPE_NUMBER,
                 required=False,
             ),
             openapi.Parameter(
-                "days",
+                "month",
                 openapi.IN_QUERY,
                 description="Фильтрация по месяцу",
                 type=openapi.TYPE_NUMBER,
                 required=False,
             ),
         ],
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-        ),
         responses={
             200: "Created",
             403: "Only organization that added it can change",
@@ -453,21 +432,6 @@ class ResumeDetailAPIView(views.APIView):
     @swagger_auto_schema(
         operation_summary="Детальная страница резюме",
         operation_description="Этот предостовляет пользователю просмотреть детальную страницу резюме",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            required=["resume_slug"],
-            properties={
-                "job_title": openapi.Schema(type=openapi.TYPE_STRING, description="Должность в резюме"),
-                "resume_slug": openapi.Schema(type=openapi.TYPE_STRING, description="Слаг резюме"),
-                "experience": openapi.Schema(type=openapi.TYPE_STRING, description="Опыт работы"),
-                "schedule": openapi.Schema(type=openapi.TYPE_STRING, description="График работы"),
-                "location": openapi.Schema(type=openapi.TYPE_STRING, description="Место работы"),
-                "min_salary": openapi.Schema(type=openapi.TYPE_NUMBER, description="Минимальная зарплата"),
-                "max_salary": openapi.Schema(type=openapi.TYPE_NUMBER, description="Максимальная зарплата"),
-                "currency": openapi.Schema(type=openapi.TYPE_STRING, description="Валюта зарплаты"),
-                "about_me": openapi.Schema(type=openapi.TYPE_STRING, description="Личная информация")
-            },
-        ),
         responses={
             200: ResumeDetailSerializer,
             404: "Resume does not exist"
@@ -634,9 +598,6 @@ class SearchResumeAPIView(views.APIView):
                 required=False,
             ),
         ],
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-        ),
         responses={
             200: ResumeListSerializer,
             404: "Nothing was found for your request",
@@ -699,9 +660,6 @@ class ResumeFilterAPIView(views.APIView):
                 required=False,
             ),
         ],
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-        ),
         responses={
             200: ResumeListSerializer,
             404: "Nothing was found for your request",

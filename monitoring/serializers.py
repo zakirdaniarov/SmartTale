@@ -19,7 +19,7 @@ class JobTitleSeriailizer(serializers.ModelSerializer):
         return job_title
 
 
-class OrganizationSerializer(serializers.ModelSerializer):
+class OrganizationMonitoringSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Organization
