@@ -494,7 +494,7 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
         return equipment
 
     def update(self, instance, validated_data):
-        images_data = validated_data.pop('uploaded_images', [])
+        images_data = validated_data.pop('uploaded_images')
 
         if images_data:
             current_images = list(instance.images.all())
