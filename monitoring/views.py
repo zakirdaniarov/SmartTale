@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
-from .serializers import (JobTitleSeriailizer, OrganizationSerializer, ProfileDetailSerializer,
+from .serializers import (JobTitleSeriailizer, OrganizationMonitoringSerializer, ProfileDetailSerializer,
                           EmployeeListSerializer, JobTitleSerializer, EmployeeDetailSerializer,
                           OrganizationDetailSerializer, OrganizationListSerializer,
                           EmployeeCreateSerializer, EmployeeDeleteSerializer)
@@ -21,7 +21,7 @@ SUBCRIPTION_CHOICES = (
 
 class UserDetailAPIView(APIView):
     @swagger_auto_schema(
-        tags = ["Organization"],
+        tags = ["User"],
         operation_summary = "Подробная информация о юзере в маркетплейсе.",
         operation_description = "Предоставляет доступ к подробной информации юзера по slug в маркетплейсе.",
         responses = {
@@ -45,7 +45,7 @@ class OrganizationAPIView(APIView):
         operation_summary = "Создание организации.",
         operation_description = "Предоставляет доступ к создани организации",
         responses = {
-            201: OrganizationSerializer,
+            201: OrganizationMonitoringSerializer,
             400: "Invalid",
             403: "No permission"
         }
@@ -60,7 +60,7 @@ class OrganizationAPIView(APIView):
         else:
             if user.user_profile.subscription < dt.datetime.now(dt.timezone.utc):
                 return Response({"Error": "Ваша подписка истекла!"}, status = status.HTTP_400_BAD_REQUEST)
-        serializer = OrganizationSerializer(data = request.data, context = {'user': user.user_profile})
+        serializer = OrganizationMonitoringSerializer(data = request.data, context = {'user': user.user_profile})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -182,7 +182,7 @@ class EmployeeDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        tags = ["User"],
+        tags = ["Organization"],
         operation_summary = "Подробная информация о юзере в организации.",
         operation_description = "Предоставляет доступ к подробной информации юзера по slug в организации.",
         responses = {
@@ -299,7 +299,7 @@ class JobTitleListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        tags = ["User"],
+        tags = ["Organization"],
         operation_summary = "Список должностей в текущей организации.",
         operation_description = "Предоставляет доступ к подробной списку должностей текущей организации отсортированный по количесту прав.",
         responses = {
@@ -357,7 +357,7 @@ class SubscriptionAPIView(APIView):
             return Response({"Error": "Нет существует такой подписки."}, status = status.HTTP_400_BAD_REQUEST)
         user_profile.sub_type = sub
         user_profile.save()
-        return Response({"Success": "Подписка успешно приобретена."}, status = status.HTTP_200_OK)
+        return Response({"Success": "Подписка успешно приобретена. Дата окончания - {}".format(user_profile.subscription.strftime("%Y-%m-%d %H:%M:%S"))}, status = status.HTTP_200_OK)
         
 
         
