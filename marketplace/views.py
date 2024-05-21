@@ -59,11 +59,7 @@ class MyOrderApplicationsListView(APIView):
                             status=status.HTTP_403_FORBIDDEN)
         queryset = order.org_applicants.all()
         serializer = self.serializer_class(queryset, many=True, context={'detail': False})
-        print(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-
-
 
 
 class BaseOrderListView(APIView):
@@ -298,7 +294,7 @@ class ReceivedOrderStatusAPIView(APIView):
         user = request.user
         organization = user.user_profile.working_org.org
         if not organization:
-            return Response({'Error': 'User does not have access to this organization or organization not found.'},
+            return Response({'error': 'User does not have access to this organization or organization not found.'},
                             status=status.HTTP_403_FORBIDDEN)
 
         orders_data = self.get_orders_data(organization)
@@ -518,11 +514,11 @@ class OrderDetailAPIView(APIView):
         try:
             order = Order.objects.get(slug=order_slug)
         except Order.DoesNotExist:
-            return Response({"Error": "Order is not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Order is not found."}, status=status.HTTP_404_NOT_FOUND)
 
         author = request.user.is_authenticated and request.user.user_profile == order.author
         order_api = OrderDetailAPI(order, context={'request': request, 'author': author})
-        content = {"Order Info": order_api.data}
+        content = {"data": order_api.data}
 
         try:
             review = order.order_reviews
@@ -623,11 +619,11 @@ class UpdateOrderAPIView(APIView):
         try:
             order = Order.objects.get(slug=order_slug)
         except Order.DoesNotExist:
-            return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
         user = request.user
         if user.user_profile != order.author:
-            return Response({'Error':'User does not have permissions to update this order.'},
+            return Response({'error':'User does not have permissions to update this order.'},
                             status=status.HTTP_403_FORBIDDEN)
 
         serializer = self.serializer_class(order, data=request.data, context={'request': request})
@@ -659,15 +655,15 @@ class HideOrderAPIView(APIView):
         },
         tags=["Order"]
     )
-    def post(self, request, order_slug):
+    def put(self, request, order_slug):
         try:
             order = Order.objects.get(slug=order_slug)
         except Order.DoesNotExist:
-            return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
         user = request.user
         if user.user_profile != order.author:
-            return Response({'Error':'User does not have permissions to hide this order.'},
+            return Response({'error':'User does not have permissions to hide this order.'},
                             status=status.HTTP_403_FORBIDDEN)
         if order.hide:
             order.hide = False
@@ -699,22 +695,22 @@ class FinishOrderAPIView(APIView):
         },
         tags=["Order"]
     )
-    def post(self, request, order_slug):
+    def put(self, request, order_slug):
         try:
             order = Order.objects.get(slug=order_slug)
         except Order.DoesNotExist:
-            return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
         user = request.user
         if user.user_profile != order.author:
-            return Response({'Error': 'User does not have permissions to finish this order.'},
+            return Response({'error': 'User does not have permissions to finish this order.'},
                             status=status.HTTP_403_FORBIDDEN)
         if order.status != "Arrived":
-            return Response({'Error': 'The order is not arrived yet.'},
+            return Response({'error': 'The order is not arrived yet.'},
                             status=status.HTTP_403_FORBIDDEN)
 
         if order.is_finished:
-            return Response({'Error': 'The order is already finished.'},
+            return Response({'error': 'The order is already finished.'},
                             status=status.HTTP_403_FORBIDDEN)
         order.is_finished = True
         order.finished_at = timezone.now()
@@ -748,11 +744,11 @@ class DeleteOrderAPIView(APIView):
         try:
             order = Order.objects.get(slug=order_slug)
         except Order.DoesNotExist:
-            return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
         user = request.user
         if user.user_profile != order.author:
-            return Response({'Error':'User does not have permissions to hide this order.'},
+            return Response({'error':'User does not have permissions to hide this order.'},
                             status=status.HTTP_403_FORBIDDEN)
 
         order.delete()
@@ -785,16 +781,16 @@ class ApplyOrderAPIView(APIView):
         try:
             order = Order.objects.get(slug=order_slug)
         except Order.DoesNotExist:
-            return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
         if order.is_booked:
-            return Response({'Message':'The order is already booked by another organization.'},
+            return Response({'error':'The order is already booked by another organization.'},
                             status=status.HTTP_403_FORBIDDEN)
 
         user = request.user
         organization = user.user_profile.working_org.org
         if not organization:
-            return Response({'Error':'User does not have access to this organization or organization not found.'},
+            return Response({'error':'User does not have access to this organization or organization not found.'},
                             status=status.HTTP_403_FORBIDDEN)
 
         order.org_applicants.add(organization)
@@ -835,7 +831,7 @@ class BookOrderAPIView(APIView):
         try:
             order = Order.objects.get(slug=order_slug)
         except Order.DoesNotExist:
-            return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"order": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
         if order.is_booked:
             return Response({'Message':'The order is already booked by another organization.'},
@@ -848,7 +844,7 @@ class BookOrderAPIView(APIView):
 
         user = request.user
         if user.user_profile != order.author:
-            return Response({'Error':'User does not have permissions to do this action.'},
+            return Response({'error':'User does not have permissions to do this action.'},
                             status=status.HTTP_403_FORBIDDEN)
 
         order.org_work = org
@@ -899,22 +895,22 @@ class UpdateOrderStatusAPIView(APIView):
         user = request.user
         organization = user.user_profile.working_org.org
         if not organization:
-            return Response({'Error': 'User does not have access to this organization or organization not found.'},
+            return Response({'error': 'User does not have access to this organization or organization not found.'},
                             status=status.HTTP_403_FORBIDDEN)
 
         if order not in organization.received_orders.all():
-            return Response({'Error': 'This order is not booked by this organization'},
+            return Response({'error': 'This order is not booked by this organization'},
                             status=status.HTTP_403_FORBIDDEN)
 
         order_status = request.query_params.get('status')
         if order_status not in ["Waiting", "Process", "Checking", "Sending", "Arrived"]:
-            return Response({'Error':'The new status name is incorrect. The new status has to be one of'
+            return Response({'error':'The new status name is incorrect. The new status has to be one of'
                                      '["Waiting", "Process", "Checking", "Sending", "Arrived"]'},
                             status=status.HTTP_403_FORBIDDEN)
 
         # Check if the current status is "Arrived"; if so, do not allow status change
         if order.status == "Arrived":
-            return Response({'Error': 'Cannot change the status of an order that is already "Arrived"'},
+            return Response({'error': 'Cannot change the status of an order that is already "Arrived"'},
                             status=status.HTTP_403_FORBIDDEN)
 
         # Get the current index of the order's status in the STATUS choices
@@ -925,7 +921,7 @@ class UpdateOrderStatusAPIView(APIView):
 
         # Check if the new status is within one position (left or right) of the current status
         if abs(current_status_index - new_status_index) != 1:
-            return Response({'Error': 'The new status must be one position (left or right) of the current status'},
+            return Response({'error': 'The new status must be one position (left or right) of the current status'},
                             status=status.HTTP_403_FORBIDDEN)
 
         # If the new status is "Arrived", set the finished_at timestamp
@@ -963,7 +959,7 @@ class LikeOrderAPIView(APIView):
         try:
             order = Order.objects.get(slug=order_slug)
         except Order.DoesNotExist:
-            return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
         user = request.user
 
@@ -1011,14 +1007,14 @@ class ReviewOrderAPIView(APIView):
         try:
             order = Order.objects.get(slug=order_slug)
         except Order.DoesNotExist:
-            return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
         if order.status != "Arrived":
-            return Response({'Error': 'Review is possible only when the order status is "Arrived"'},
+            return Response({'error': 'Review is possible only when the order status is "Arrived"'},
                             status=status.HTTP_403_FORBIDDEN)
         user = request.user
         if user.user_profile != order.author:
-            return Response({'Error':'User does not have permissions to review this order.'},
+            return Response({'error':'User does not have permissions to review this order.'},
                             status=status.HTTP_403_FORBIDDEN)
 
         serializer = self.serializer_class(data=request.data, context={'order': order, 'reviewer': user.user_profile})
@@ -1285,10 +1281,10 @@ class HideEquipmentAPIView(APIView):
                 equipment.hide = True if not equipment.hide else False
                 equipment.save()
             else:
-                return Response({"message": "Only the author can hide the equipment"},
+                return Response({"error": "Only the author can hide the equipment"},
                                 status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"message": "Error when hiding equipment"},
+            return Response({"error": "Error when hiding equipment"},
                             status=status.HTTP_400_BAD_REQUEST)
 
         if equipment.hide:
@@ -1555,11 +1551,11 @@ class ServiceDetailAPIView(APIView):
         try:
             service = Service.objects.get(slug=service_slug)
         except Service.DoesNotExist:
-            return Response({"Error": "Service is not found."}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Service is not found."}, status=status.HTTP_404_NOT_FOUND)
 
         author = request.user.is_authenticated and request.user.user_profile == service.author
         service_api = ServiceSerializer(service, context={'request': request, 'author': author})
-        content = {"Service Info": service_api.data}
+        content = {"data": service_api.data}
 
         return Response(content, status=status.HTTP_200_OK)
 
@@ -1599,7 +1595,7 @@ class CreateServiceAPIView(APIView):
     def post(self, request, *args, **kwargs):
         user = request.user
         if not user.user_profile:
-            return Response({'Error':'The user has to have a user profile.'},
+            return Response({'error':'The user has to have a user profile.'},
                             status=status.HTTP_403_FORBIDDEN)
         serializer = self.serializer_class(data=request.data, context={'request': request})
         if serializer.is_valid():
@@ -1654,11 +1650,11 @@ class UpdateServiceAPIView(APIView):
         try:
             service = Service.objects.get(slug=service_slug)
         except Service.DoesNotExist:
-            return Response({"message": "Service not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Service not found"}, status=status.HTTP_404_NOT_FOUND)
 
         user = request.user
         if user.user_profile != service.author:
-            return Response({'Error':'User does not have permissions to update this service.'},
+            return Response({'error':'User does not have permissions to update this service.'},
                             status=status.HTTP_403_FORBIDDEN)
 
         serializer = self.serializer_class(service, data=request.data, context={'request': request})
@@ -1694,11 +1690,11 @@ class DeleteServiceAPIView(APIView):
         try:
             service = Service.objects.get(slug=service_slug)
         except Service.DoesNotExist:
-            return Response({"message": "Service not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Service not found"}, status=status.HTTP_404_NOT_FOUND)
 
         user = request.user
         if user.user_profile != service.author:
-            return Response({'Error':'User does not have permissions to update this service.'},
+            return Response({'error':'User does not have permissions to update this service.'},
                             status=status.HTTP_403_FORBIDDEN)
 
         service.delete()
@@ -1725,11 +1721,11 @@ class ServiceLikeAPIView(APIView):
         },
         tags=["Service"]
     )
-    def post(self, request, service_slug):
+    def put(self, request, service_slug):
         try:
             service = Service.objects.get(slug=service_slug)
         except Service.DoesNotExist:
-            return Response({"message": "Service not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Service not found"}, status=status.HTTP_404_NOT_FOUND)
 
         user = request.user
 
@@ -1763,15 +1759,15 @@ class HideServiceAPIView(APIView):
         },
         tags=["Service"]
     )
-    def post(self, request, service_slug):
+    def put(self, request, service_slug):
         try:
             service = Service.objects.get(slug=service_slug)
         except Service.DoesNotExist:
-            return Response({"message": "Service not found"}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": "Service not found"}, status=status.HTTP_404_NOT_FOUND)
 
         user = request.user
         if user.user_profile != service.author:
-            return Response({'Error':'User does not have permissions to update this service.'},
+            return Response({'error':'User does not have permissions to update this service.'},
                             status=status.HTTP_403_FORBIDDEN)
         if service.hide:
             service.hide = False
