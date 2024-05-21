@@ -55,23 +55,24 @@ class SizeSerializer(serializers.ModelSerializer):
 
 
 class OrderDetailAPI(ModelSerializer):
-    author_first_name = serializers.ReadOnlyField(source='author.first_name')
-    author_last_name = serializers.ReadOnlyField(source='author.last_name')
-    author_slug = serializers.ReadOnlyField(source='author.slug')
-    author_image = serializers.SerializerMethodField()
+    author = UserProfileAPI(read_only=True)
     images = OrderImageSerializer(many=True, read_only=True)
     category_slug = serializers.ReadOnlyField(source='category.slug')
     size = SizeSerializer(read_only=True, many=True)
+    type = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
-        fields = ['title', 'slug', 'author_first_name', 'author_last_name', 'author_slug', 'author_image', 'images', 'description', 'deadline', 'price',
+        fields = ['title', 'slug', 'author', 'images', 'type', 'description', 'deadline', 'price',
                   'currency', 'category_slug', 'phone_number', 'email', 'size', 'hide', 'is_finished']
 
-    def get_author_image(self, instance):
-        profile_image = instance.author.profile_image
-        if profile_image and hasattr(profile_image, 'url'):
-            return profile_image.url
+    def get_type(self, instance):
+        if isinstance(instance, Equipment):
+            return "Оборудование"
+        elif isinstance(instance, Order):
+            return "Заказ"
+        elif isinstance(instance, Service):
+            return "Услуги"
         return None
 
     def to_representation(self, instance):
@@ -87,10 +88,7 @@ class OrderDetailAPI(ModelSerializer):
             representation.pop('is_finished')
         else:
             representation.pop('is_liked')
-            representation.pop('author_first_name')
-            representation.pop('author_last_name')
-            representation.pop('author_slug')
-            representation.pop('author_image')
+            representation.pop('author')
             representation['booked_at'] = instance.booked_at
             representation['created_at'] = instance.created_at
             representation['is_booked'] = instance.is_booked
@@ -110,22 +108,23 @@ class ServiceImagesSerializer(serializers.ModelSerializer):
 
 
 class ServiceSerializer(ModelSerializer):
-    author_first_name = serializers.ReadOnlyField(source='author.first_name')
-    author_last_name = serializers.ReadOnlyField(source='author.last_name')
-    author_slug = serializers.ReadOnlyField(source='author.slug')
-    author_image = serializers.SerializerMethodField()
+    author = UserProfileAPI(read_only=True)
     images = ServiceImagesSerializer(many=True, read_only=True)
     category_slug = serializers.ReadOnlyField(source='category.slug')
+    type = serializers.SerializerMethodField()
 
     class Meta:
         model = Service
-        fields = ['title', 'slug', 'author_first_name', 'author_last_name', 'author_slug', 'author_image', 'images', 'description', 'price',
+        fields = ['title', 'slug', 'author', 'images', 'type', 'description', 'price',
                   'currency', 'category_slug', 'phone_number', 'email', 'hide', 'created_at']
 
-    def get_author_image(self, instance):
-        profile_image = instance.author.profile_image
-        if profile_image and hasattr(profile_image, 'url'):
-            return profile_image.url
+    def get_type(self, instance):
+        if isinstance(instance, Equipment):
+            return "Оборудование"
+        elif isinstance(instance, Order):
+            return "Заказ"
+        elif isinstance(instance, Service):
+            return "Услуги"
         return None
 
     def to_representation(self, instance):
@@ -236,23 +235,24 @@ class EquipmentCategorySerializer(serializers.ModelSerializer):
 
 
 class OrderListAPI(serializers.ModelSerializer):
-    author_first_name = serializers.ReadOnlyField(source='author.first_name')
-    author_last_name = serializers.ReadOnlyField(source='author.last_name')
-    author_slug = serializers.ReadOnlyField(source='author.slug')
-    author_image = serializers.SerializerMethodField()
+    author = UserProfileAPI(read_only=True)
     is_liked = serializers.SerializerMethodField()
     first_image = serializers.SerializerMethodField()
     category_slug = serializers.ReadOnlyField(source='category.slug')
+    type = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
-        fields = ['title', 'slug', 'author_first_name', 'author_last_name', 'author_slug', 'author_image', 'currency',
-                  'category_slug', 'first_image', 'description', 'price', 'is_liked', 'is_booked', 'booked_at', 'is_finished']
+        fields = ['title', 'slug', 'author', 'currency', 'type', 'category_slug', 'first_image', 'description',
+                  'price', 'is_liked', 'is_booked', 'booked_at', 'is_finished']
 
-    def get_author_image(self, instance):
-        profile_image = instance.author.profile_image
-        if profile_image and hasattr(profile_image, 'url'):
-            return profile_image.url
+    def get_type(self, instance):
+        if isinstance(instance, Equipment):
+            return "Оборудование"
+        elif isinstance(instance, Order):
+            return "Заказ"
+        elif isinstance(instance, Service):
+            return "Услуги"
         return None
 
     def get_is_liked(self, instance):
@@ -274,10 +274,7 @@ class OrderListAPI(serializers.ModelSerializer):
         list_type = self.context.get('list_type')
 
         if list_type in ["my-order-ads", "applied-orders"]:
-            representation.pop('author_first_name')
-            representation.pop('author_last_name')
-            representation.pop('author_slug')
-            representation.pop('author_image')
+            representation.pop('author')
             # representation.pop('category_slug')
             representation.pop('price')
             representation.pop('currency')
@@ -286,17 +283,12 @@ class OrderListAPI(serializers.ModelSerializer):
             representation.pop('booked_at')
             representation['status'] = instance.status
         elif list_type == "my-received-orders":
-            representation.pop('category_slug')
             representation.pop('is_booked')
             representation.pop('is_liked')
             representation.pop('booked_at')
             representation.pop('is_finished')
         elif list_type in ["my-history-orders-active", "my-history-orders-finished"]:
-            representation.pop('author_first_name')
-            representation.pop('author_last_name')
-            representation.pop('author_slug')
-            representation.pop('author_image')
-            representation.pop('category_slug')
+            representation.pop('author')
             representation.pop('first_image')
             representation.pop('description')
             representation.pop('is_booked')
@@ -304,18 +296,13 @@ class OrderListAPI(serializers.ModelSerializer):
             representation.pop('is_finished')
             representation['status'] = instance.status
         elif list_type in ["my-org-orders", "orders-history-active", "orders-history-finished"]:
-            representation.pop('author_first_name')
-            representation.pop('author_last_name')
-            representation.pop('author_slug')
-            representation.pop('author_image')
-            # representation.pop('category_slug')
+            representation.pop('author')
             representation.pop('price')
             representation.pop('currency')
             representation.pop('is_liked')
             representation.pop('is_booked')
             representation.pop('is_finished')
         elif list_type == "marketplace-orders":
-            representation.pop('category_slug')
             representation.pop('is_booked')
             representation.pop('is_liked')
             representation.pop('booked_at')
@@ -346,6 +333,7 @@ class OrderListStatusAPI(ModelSerializer):
 
 
 class OrderPostAPI(ModelSerializer):
+    size = serializers.ListField(child=serializers.CharField(max_length=10), write_only=True)
     category_slug = serializers.SlugField(write_only=True)
     uploaded_images = serializers.ListField(
         child=serializers.ImageField(max_length=100000, allow_empty_file=False, use_url=False),
@@ -398,7 +386,11 @@ class OrderPostAPI(ModelSerializer):
         # Create the order object
         author = self.context['request'].user.user_profile
         order = Order.objects.create(author=author, **validated_data)
-        order.size.set(sizes_data)
+        size_objs = []
+        for size_data in sizes_data:
+            size_obj, created = Size.objects.get_or_create(size=size_data)
+            size_objs.append(size_obj)
+        order.size.set(size_objs)
 
         # Create OrderImages objects for uploaded images
         for image_data in uploaded_images:
@@ -430,12 +422,15 @@ class OrderPostAPI(ModelSerializer):
                 OrderImages.objects.create(order=instance, images=image_data)
 
         sizes_data = validated_data.pop('size', [])
+        if sizes_data:
+            size_objs = []
+            for size_data in sizes_data:
+                size_obj, created = Size.objects.get_or_create(size=size_data)
+                size_objs.append(size_obj)
+            instance.size.set(size_objs)
 
         for field, value in validated_data.items():
                 setattr(instance, field, value)
-
-        if sizes_data:
-            instance.size.set(sizes_data)
 
         instance.save()
         return instance
@@ -538,10 +533,20 @@ class EquipmentSerializer(serializers.ModelSerializer):
     author = AuthorSerializer(read_only=True)
     image = serializers.SerializerMethodField()
     liked = serializers.SerializerMethodField()
+    type = serializers.SerializerMethodField()
 
     class Meta:
         model = Equipment
-        fields = ['title', 'slug', 'price', 'currency', 'description', 'image', 'author', 'liked']
+        fields = ['title', 'slug', 'type', 'price', 'currency', 'description', 'image', 'author', 'liked']
+
+    def get_type(self, instance):
+        if isinstance(instance, Equipment):
+            return "Оборудование"
+        elif isinstance(instance, Order):
+            return "Заказ"
+        elif isinstance(instance, Service):
+            return "Услуги"
+        return None
 
     def get_image(self, instance):
         image = instance.images.first()
