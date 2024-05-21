@@ -29,10 +29,13 @@ class ResendRequestSerializer(serializers.Serializer):
 class VerifyRequestSerializer(ResendRequestSerializer):
     code = serializers.CharField()
 
+class LoginDataSerializer(serializers.Serializer):
+    subscription = serializers.DateTimeField()
+    is_subscribed = serializers.BooleanField()
 class TokenResponseSerializer(serializers.Serializer):
     refresh_token = serializers.CharField()
     access_token = serializers.CharField()
-    X_CRSFToken = serializers.CharField()
+    data = LoginDataSerializer()
 
     class Meta:
         abstract = True
