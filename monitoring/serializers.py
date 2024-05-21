@@ -3,6 +3,7 @@ from rest_framework import serializers
 from .models import Employee, JobTitle
 from marketplace.models import Order
 from authorization.models import Organization, UserProfile
+from authorization.models import SUBCRIPTION_CHOICES
 
 class JobTitleSeriailizer(serializers.ModelSerializer):
 
@@ -23,10 +24,17 @@ class OrganizationMonitoringSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Organization
-        fields = ['title', 'description']
+        fields = ['title', 'description', 'active']
 
     def create(self, validated_data):
         user = self.context['user']
+        if user.sub_type == SUBCRIPTION_CHOICES[2][0] and validated_data['active']:
+            old_active_org = Organization.objects.filter(owner = user, active = True).first()
+            if old_active_org:
+                old_active_org.active = False
+                old_active_org.save()
+        elif user.sub_type in (SUBCRIPTION_CHOICES[1][0], SUBCRIPTION_CHOICES[0][0]):
+            validated_data['active'] = True
         org = Organization.objects.create(founder = user, owner = user, **validated_data)
         return org
 
@@ -114,3 +122,5 @@ class EmployeeCreateSerializer(serializers.Serializer):
 class EmployeeDeleteSerializer(serializers.Serializer):
     user_slug = serializers.SlugField()
 
+class SubscribeSerializer(serializers.Serializer):
+    new_sub_dt = serializers.DateTimeField()
