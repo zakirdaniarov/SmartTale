@@ -1029,6 +1029,8 @@ class ReviewOrderAPIView(APIView):
 
 
 class EquipmentsListAPIView(APIView):
+    permission_classes = [AllowAny]
+
     def get_equipments(self):
         try:
             equipments = Equipment.objects.all().order_by('-created_at')
@@ -1142,6 +1144,7 @@ class DeleteEquipmentAPIView(APIView):
 
 
 class EquipmentSearchAPIView(APIView):
+    permission_classes = [AllowAny]
     filter_backends = [SearchFilter]
     search_fields = ['title']
 
@@ -1165,6 +1168,30 @@ class EquipmentSearchAPIView(APIView):
             return Response({"error": "Equipment does not exist"}, status=status.HTTP_404_NOT_FOUND)
         search_equipments = get_equipment_paginated(equipments, request, "equipments-list")
         return Response(search_equipments, status=status.HTTP_200_OK)
+
+
+class EquipmentModalPageAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        tags=['Equipment'],
+        operation_description="Этот эндпоинт"
+                              "предостовляет пользователю"
+                              "возможность посмотреть"
+                              "модальную страницу оборудования",
+        responses={
+            200: EquipmentModalPageSerializer,
+            404: "Equipment does not exist",
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        try:
+            equipment = Equipment.objects.get(slug=kwargs['equipment_slug'])
+        except Equipment.DoesNotExist:
+            return Response({"error": "Equipment does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = EquipmentModalPageSerializer(equipment)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class EquipmentDetailPageAPIView(APIView):
@@ -1230,7 +1257,7 @@ class EquipmentLikeAPIView(APIView):
 
 
 class EquipmentByAuthorLikeAPIView(APIView):
-    permission_classes = [CurrentUserOrReadOnly]
+    permission_classes = [AllowAny]
 
     def get_liked_equipments(self):
         author = self.request.user.user_profile
@@ -1285,10 +1312,10 @@ class HideEquipmentAPIView(APIView):
                 equipment.hide = True if not equipment.hide else False
                 equipment.save()
             else:
-                return Response({"message": "Only the author can hide the equipment"},
+                return Response({"error": "Only the author can hide the equipment"},
                                 status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"message": "Error when hiding equipment"},
+            return Response({"error": "Error when hiding equipment"},
                             status=status.HTTP_400_BAD_REQUEST)
 
         if equipment.hide:
@@ -1329,7 +1356,7 @@ class SoldEquipmentAPIView(APIView):
 
         request.user.user_profile.add(equipment)
 
-        return Response({"message": "Equipment is available for purchase"}, status=status.HTTP_200_OK)
+        return Response({"data": "Equipment is available for purchase"}, status=status.HTTP_200_OK)
 
 
 class OrdersAndEquipmentsListAPIView(APIView):

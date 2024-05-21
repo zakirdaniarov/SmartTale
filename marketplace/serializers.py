@@ -8,7 +8,7 @@ from .models import Service, ServiceCategory, ServiceImages, Size
 class AuthorSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['first_name', 'last_name', 'profile_image']
+        fields = ['first_name', 'last_name', 'profile_image', 'slug']
 
 
 class OrderCategoryListAPI(ModelSerializer):
@@ -459,6 +459,15 @@ class EquipmentImagesSerializer(serializers.ModelSerializer):
         fields = ['images']
 
 
+class EquipmentModalPageSerializer(serializers.ModelSerializer):
+    author = AuthorSerializer(read_only=True)
+    images = EquipmentImagesSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Equipment
+        fields = ['title', 'images', 'price', 'currency', 'author', 'description']
+
+
 class EquipmentDetailSerializer(serializers.ModelSerializer):
     author = AuthorSerializer(read_only=True)
     images = EquipmentImagesSerializer(many=True, read_only=True)
@@ -470,7 +479,7 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Equipment
-        fields = ['id', 'title', 'category', 'images', 'uploaded_images', 'price', 'currency',
+        fields = ['title', 'category', 'images', 'uploaded_images', 'price', 'currency',
                   'description', 'phone_number', 'email', 'author', 'hide', 'sale_status']
 
     def get_sale_status(self, instance):
@@ -516,7 +525,7 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
         instance.price = validated_data.pop('price', instance.price)
         instance.currency = validated_data.pop('price', instance.currency)
         instance.phone_number = validated_data.pop('phone_number', instance.phone_number)
-        instance.phone_number = validated_data.pop('email', instance.email)
+        instance.email = validated_data.pop('email', instance.email)
         instance.author = validated_data.pop('author', instance.author)
         instance.hide = validated_data.pop('hide', instance.hide)
         instance.sold = validated_data.pop('sold', instance.sold)
