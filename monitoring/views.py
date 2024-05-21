@@ -3,18 +3,25 @@ import datetime as dt
 from rest_framework.views import status, Response, APIView
 from rest_framework.permissions import IsAuthenticated
 from drf_yasg.utils import swagger_auto_schema
-from authorization.models import Organization
+from drf_yasg import openapi
 
-from .serializers import (JobTitleSeriailizer, OrganizationSerializer, ProfileDetailSerializer,
+from .serializers import (JobTitleSeriailizer, OrganizationMonitoringSerializer, ProfileDetailSerializer,
                           EmployeeListSerializer, JobTitleSerializer, EmployeeDetailSerializer,
                           OrganizationDetailSerializer, OrganizationListSerializer,
                           EmployeeCreateSerializer, EmployeeDeleteSerializer)
 from .models import Employee, JobTitle
-from authorization.models import UserProfile, User
+from authorization.models import UserProfile, User, Organization
+
+SUBCRIPTION_CHOICES = (
+    ('Тест-драйв', 'Тест-драйв'),
+    ('Базовый', 'Базовый'),
+    ('Премиум', 'Премиум'),
+    ('Нет подписки', 'Нет подписки'),
+)
 
 class UserDetailAPIView(APIView):
     @swagger_auto_schema(
-        tags = ["Organization"],
+        tags = ["User"],
         operation_summary = "Подробная информация о юзере в маркетплейсе.",
         operation_description = "Предоставляет доступ к подробной информации юзера по slug в маркетплейсе.",
         responses = {
@@ -38,7 +45,7 @@ class OrganizationAPIView(APIView):
         operation_summary = "Создание организации.",
         operation_description = "Предоставляет доступ к создани организации",
         responses = {
-            201: OrganizationSerializer,
+            201: OrganizationMonitoringSerializer,
             400: "Invalid",
             403: "No permission"
         }
@@ -53,7 +60,7 @@ class OrganizationAPIView(APIView):
         else:
             if user.user_profile.subscription < dt.datetime.now(dt.timezone.utc):
                 return Response({"Error": "Ваша подписка истекла!"}, status = status.HTTP_400_BAD_REQUEST)
-        serializer = OrganizationSerializer(data = request.data, context = {'user': user.user_profile})
+        serializer = OrganizationMonitoringSerializer(data = request.data, context = {'user': user.user_profile})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -175,7 +182,7 @@ class EmployeeDetailAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        tags = ["User"],
+        tags = ["Organization"],
         operation_summary = "Подробная информация о юзере в организации.",
         operation_description = "Предоставляет доступ к подробной информации юзера по slug в организации.",
         responses = {
@@ -292,7 +299,7 @@ class JobTitleListAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        tags = ["User"],
+        tags = ["Organization"],
         operation_summary = "Список должностей в текущей организации.",
         operation_description = "Предоставляет доступ к подробной списку должностей текущей организации отсортированный по количесту прав.",
         responses = {
@@ -307,3 +314,50 @@ class JobTitleListAPIView(APIView):
         jobs = sorted(jobs, key = lambda item: sort_for_jobs(item), reverse = True)
         serializer = JobTitleSerializer(jobs, many = True)
         return Response(serializer.data, status = status.HTTP_200_OK)
+
+class SubscriptionAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+
+    @swagger_auto_schema(
+        tags = ["User"],
+        operation_summary = "Приобретение подписки.",
+        operation_description = "Предоставляет возможность купить подписку.",
+        manual_parameters=[
+            openapi.Parameter(
+                "subscription",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="Subscription type",
+            ),
+        ],
+        responses = {
+            200: "Success",
+            400: "Invalid data",
+        }
+    )
+    def post(self, request, *args, **kwargs):
+        user = request.user
+        sub = request.data['subscription']
+        user_profile = UserProfile.objects.get(user = user)
+        if sub == SUBCRIPTION_CHOICES[0][0]:
+            if not user_profile.subscription or user_profile.subscription < dt.datetime.now(dt.timezone.utc):
+                user_profile.subscription = dt.datetime.now(dt.timezone.utc) + dt.timedelta(days = 7)
+            else:
+                user_profile.subscription = user_profile.subscription + dt.timedelta(days = 7)
+        elif sub == SUBCRIPTION_CHOICES[1][0]:
+            if not user_profile.subscription or user_profile.subscription < dt.datetime.now(dt.timezone.utc):
+                user_profile.subscription = dt.datetime.now(dt.timezone.utc) + dt.timedelta(days = 60)
+            else:
+                user_profile.subscription = user_profile.subscription + dt.timedelta(days = 60)
+        elif sub == SUBCRIPTION_CHOICES[2][0]:
+            pass
+        else:
+            return Response({"Error": "Нет существует такой подписки."}, status = status.HTTP_400_BAD_REQUEST)
+        user_profile.sub_type = sub
+        user_profile.save()
+        return Response({"Success": "Подписка успешно приобретена. Дата окончания - {}".format(user_profile.subscription.strftime("%Y-%m-%d %H:%M:%S"))}, status = status.HTTP_200_OK)
+        
+
+        
