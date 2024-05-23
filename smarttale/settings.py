@@ -59,7 +59,8 @@ INSTALLED_APPS = [
     'authorization',
     'marketplace',
     'monitoring',
-    'job'
+    'job',
+    'chat',
 ]
 
 MIDDLEWARE = [
