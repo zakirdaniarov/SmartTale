@@ -1182,7 +1182,7 @@ class EquipmentDetailPageAPIView(APIView):
         except Equipment.DoesNotExist:
             return Response({"error": "Equipment does not exist"}, status=status.HTTP_404_NOT_FOUND)
         equipment_serializer = EquipmentDetailSerializer(equipment)
-        return Response(equipment_serializer.data, status=status.HTTP_200_OK)
+        return Response({"data": equipment_serializer.data}, status=status.HTTP_200_OK)
 
 
 class EquipmentLikeAPIView(APIView):
