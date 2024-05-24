@@ -10,7 +10,7 @@ def get_paginated_data(queryset, request, list_type):
     page_obj = paginator.get_page(page_number)
 
     serializer = OrderListAPI(page_obj, many=True, context={'request': request, 'list_type': list_type})
-
+    
     data = {
         'data': serializer.data,
         'total_pages': paginator.num_pages,

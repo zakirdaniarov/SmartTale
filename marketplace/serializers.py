@@ -8,7 +8,7 @@ from .models import Service, ServiceCategory, ServiceImages, Size
 class AuthorSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['first_name', 'last_name', 'profile_image']
+        fields = ['slug', 'first_name', 'last_name', 'profile_image']
 
 
 class OrderCategoryListAPI(ModelSerializer):
@@ -68,11 +68,11 @@ class OrderDetailAPI(ModelSerializer):
 
     def get_type(self, instance):
         if isinstance(instance, Equipment):
-            return "Оборудование"
+            return "Equipment"
         elif isinstance(instance, Order):
-            return "Заказ"
+            return "Order"
         elif isinstance(instance, Service):
-            return "Услуги"
+            return "Service"
         return None
 
     def to_representation(self, instance):
@@ -120,11 +120,11 @@ class ServiceSerializer(ModelSerializer):
 
     def get_type(self, instance):
         if isinstance(instance, Equipment):
-            return "Оборудование"
+            return "Equipment"
         elif isinstance(instance, Order):
-            return "Заказ"
+            return "Order"
         elif isinstance(instance, Service):
-            return "Услуги"
+            return "Service"
         return None
 
     def to_representation(self, instance):
@@ -248,11 +248,11 @@ class OrderListAPI(serializers.ModelSerializer):
 
     def get_type(self, instance):
         if isinstance(instance, Equipment):
-            return "Оборудование"
+            return "Equipment"
         elif isinstance(instance, Order):
-            return "Заказ"
+            return "Order"
         elif isinstance(instance, Service):
-            return "Услуги"
+            return "Service"
         return None
 
     def get_is_liked(self, instance):
@@ -541,11 +541,11 @@ class EquipmentSerializer(serializers.ModelSerializer):
 
     def get_type(self, instance):
         if isinstance(instance, Equipment):
-            return "Оборудование"
+            return "Equipment"
         elif isinstance(instance, Order):
-            return "Заказ"
+            return "Order"
         elif isinstance(instance, Service):
-            return "Услуги"
+            return "Service"
         return None
 
     def get_image(self, instance):
@@ -579,11 +579,11 @@ class EquipmentSerializer(serializers.ModelSerializer):
 
 class MyOrderEquipmentSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
-    service = serializers.SerializerMethodField()
+    type = serializers.SerializerMethodField()
 
     class Meta:
         model = None  # Placeholder for dynamic model assignment
-        fields = ['title', 'description', 'service', 'image', 'status']  # Adjust fields as needed
+        fields = ['title', 'slug', 'description', 'type', 'image', 'status']  # Adjust fields as needed
 
     def __init__(self, instance, *args, **kwargs):
         if isinstance(instance, list) and instance:  # Check if instance is a non-empty list
@@ -601,11 +601,11 @@ class MyOrderEquipmentSerializer(serializers.ModelSerializer):
             return image.images.url
         return 'Images does not exist'
 
-    def get_service(self, instance):
+    def get_type(self, instance):
         if isinstance(instance, Equipment):
-            return "Оборудование"
+            return "Equipment"
         elif isinstance(instance, Order):
-            return "Заказ"
+            return "Order"
         elif isinstance(instance, Service):
-            return "Услуги"
+            return "Service"
         return None
