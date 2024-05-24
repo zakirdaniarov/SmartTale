@@ -21,18 +21,145 @@ class VacancyListAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Список всех вакансий",
-        operation_description="Этот эндпоинт предоставляет пользователю посмотреть все вакансии",
+        operation_description="Этот эндпоинт предоставляет пользователю посмотреть все вакансии,"
+                              "а также отфилтровать вакансии "
+                              "по должности, опыту работы, по локации, по валюте, по зарплате "
+                              "за последние сутки, неделю, месяц, по организации",
+        manual_parameters=[
+            openapi.Parameter(
+                "job_title",
+                openapi.IN_QUERY,
+                description="Фильтрация по должности",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+            openapi.Parameter(
+                "organization__title",
+                openapi.IN_QUERY,
+                description="Фильтрация по организации",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+            openapi.Parameter(
+                "experience",
+                openapi.IN_QUERY,
+                description="Фильтрация по опыту работы",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+            openapi.Parameter(
+                "location",
+                openapi.IN_QUERY,
+                description="Фильтрация по местоположении",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+            openapi.Parameter(
+                "schedule",
+                openapi.IN_QUERY,
+                description="Фильтрация по графику работы",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+            openapi.Parameter(
+                "currency",
+                openapi.IN_QUERY,
+                description="Фильтрация по валюте",
+                type=openapi.TYPE_STRING,
+                required=False,
+            ),
+            openapi.Parameter(
+                "min_salary",
+                openapi.IN_QUERY,
+                description="Фильтрация по зарплате (по возрастанию)",
+                type=openapi.TYPE_NUMBER,
+                required=False,
+            ),
+            openapi.Parameter(
+                "max_salary",
+                openapi.IN_QUERY,
+                description="Фильтрация по зарплате (по убыванию)",
+                type=openapi.TYPE_NUMBER,
+                required=False,
+            ),
+            openapi.Parameter(
+                "days",
+                openapi.IN_QUERY,
+                description="Фильтрация по дням",
+                type=openapi.TYPE_NUMBER,
+                required=False,
+            ),
+            openapi.Parameter(
+                "week",
+                openapi.IN_QUERY,
+                description="Фильтрация по неделе",
+                type=openapi.TYPE_NUMBER,
+                required=False,
+            ),
+            openapi.Parameter(
+                "month",
+                openapi.IN_QUERY,
+                description="Фильтрация по месяцу",
+                type=openapi.TYPE_NUMBER,
+                required=False,
+            ),
+        ],
         responses={
             200: VacancyListSerializer,
-            404: "Vacancy does not exist"
+            404: "Nothing was found for your request"
         },
         tags=["Vacancy"]
     )
     def get(self, request, *args, **kwargs):
+        job_title = request.query_params.get('job_title', None)
+        organization = request.query_params.get('organization', None)
+        location = request.query_params.get('location', None)
+        experience = request.query_params.get('experience', None)
+        schedule = request.query_params.get('schedule', None)
+        currency = request.query_params.get('currency', None)
+        min_salary = request.query_params.get('min_salary', None)
+        max_salary = request.query_params.get('max_salary', None)
+        day = request.query_params.get('day', None)
+        week = request.query_params.get('week', None)
+        month = request.query_params.get('month', None)
+
         try:
             vacancy = Vacancy.objects.all().order_by('-created_at')
         except Vacancy.DoesNotExist:
             return Response({"error": "Vacancy does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        if job_title:
+            vacancy = vacancy.filter(job_title__icontains=job_title)
+        if organization:
+            vacancy = vacancy.filter(organization__title__icontains=organization)
+        if location:
+            vacancy = vacancy.filter(location__icontains=location)
+        if experience:
+            vacancy = vacancy.filter(experience__icontains=experience)
+        if schedule:
+            vacancy = vacancy.filter(schedule__icontains=schedule)
+
+        # сортировка по зарплате
+        if currency:
+            vacancy = vacancy.filter(currency__icontains=currency)
+            if min_salary:
+                vacancy = vacancy.filter(min_salary__gte=min_salary)
+            if max_salary:
+                vacancy = vacancy.filter(max_salary__lte=max_salary)
+
+        if day:
+            day_ago = timezone.now() - timedelta(days=int(day))
+            vacancy = vacancy.filter(created_at__gte=day_ago)
+        if week:
+            weeks_ago = timezone.now() - timedelta(weeks=int(week))
+            vacancy = vacancy.filter(created_at__gte=weeks_ago)
+        if month:
+            month_ago = timezone.now() - timedelta(days=int(month) * 30)
+            vacancy = vacancy.filter(created_at__gte=month_ago)
+
+        if not vacancy.exists():
+            return Response({"error": "Nothing was found for your request"}, status=status.HTTP_404_NOT_FOUND)
+
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(vacancy, request)
         if page is not None:
@@ -245,27 +372,21 @@ class VacancySearchAPIView(views.APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class VacancyFilterAPIView(views.APIView):
+class ResumeListAPIView(views.APIView):
     permission_classes = [permissions.AllowAny]
     pagination_class = MyCustomPagination
 
     @swagger_auto_schema(
-        operation_summary="Фильтр вакансий",
-        operation_description="Этот предостовляет пользователю отфилтровать вакансии "
-                              "по должности, опыту работы, по локации, по валюте, по зарплате "
-                              "за последние сутки, неделю, месяц, по организации",
+        operation_summary="Список всех резюме",
+        operation_description="Этот эндпоинт предоставляет пользователю посмотреть все резюме"
+                              "а также отфильтровать резюме "
+                              "по должности, опыту работы, "
+                              "по локации, по графику работы",
         manual_parameters=[
             openapi.Parameter(
                 "job_title",
                 openapi.IN_QUERY,
                 description="Фильтрация по должности",
-                type=openapi.TYPE_STRING,
-                required=False,
-            ),
-            openapi.Parameter(
-                "organization__title",
-                openapi.IN_QUERY,
-                description="Фильтрация по организации",
                 type=openapi.TYPE_STRING,
                 required=False,
             ),
@@ -279,7 +400,7 @@ class VacancyFilterAPIView(views.APIView):
             openapi.Parameter(
                 "location",
                 openapi.IN_QUERY,
-                description="Фильтрация по местоположении",
+                description="Фильтрация по местоположени",
                 type=openapi.TYPE_STRING,
                 required=False,
             ),
@@ -290,131 +411,35 @@ class VacancyFilterAPIView(views.APIView):
                 type=openapi.TYPE_STRING,
                 required=False,
             ),
-            openapi.Parameter(
-                "currency",
-                openapi.IN_QUERY,
-                description="Фильтрация по валюте",
-                type=openapi.TYPE_STRING,
-                required=False,
-            ),
-            openapi.Parameter(
-                "min_salary",
-                openapi.IN_QUERY,
-                description="Фильтрация по зарплате (по возрастанию)",
-                type=openapi.TYPE_NUMBER,
-                required=False,
-            ),
-            openapi.Parameter(
-                "max_salary",
-                openapi.IN_QUERY,
-                description="Фильтрация по зарплате (по убыванию)",
-                type=openapi.TYPE_NUMBER,
-                required=False,
-            ),
-            openapi.Parameter(
-                "days",
-                openapi.IN_QUERY,
-                description="Фильтрация по дням",
-                type=openapi.TYPE_NUMBER,
-                required=False,
-            ),
-            openapi.Parameter(
-                "week",
-                openapi.IN_QUERY,
-                description="Фильтрация по неделе",
-                type=openapi.TYPE_NUMBER,
-                required=False,
-            ),
-            openapi.Parameter(
-                "month",
-                openapi.IN_QUERY,
-                description="Фильтрация по месяцу",
-                type=openapi.TYPE_NUMBER,
-                required=False,
-            ),
         ],
         responses={
-            200: "Created",
-            403: "Only organization that added it can change",
-            400: "Bad Request"
-        },
-        tags=["Vacancy"]
-    )
-    def get(self, request, *args, **kwargs):
-        job_title = request.query_params.get('job_title', None)
-        organization = request.query_params.get('organization', None)
-        location = request.query_params.get('location', None)
-        experience = request.query_params.get('experience', None)
-        schedule = request.query_params.get('schedule', None)
-        currency = request.query_params.get('currency', None)
-        min_salary = request.query_params.get('min_salary', None)
-        max_salary = request.query_params.get('max_salary', None)
-        day = request.query_params.get('day', None)
-        week = request.query_params.get('week', None)
-        month = request.query_params.get('month', None)
-
-        vacancy = Vacancy.objects.all().order_by('-created_at')
-
-        if job_title:
-            vacancy = vacancy.filter(job_title__icontains=job_title)
-        if organization:
-            vacancy = vacancy.filter(organization__title__icontains=organization)
-        if location:
-            vacancy = vacancy.filter(location__icontains=location)
-        if experience:
-            vacancy = vacancy.filter(experience__icontains=experience)
-        if schedule:
-            vacancy = vacancy.filter(schedule__icontains=schedule)
-
-        # сортировка по зарплате
-        if currency:
-            vacancy = vacancy.filter(currency__icontains=currency)
-            if min_salary:
-                vacancy = vacancy.filter(min_salary__gte=min_salary)
-            if max_salary:
-                vacancy = vacancy.filter(max_salary__lte=max_salary)
-
-        if day:
-            day_ago = timezone.now() - timedelta(days=int(day))
-            vacancy = vacancy.filter(created_at__gte=day_ago)
-        if week:
-            weeks_ago = timezone.now() - timedelta(weeks=int(week))
-            vacancy = vacancy.filter(created_at__gte=weeks_ago)
-        if month:
-            month_ago = timezone.now() - timedelta(days=int(month) * 30)
-            vacancy = vacancy.filter(created_at__gte=month_ago)
-
-        if not vacancy.exists():
-            return Response({"error": "Nothing was found for your request"}, status=status.HTTP_404_NOT_FOUND)
-
-        paginator = self.pagination_class()
-        page = paginator.paginate_queryset(vacancy, request)
-        if page is not None:
-            serializer = VacancyListSerializer(page, many=True)
-            return paginator.get_paginated_response(serializer.data)
-
-        serializer = VacancyListSerializer(vacancy, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class ResumeListAPIView(views.APIView):
-    permission_classes = [permissions.AllowAny]
-    pagination_class = MyCustomPagination
-
-    @swagger_auto_schema(
-        operation_summary="Список всех резюме",
-        operation_description="Этот эндпоинт предоставляет пользователю посмотреть все резюме",
-        responses={
             200: VacancyListSerializer,
-            404: "Resume does not exist"
+            404: "Nothing was found for your request"
         },
         tags=["Resume"]
     )
     def get(self, request, *args, **kwargs):
+        job_title = request.query_params.get('job_title', None)
+        experience = request.query_params.get('experience', None)
+        location = request.query_params.get('location', None)
+        schedule = request.query_params.get('schedule', None)
+
         try:
             resume = Resume.objects.all().order_by('-created_at')
         except Resume.DoesNotExist:
             return Response({"error": "Resume does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        if job_title:
+            resume = resume.filter(job_title__icontains=job_title)
+        if experience:
+            resume = resume.filter(experience__icontains=experience)
+        if location:
+            resume = resume.filter(location__icontains=location)
+        if schedule:
+            resume = resume.filter(schedule__icontains=schedule)
+
+        if not resume.exists():
+            return Response({"error": "Nothing was found for your request"}, status=status.HTTP_404_NOT_FOUND)
 
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(resume, request)
@@ -619,78 +644,4 @@ class SearchResumeAPIView(views.APIView):
             return paginator.get_paginated_response(serializer.data)
 
         serializer = ResumeListSerializer(resume_queryset, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class ResumeFilterAPIView(views.APIView):
-    permission_classes = [permissions.AllowAny]
-    pagination_class = MyCustomPagination
-
-    @swagger_auto_schema(
-        operation_summary="Фильтр резюме",
-        operation_description="Этот предостовляет пользователю отфильтровать резюме "
-                              "по должности, опыту работы, по локации, по графику работы",
-        manual_parameters=[
-            openapi.Parameter(
-                "job_title",
-                openapi.IN_QUERY,
-                description="Фильтрация по должности",
-                type=openapi.TYPE_STRING,
-                required=False,
-            ),
-            openapi.Parameter(
-                "experience",
-                openapi.IN_QUERY,
-                description="Фильтрация по опыту работы",
-                type=openapi.TYPE_STRING,
-                required=False,
-            ),
-            openapi.Parameter(
-                "location",
-                openapi.IN_QUERY,
-                description="Фильтрация по местоположени",
-                type=openapi.TYPE_STRING,
-                required=False,
-            ),
-            openapi.Parameter(
-                "schedule",
-                openapi.IN_QUERY,
-                description="Фильтрация по графику работы",
-                type=openapi.TYPE_STRING,
-                required=False,
-            ),
-        ],
-        responses={
-            200: ResumeListSerializer,
-            404: "Nothing was found for your request",
-        },
-        tags=["Resume"]
-    )
-    def get(self, request, *args, **kwargs):
-        job_title = request.query_params.get('job_title', None)
-        experience = request.query_params.get('experience', None)
-        location = request.query_params.get('location', None)
-        schedule = request.query_params.get('schedule', None)
-
-        resume = Resume.objects.all().order_by('-created_at')
-
-        if job_title:
-            resume = resume.filter(job_title__icontains=job_title)
-        if experience:
-            resume = resume.filter(experience__icontains=experience)
-        if location:
-            resume = resume.filter(location__icontains=location)
-        if schedule:
-            resume = resume.filter(schedule__icontains=schedule)
-
-        if not resume.exists():
-            return Response({"error": "Nothing was found for your request"}, status=status.HTTP_404_NOT_FOUND)
-
-        paginator = self.pagination_class()
-        page = paginator.paginate_queryset(resume, request)
-        if page is not None:
-            serializer = ResumeListSerializer(page, many=True)
-            return paginator.get_paginated_response(serializer.data)
-
-        serializer = ResumeListSerializer(resume, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)

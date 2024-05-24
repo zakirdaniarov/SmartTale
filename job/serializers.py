@@ -7,17 +7,16 @@ from authorization.models import Organization, UserProfile
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization
-        fields = ['title']
+        fields = ['title', 'slug']
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['last_name', 'first_name', 'middle_name']
+        fields = ['last_name', 'first_name', 'middle_name', 'slug']
 
 
 class VacancyListSerializer(serializers.ModelSerializer):
-
     organization = OrganizationSerializer(read_only=True)
 
     class Meta:
