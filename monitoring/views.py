@@ -50,7 +50,7 @@ class MyProfileAPIView(APIView):
     )
     def get(self, request, *args, **kwargs):
         user = request.user
-        serializer = ProfileDetailSerializer(user)
+        serializer = ProfileDetailSerializer(user.user_profile)
         return Response(serializer.data, status = status.HTTP_200_OK)
 
 class OrganizationAPIView(APIView):
