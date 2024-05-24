@@ -8,7 +8,7 @@ from drf_yasg import openapi
 from .serializers import (JobTitleSeriailizer, OrganizationMonitoringSerializer, ProfileDetailSerializer,
                           EmployeeListSerializer, JobTitleSerializer, EmployeeDetailSerializer,
                           OrganizationDetailSerializer, OrganizationListSerializer,
-                          EmployeeCreateSerializer, EmployeeDeleteSerializer)
+                          EmployeeCreateSerializer, EmployeeDeleteSerializer, SubscribeSerializer)
 from .models import Employee, JobTitle
 from authorization.models import UserProfile, User, Organization
 
@@ -36,6 +36,22 @@ class UserDetailAPIView(APIView):
             return Response({"Error": "Пользователь не найден."}, status = status.HTTP_404_NOT_FOUND)
         serializer = ProfileDetailSerializer(user)
         return Response(serializer.data, status = status.HTTP_200_OK)
+    
+class MyProfileAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    @swagger_auto_schema(
+        tags = ["User"],
+        operation_summary = "Подробная информация о моем профиле.",
+        operation_description = "Предоставляет доступ к подробной информации о себе.",
+        responses = {
+            200: ProfileDetailSerializer,
+            404: "Not found",
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        serializer = ProfileDetailSerializer(user.user_profile)
+        return Response(serializer.data, status = status.HTTP_200_OK)
 
 class OrganizationAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -52,14 +68,16 @@ class OrganizationAPIView(APIView):
     )
     def post(self, request, *args, **kwargs):
         user = request.user
-        if user.user_profile.sub_type == 'Нет подписки':
+        if user.user_profile.sub_type == SUBCRIPTION_CHOICES[3][0]:
             return Response({"Error": "У Вас нет прав для создания организации!"}, status = status.HTTP_403_FORBIDDEN)
-        if user.user_profile.sub_type == 'Премиум':
+        if user.user_profile.sub_type == SUBCRIPTION_CHOICES[2][0]:
             if Organization.objects.filter(owner = user.user_profile).count() == 5:
-                return Response({"Error": "Достигнут лимит по созданию организации (5)!"}, status = status.HTTP_400_BAD_REQUEST)
+                return Response({"Error": "Достигнут лимит по созданию организации по подписке '{}' (5)!".format(user.user_profile.sub_type)}, status = status.HTTP_400_BAD_REQUEST)
         else:
             if user.user_profile.subscription < dt.datetime.now(dt.timezone.utc):
                 return Response({"Error": "Ваша подписка истекла!"}, status = status.HTTP_400_BAD_REQUEST)
+            if Organization.objects.filter(owner = user.user_profile).count() == 1:
+                return Response({"Error": "Достигнут лимит по созданию организации по подписке '{}' (1)!".format(user.user_profile.sub_type)}, status = status.HTTP_400_BAD_REQUEST)
         serializer = OrganizationMonitoringSerializer(data = request.data, context = {'user': user.user_profile})
         if serializer.is_valid():
             serializer.save()
@@ -333,11 +351,11 @@ class SubscriptionAPIView(APIView):
             ),
         ],
         responses = {
-            200: "Success",
+            200: SubscribeSerializer,
             400: "Invalid data",
         }
     )
-    def post(self, request, *args, **kwargs):
+    def put(self, request, *args, **kwargs):
         user = request.user
         sub = request.data['subscription']
         user_profile = UserProfile.objects.get(user = user)
@@ -357,7 +375,7 @@ class SubscriptionAPIView(APIView):
             return Response({"Error": "Нет существует такой подписки."}, status = status.HTTP_400_BAD_REQUEST)
         user_profile.sub_type = sub
         user_profile.save()
-        return Response({"Success": "Подписка успешно приобретена. Дата окончания - {}".format(user_profile.subscription.strftime("%Y-%m-%d %H:%M:%S"))}, status = status.HTTP_200_OK)
+        return Response({"new_sub_dt": user_profile.subscription}, status = status.HTTP_200_OK)
         
 
         

@@ -77,7 +77,7 @@ def get_order_or_equipment(queryset, request):
     serializer = MyOrderEquipmentSerializer(instance=instance_list, many=True, context={"request": request})
 
     data = {
-        'my-ads': serializer.data,
+        'data': serializer.data,
         'total_pages': paginator.num_pages,
         'current_page': page_objs.number,
         'has_next_page': page_objs.has_next(),
