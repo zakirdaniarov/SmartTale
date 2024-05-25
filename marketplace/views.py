@@ -1209,7 +1209,8 @@ class EquipmentDetailPageAPIView(APIView):
         except Equipment.DoesNotExist:
             return Response({"error": "Equipment does not exist"}, status=status.HTTP_404_NOT_FOUND)
         equipment_serializer = EquipmentDetailSerializer(equipment)
-        return Response({"data": equipment_serializer.data}, status=status.HTTP_200_OK)
+        content = {"data": equipment_serializer.data}
+        return Response(content, status=status.HTTP_200_OK)
 
 
 class EquipmentLikeAPIView(APIView):
@@ -1403,6 +1404,69 @@ class OrdersAndEquipmentsListAPIView(APIView):
             )
         ],
         tags=['Orders and Equipments'],
+        operation_description="This endpoint provides the user with their orders, equipments, and services.",
+        responses={
+            200: "Orders, services, and equipments list",
+            404: "Orders, services, or equipments do not exist",
+            500: "Server error",
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        ads = request.query_params.get('ads')
+        queryset = self.get_orders_and_equipments(ads)
+        queryset = self.filter_queryset_by_search(queryset)
+        if not queryset:
+            return Response({"detail": "No results found."}, status=status.HTTP_404_NOT_FOUND)
+        data = get_order_or_equipment(queryset, request)
+        return Response(data, status=status.HTTP_200_OK)
+
+
+class SearchAdsAPIView(APIView):
+    permission_classes = [CurrentUserOrReadOnly]
+
+    def get_search_query(self):
+        return self.request.query_params.get('title', '')
+
+    def filter_queryset_by_search(self, queryset):
+        search_query = self.get_search_query()
+        if search_query:
+            queryset = queryset.filter(Q(title__icontains=search_query))
+        return queryset
+
+    def get_orders_and_equipments(self, ads=None):
+        if ads == 'order':
+            queryset = Order.objects.all().order_by('-created_at')
+        elif ads == 'equipment':
+            queryset = Equipment.objects.all().order_by('-created_at')
+        elif ads == 'service':
+            queryset = Service.objects.all().order_by('-created_at')
+        elif ads is None:
+            queryset = list(Equipment.objects.all()) + list(Order.objects.all()) + list(Service.objects.all())
+            queryset = sorted(queryset, key=attrgetter('created_at'), reverse=True)
+        else:
+            queryset = []
+
+        return queryset
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                'title',
+                openapi.IN_QUERY,
+                description="Filter the results by title (case insensitive).",
+                type=openapi.TYPE_STRING,
+                required=False
+            ),
+            openapi.Parameter(
+                'ads',
+                openapi.IN_QUERY,
+                description="Filter the results by the type of advertisement (order, equipment, service). If not provided, returns all.",
+                type=openapi.TYPE_STRING,
+                enum=['order', 'equipment', 'service'],
+                required=False
+            )
+        ],
+        tags=['Search Orders, Equipments, Services'],
         operation_description="This endpoint provides the user with their orders, equipments, and services.",
         responses={
             200: "Orders, services, and equipments list",
