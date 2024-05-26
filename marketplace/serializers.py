@@ -8,7 +8,7 @@ from .models import Service, ServiceCategory, ServiceImages, Size
 class AuthorSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['slug', 'first_name', 'last_name', 'profile_image']
+        fields = ['slug', 'first_name', 'last_name', 'profile_image', 'phone_number']
 
 
 class OrderCategoryListAPI(ModelSerializer):
@@ -471,7 +471,7 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Equipment
-        fields = ['title', 'category', 'images', 'uploaded_images', 'price', 'currency',
+        fields = ['title', 'slug', 'category', 'images', 'uploaded_images', 'price', 'currency',
                   'description', 'phone_number', 'email', 'author', 'hide', 'sale_status']
 
     def get_sale_status(self, instance):

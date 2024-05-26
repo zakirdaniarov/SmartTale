@@ -1099,14 +1099,19 @@ class ChangeEquipmentAPIView(APIView):
             equipment = Equipment.objects.get(slug=kwargs['equipment_slug'])
         except Equipment.DoesNotExist:
             return Response({"error": "Equipments doe not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        if request.user.user_profile != equipment.author:
+            return Response({"error": "Only the author can change"}, status=status.HTTP_400_BAD_REQUEST)
+
         equipment_serializer = EquipmentDetailSerializer(instance=equipment,
                                                          data=request.data,
                                                          context={'request': request})
+
         if equipment_serializer.is_valid():
             author = request.user.user_profile
             equipment_serializer.save(author=author)
             return Response(equipment_serializer.data, status=status.HTTP_200_OK)
-        return Response({"message": "Only the author can change"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(equipment_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class DeleteEquipmentAPIView(APIView):
@@ -1135,7 +1140,7 @@ class DeleteEquipmentAPIView(APIView):
         if author == "equipment_ads":
             equipment.delete()
         else:
-            return Response({"message": "Only the author can delete"})
+            return Response({"error": "Only the author can delete"})
         return Response({"data": "Successfully deleted"}, status=status.HTTP_200_OK)
 
 
