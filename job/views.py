@@ -504,6 +504,9 @@ class AddResumeAPIView(views.APIView):
         serializer = ResumeDetailSerializer(data=request.data)
         if serializer.is_valid():
             author = request.user.user_profile
+            if hasattr(author, 'author_resume'):
+                return Response({"error": "You can't added more then 1 resume"},
+                                status=status.HTTP_400_BAD_REQUEST)
             serializer.save(author=author)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
