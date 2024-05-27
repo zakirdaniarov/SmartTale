@@ -88,6 +88,7 @@ class Organization(models.Model):
     slug = AutoSlugField(populate_from = 'title', unique = True, always_update = True)
     phone_number = models.CharField(max_length = 20, blank = True, null = True, default = None)
     description = models.TextField()
+    logo = models.ImageField(upload_to = 'smarttale/organization', blank = True, null = True, max_length = 500)
     active = models.BooleanField(default = False)
     created_at = models.DateTimeField(auto_now_add = True)
 
