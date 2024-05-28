@@ -1,15 +1,20 @@
 import datetime as dt
+from operator import attrgetter
 
+from django.db.models import Q
 from rest_framework.views import status, Response, APIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
+from marketplace.services import get_order_or_equipment, get_paginated_data
 from .serializers import (JobTitleSeriailizer, OrganizationMonitoringSerializer, ProfileDetailSerializer,
                           EmployeeListSerializer, JobTitleSerializer, EmployeeDetailSerializer,
                           OrganizationDetailSerializer, OrganizationListSerializer,
                           EmployeeCreateSerializer, EmployeeDeleteSerializer, SubscribeSerializer)
 from .models import Employee, JobTitle
+from marketplace.models import Order, Equipment, Service
+from marketplace.serializers import OrderListAPI, MyAdsSerializer
 from authorization.models import UserProfile, User, Organization
 
 SUBCRIPTION_CHOICES = (
@@ -20,6 +25,8 @@ SUBCRIPTION_CHOICES = (
 )
 
 class UserDetailAPIView(APIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
     @swagger_auto_schema(
         tags = ["User"],
         operation_summary = "Подробная информация о юзере в маркетплейсе.",
@@ -35,8 +42,77 @@ class UserDetailAPIView(APIView):
         except Exception:
             return Response({"Error": "Пользователь не найден."}, status = status.HTTP_404_NOT_FOUND)
         serializer = ProfileDetailSerializer(user)
-        return Response(serializer.data, status = status.HTTP_200_OK)
-    
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class UserAdsAPIView(APIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def filter_queryset_by_search(self, queryset):
+        search_query = self.request.query_params.get('title', '')
+        if search_query:
+            queryset = queryset.filter(Q(title__icontains=search_query))
+        return queryset
+
+    def get_orders_and_equipments(self, author, ads=None):
+        user = self.request.user
+        if ads == 'order':
+            if user.is_authenticated:
+                queryset = Order.objects.filter(author=author).order_by('-created_at')
+            else:
+                queryset = []
+        elif ads == 'equipment':
+            queryset = Equipment.objects.filter(author=author).order_by('-created_at')
+        elif ads == 'service':
+            queryset = Service.objects.filter(author=author).order_by('-created_at')
+        elif ads is None:
+            queryset = list(Equipment.objects.filter(author=author)) + list(Service.objects.filter(author=author))
+            if user.is_authenticated:
+                queryset += list(Order.objects.filter(author=author))
+            queryset = sorted(queryset, key=attrgetter('created_at'), reverse=True)
+        else:
+            queryset = []
+
+        return queryset
+
+    @swagger_auto_schema(
+        tags = ["User"],
+        operation_summary = "Detailed information about user in marketplace.",
+        operation_description = "Detailed information about user in marketplace by slug of the user",
+        manual_parameters=[
+            openapi.Parameter(
+                'title',
+                openapi.IN_QUERY,
+                description="Filter the results by title (case insensitive).",
+                type=openapi.TYPE_STRING,
+                required=False
+            ),
+            openapi.Parameter(
+                'ads',
+                openapi.IN_QUERY,
+                description="Filter the results by the type of advertisement (order, equipment, service). If not provided, returns all.",
+                type=openapi.TYPE_STRING,
+                enum=['order', 'equipment', 'service'],
+                required=False
+            )
+        ],
+        responses = {
+            200: ProfileDetailSerializer,
+            404: "Not found",
+        }
+    )
+    def get(self, request, userprofile_slug, *args, **kwargs):
+        ads = request.query_params.get('ads')
+        try:
+            user = UserProfile.objects.get(slug = userprofile_slug)
+        except Exception:
+            return Response({"Error": "Пользователь не найден."}, status = status.HTTP_404_NOT_FOUND)
+        ads_queryset = self.get_orders_and_equipments(user, ads)
+        ads_queryset = self.filter_queryset_by_search(ads_queryset)
+        data = get_order_or_equipment(ads_queryset, request)
+        return Response(data, status=status.HTTP_200_OK)
+
+
 class MyProfileAPIView(APIView):
     permission_classes = [IsAuthenticated]
     @swagger_auto_schema(
@@ -219,6 +295,65 @@ class EmployeeDetailAPIView(APIView):
             return Response({"Error.": "Пользователь не является сотрудником какой-либо компании."}, status = status.HTTP_404_NOT_FOUND)
         serializer = EmployeeDetailSerializer(user)
         return Response(serializer.data, status = status.HTTP_200_OK)
+
+
+class EmployeeOrdersAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def filter_queryset_by_search(self, queryset):
+        search_query = self.request.query_params.get('title', '')
+        if search_query:
+            queryset = queryset.filter(Q(title__icontains=search_query))
+        return queryset
+
+    @swagger_auto_schema(
+        tags = ["Organization"],
+        operation_summary = "Detailed information about employees orders.",
+        operation_description = "Detailed information about employees orders by employees slug.",
+        manual_parameters=[
+            openapi.Parameter(
+                "title",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Search query to filter orders by title (case-insensitive)",
+            ),
+            openapi.Parameter(
+                "stage",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Shows in which stage is order, active or finished",
+            )
+        ],
+        responses = {
+            200: EmployeeDetailSerializer,
+            404: "Not found",
+        }
+    )
+    def get(self, request, employee_slug, *args, **kwargs):
+        stage = self.request.query_params.get('stage')
+        try:
+            user = UserProfile.objects.get(slug = employee_slug)
+        except Exception:
+            return Response({"Error.": "Пользователь не найден."}, status = status.HTTP_404_NOT_FOUND)
+        try:
+            user = Employee.objects.get(user = user)
+        except Exception:
+            return Response({"Error.": "Пользователь не является сотрудником какой-либо компании."}, status = status.HTTP_404_NOT_FOUND)
+        if stage == 'active':
+            orders = user.order.filter(is_finished=False).order_by('booked_at')
+            list_type = "my-history-orders-active"
+        elif stage == 'finished':
+            orders = user.order.filter(is_finished=True).order_by('booked_at')
+            list_type = "my-history-orders-finished"
+        else:
+            orders = user.order.all().order_by('booked_at')
+            list_type = None
+        order_queryset = self.filter_queryset_by_search(orders)
+        paginated_data = get_paginated_data(order_queryset, request, list_type)
+        return Response(paginated_data, status=status.HTTP_200_OK)
+
     
 class EmployeeCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -378,4 +513,3 @@ class SubscriptionAPIView(APIView):
         return Response({"new_sub_dt": user_profile.subscription}, status = status.HTTP_200_OK)
         
 
-        

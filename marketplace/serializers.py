@@ -104,7 +104,7 @@ class ServiceCategoryListAPI(ModelSerializer):
 class ServiceImagesSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServiceImages
-        fields = ['images']
+        fields = ['id', 'images']
 
 
 class ServiceSerializer(ModelSerializer):
@@ -142,6 +142,42 @@ class ServiceSerializer(ModelSerializer):
         return representation
 
 
+class ServiceListAPI(serializers.ModelSerializer):
+    author = UserProfileAPI(read_only=True)
+    is_liked = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
+    category_slug = serializers.ReadOnlyField(source='category.slug')
+    type = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Service
+        fields = ['title', 'slug', 'author', 'currency', 'type', 'category_slug', 'image', 'description',
+                  'price', 'is_liked']
+
+    def get_type(self, instance):
+        if isinstance(instance, Equipment):
+            return "Equipment"
+        elif isinstance(instance, Order):
+            return "Order"
+        elif isinstance(instance, Service):
+            return "Service"
+        return None
+
+    def get_is_liked(self, instance):
+        user = self.context['request'].user if self.context.get('request') else None
+        if user and not user.is_anonymous:
+            return instance.liked_by.filter(user=user).exists()
+        else:
+            # If user is None or anonymous, set 'is_liked' to False
+            return False
+
+    def get_image(self, instance):
+        first_image = instance.images.first()
+        if first_image:
+            return first_image.images.url
+        return None
+
+
 class ServicePostSerializer(ModelSerializer):
     category_slug = serializers.SlugField(write_only=True)
     uploaded_images = serializers.ListField(
@@ -149,9 +185,13 @@ class ServicePostSerializer(ModelSerializer):
         write_only=True,
     )
 
+    deleted_images = serializers.ListField(
+        child=serializers.IntegerField(), write_only=True, required=False
+    )
+
     class Meta:
         model = Service
-        fields = ['title', 'uploaded_images', 'description', 'price', 'currency',
+        fields = ['title', 'uploaded_images', 'deleted_images', 'description', 'price', 'currency',
                   'category_slug', 'phone_number', 'email']
 
     def __init__(self, *args, **kwargs):
@@ -161,6 +201,7 @@ class ServicePostSerializer(ModelSerializer):
             # Fields required for creating a new order
             self.fields['title'].required = True
             self.fields['uploaded_images'].required = True
+            self.fields['deleted_images'].required = False
             self.fields['description'].required = True
             self.fields['price'].required = True
             self.fields['category_slug'].required = False
@@ -170,6 +211,7 @@ class ServicePostSerializer(ModelSerializer):
         else:
             self.fields['title'].required = False
             self.fields['uploaded_images'].required = False
+            self.fields['deleted_images'].required = False
             self.fields['description'].required = False
             self.fields['price'].required = False
             self.fields['category_slug'].required = False
@@ -207,18 +249,14 @@ class ServicePostSerializer(ModelSerializer):
                 validated_data['category'] = category
             except ServiceCategory.DoesNotExist:
                 raise serializers.ValidationError("Category with this slug does not exist")
+
+        deleted_images_data = validated_data.pop("deleted_images", [])
+        if deleted_images_data:
+            ServiceImages.objects.filter(id__in=deleted_images_data).delete()
+
         if 'uploaded_images' in validated_data:
             images_data = validated_data.pop('uploaded_images', [])
-            current_images = list(instance.images.all())
-            for image in current_images:
-                image.delete()
-
-            max_images = 5
             for index, image_data in enumerate(images_data):
-                # Check if the maximum number of images has been reached
-                if index >= max_images:
-                    break
-                # create the image
                 ServiceImages.objects.create(service=instance, images=image_data)
 
         for field, value in validated_data.items():
@@ -237,13 +275,13 @@ class EquipmentCategorySerializer(serializers.ModelSerializer):
 class OrderListAPI(serializers.ModelSerializer):
     author = UserProfileAPI(read_only=True)
     is_liked = serializers.SerializerMethodField()
-    first_image = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
     category_slug = serializers.ReadOnlyField(source='category.slug')
     type = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
-        fields = ['title', 'slug', 'author', 'currency', 'type', 'category_slug', 'first_image', 'description',
+        fields = ['title', 'slug', 'author', 'currency', 'type', 'category_slug', 'image', 'description',
                   'price', 'is_liked', 'is_booked', 'booked_at', 'is_finished']
 
     def get_type(self, instance):
@@ -263,7 +301,7 @@ class OrderListAPI(serializers.ModelSerializer):
             # If user is None or anonymous, set 'is_liked' to False
             return False
 
-    def get_first_image(self, instance):
+    def get_image(self, instance):
         first_image = instance.images.first()
         if first_image:
             return first_image.images.url
@@ -289,7 +327,7 @@ class OrderListAPI(serializers.ModelSerializer):
             representation.pop('is_finished')
         elif list_type in ["my-history-orders-active", "my-history-orders-finished"]:
             representation.pop('author')
-            representation.pop('first_image')
+            representation.pop('image')
             representation.pop('description')
             representation.pop('is_booked')
             representation.pop('is_liked')
@@ -339,10 +377,13 @@ class OrderPostAPI(ModelSerializer):
         child=serializers.ImageField(max_length=100000, allow_empty_file=False, use_url=False),
         write_only=True,
     )
+    deleted_images = serializers.ListField(
+        child=serializers.IntegerField(), write_only=True, required=False
+    )
 
     class Meta:
         model = Order
-        fields = ['title', 'uploaded_images', 'description', 'deadline', 'price', 'currency', 'category_slug', 'phone_number', 'email', 'size']
+        fields = ['title', 'uploaded_images', 'deleted_images', 'description', 'deadline', 'price', 'currency', 'category_slug', 'phone_number', 'email', 'size']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -351,6 +392,7 @@ class OrderPostAPI(ModelSerializer):
             # Fields required for creating a new order
             self.fields['title'].required = True
             self.fields['uploaded_images'].required = True
+            self.fields['deleted_images'].required = False
             self.fields['description'].required = True
             self.fields['deadline'].required = True
             self.fields['price'].required = True
@@ -363,6 +405,7 @@ class OrderPostAPI(ModelSerializer):
             # Fields not required for updating an existing order
             self.fields['title'].required = False
             self.fields['uploaded_images'].required = False
+            self.fields['deleted_images'].required = False
             self.fields['description'].required = False
             self.fields['deadline'].required = False
             self.fields['price'].required = False
@@ -399,6 +442,7 @@ class OrderPostAPI(ModelSerializer):
         return order
 
     def update(self, instance, validated_data):
+        deleted_images = validated_data.pop('deleted_images', [])
         if 'category_slug' in validated_data:
             category_slug = validated_data.pop('category_slug')
             # Retrieve the category instance based on the slug
@@ -407,18 +451,13 @@ class OrderPostAPI(ModelSerializer):
                 validated_data['category'] = category
             except OrderCategory.DoesNotExist:
                 raise serializers.ValidationError("Category with this slug does not exist")
+
+        if deleted_images:
+            OrderImages.objects.filter(id__in=deleted_images).delete()
+
         if 'uploaded_images' in validated_data:
             images_data = validated_data.pop('uploaded_images', [])
-            current_images = list(instance.images.all())
-            for image in current_images:
-                image.delete()
-
-            max_images = 5
             for index, image_data in enumerate(images_data):
-                # Check if the maximum number of images has been reached
-                if index >= max_images:
-                    break
-                # create the image
                 OrderImages.objects.create(order=instance, images=image_data)
 
         sizes_data = validated_data.pop('size', [])
@@ -448,7 +487,7 @@ class ReviewListAPI(ModelSerializer):
 class EquipmentImagesSerializer(serializers.ModelSerializer):
     class Meta:
         model = EquipmentImages
-        fields = ['images']
+        fields = ['id', 'images']
 
 
 class EquipmentDetailSerializer(serializers.ModelSerializer):
@@ -459,10 +498,13 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
         write_only=True
     )
     sale_status = serializers.SerializerMethodField()
+    deleted_images = serializers.ListField(
+        child=serializers.IntegerField(), write_only=True, required=False
+    )
 
     class Meta:
         model = Equipment
-        fields = ['id', 'title', 'category', 'images', 'uploaded_images', 'price', 'currency',
+        fields = ['id', 'title', 'category', 'images', 'uploaded_images', 'deleted_images', 'price', 'currency',
                   'description', 'phone_number', 'email', 'author', 'hide', 'sale_status']
 
     def get_sale_status(self, instance):
@@ -484,7 +526,11 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
         return equipment
 
     def update(self, instance, validated_data):
-        images_data = validated_data.pop('uploaded_images')
+        images_data = validated_data.pop('uploaded_images', [])
+        deleted_images = validated_data.pop('deleted_images', [])
+
+        if deleted_images:
+            ServiceImages.objects.filter(id__in=deleted_images).delete()
 
         if images_data:
             current_images = list(instance.images.all())
@@ -492,10 +538,6 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
             max_images = 5
             if len(images_data) > max_images:
                 raise serializers.ValidationError(f"You can't add more then {max_images} images")
-
-            for image in current_images:
-                if image not in images_data:
-                    image.delete()
 
             for image_data in images_data:
                 EquipmentImages.objects.update_or_create(equipment=instance, images=image_data)
@@ -577,29 +619,20 @@ class EquipmentSerializer(serializers.ModelSerializer):
         return representation
 
 
-class MyOrderEquipmentSerializer(serializers.ModelSerializer):
+class MyAdsSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
     type = serializers.SerializerMethodField()
 
     class Meta:
-        model = None  # Placeholder for dynamic model assignment
-        fields = ['title', 'slug', 'description', 'type', 'image', 'status']  # Adjust fields as needed
-
-    def __init__(self, instance, *args, **kwargs):
-        if isinstance(instance, list) and instance:  # Check if instance is a non-empty list
-            # model = instance[0].__class__  # Get the class of the first instance in the list
-            model = Order
-        else:
-            raise ValueError("Expected a non-empty list of instances")
-
-        super().__init__(instance, *args, **kwargs)
-        self.Meta.model = model
+        model = Order  # Placeholder for dynamic model assignment
+        fields = ['title', 'slug', 'description', 'type', 'image', 'status', 'price', 'currency']  # Adjust fields as needed
 
     def get_image(self, instance):
         image = instance.images.first()
         if image:
             return image.images.url
         return 'Images does not exist'
+
 
     def get_type(self, instance):
         if isinstance(instance, Equipment):
