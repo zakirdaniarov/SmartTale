@@ -1,5 +1,7 @@
 from django.db import models
 
+from autoslug import AutoSlugField
+
 from authorization.models import Organization, UserProfile
 from marketplace.models import Order
 # Create your models here.
@@ -10,9 +12,11 @@ STATUS_CHOICES = (
 )
 
 class JobTitle(models.Model):
+
     org = models.ForeignKey(Organization, verbose_name = 'org', related_name = 'jobs', on_delete = models.CASCADE)
     title = models.CharField(max_length = 50)
     description = models.TextField()
+    slug = AutoSlugField(populate_from = 'title', unique = True, always_update = True, default = 'job-title')
     flag_create_jobtitle = models.BooleanField(default = False)
     flag_remove_jobtitle = models.BooleanField(default = False)
     flag_update_access = models.BooleanField(default = False)
@@ -22,13 +26,13 @@ class JobTitle(models.Model):
     flag_remove_employee = models.BooleanField(default = False)
 
     def __str__(self):
-        return "{}-{}".format(self.org.title, self.title)
+        return "{}-{}-{}".format(self.org.title, self.title, self.slug)
     
     class Meta:
         unique_together = ('org', 'title')
 
 class Employee(models.Model):
-    user = models.OneToOneField(UserProfile, verbose_name = 'user', related_name = 'working_org', on_delete = models.CASCADE)
+    user = models.ForeignKey(UserProfile, verbose_name = 'user', related_name = 'working_orgs', on_delete = models.CASCADE)
     org = models.ForeignKey(Organization, verbose_name = 'org', related_name = 'employees', on_delete = models.CASCADE)
     order = models.ManyToManyField(Order, verbose_name = 'order', related_name = 'workers')
     job_title = models.ForeignKey(JobTitle, verbose_name = 'job_title', related_name = 'jt_employees', null = True, blank = True, on_delete = models.SET_NULL)

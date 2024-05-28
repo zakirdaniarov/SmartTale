@@ -75,6 +75,7 @@ class OrderDetailAPI(ModelSerializer):
             return "Service"
         return None
 
+
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         user = self.context['request'].user if self.context.get('request') else None
@@ -126,6 +127,7 @@ class ServiceSerializer(ModelSerializer):
         elif isinstance(instance, Service):
             return "Service"
         return None
+
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
@@ -292,6 +294,7 @@ class OrderListAPI(serializers.ModelSerializer):
         elif isinstance(instance, Service):
             return "Service"
         return None
+
 
     def get_is_liked(self, instance):
         user = self.context['request'].user if self.context.get('request') else None
@@ -590,6 +593,7 @@ class EquipmentSerializer(serializers.ModelSerializer):
             return "Service"
         return None
 
+
     def get_image(self, instance):
         image = instance.images.first()
         if image:
@@ -642,3 +646,4 @@ class MyAdsSerializer(serializers.ModelSerializer):
         elif isinstance(instance, Service):
             return "Service"
         return None
+
