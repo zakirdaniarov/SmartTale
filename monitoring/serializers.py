@@ -6,19 +6,14 @@ from authorization.models import Organization, UserProfile
 from authorization.models import SUBCRIPTION_CHOICES
 
 class JobTitleSerializer(serializers.ModelSerializer):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        if self.instance:
-            self.fields['title'].read_only = True
-            self.fields['description'].read_only = True
 
     class Meta:
         model = JobTitle
-        fields = ['title', 'description', 'flag_create_jobtitle',
+        fields = ['title', 'description', 'slug', 'flag_create_jobtitle',
                   'flag_remove_jobtitle', 'flag_update_access',
                   'flag_add_employee', 'flag_remove_employee',
                   'flag_update_order', 'flag_delete_order']
+        read_only_fields = ('slug',)
 
     def create(self, validated_data):
         org = self.context['org']
