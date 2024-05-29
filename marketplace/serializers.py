@@ -448,7 +448,7 @@ class ReviewListAPI(ModelSerializer):
 class EquipmentImagesSerializer(serializers.ModelSerializer):
     class Meta:
         model = EquipmentImages
-        fields = ['images']
+        fields = ['id', 'images']
 
 
 class EquipmentModalPageSerializer(serializers.ModelSerializer):
@@ -467,12 +467,21 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
         child=serializers.ImageField(max_length=100000, allow_empty_file=False, use_url=False),
         write_only=True
     )
+    deleted_images = serializers.ListField(
+        child=serializers.IntegerField(), write_only=True, required=False
+    )
     sale_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Equipment
-        fields = ['title', 'slug', 'category', 'images', 'uploaded_images', 'price', 'currency',
-                  'description', 'phone_number', 'email', 'author', 'hide', 'sale_status']
+        fields = ['title', 'slug', 'category', 'images', 'uploaded_images', 'deleted_images', 'price',
+                  'currency', 'description', 'phone_number', 'email', 'author', 'hide', 'sale_status']
+        extra_kwargs = {
+            'title': {'required': False},
+            'uploaded_images': {'required': False},
+            'price': {'required': False},
+            'phone_number': {'required': False},
+        }
 
     def get_sale_status(self, instance):
         sale_status = instance.sold
@@ -480,8 +489,16 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
             return "Equipment sold"
         return "Equipment available"
 
+    def validate(self, data):
+        if not self.instance:
+            required_fields = ['title', 'category', 'price', 'phone_number', 'email']
+            for field in required_fields:
+                if field not in data or not data[field]:
+                    raise serializers.ValidationError({field: 'This field is required.'})
+        return data
+
     def create(self, validated_data):
-        images_data = validated_data.pop('uploaded_images')
+        images_data = validated_data.pop('uploaded_images', [])
         equipment = Equipment.objects.create(**validated_data)
 
         max_images = 5
@@ -493,21 +510,19 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
         return equipment
 
     def update(self, instance, validated_data):
-        images_data = validated_data.pop('uploaded_images')
+        images_data = validated_data.pop('uploaded_images', [])
+        deleted_images_data = validated_data.pop('deleted_images', [])
 
         if images_data:
-            current_images = list(instance.images.all())
-
             max_images = 5
             if len(images_data) > max_images:
                 raise serializers.ValidationError(f"You can't add more then {max_images} images")
 
-            for image in current_images:
-                if image not in images_data:
-                    image.delete()
-
             for image_data in images_data:
-                EquipmentImages.objects.update_or_create(equipment=instance, images=image_data)
+                EquipmentImages.objects.create(equipment=instance, images=image_data)
+
+        if deleted_images_data:
+            EquipmentImages.objects.filter(id__in=deleted_images_data).delete()
         else:
             return instance
 
@@ -521,8 +536,8 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
         instance.author = validated_data.pop('author', instance.author)
         instance.hide = validated_data.pop('hide', instance.hide)
         instance.sold = validated_data.pop('sold', instance.sold)
-        instance.save()
 
+        instance.save()
         return instance
 
 

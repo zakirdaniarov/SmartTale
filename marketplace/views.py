@@ -1083,10 +1083,12 @@ class ChangeEquipmentAPIView(APIView):
 
     @swagger_auto_schema(
         tags=['Equipment'],
-        operation_description="Этот эндпоинт"
-                              "предостовляет пользователю"
-                              "возможность изменить"
-                              "существующее оборудование",
+        operation_description="Этот эндпоинт" 
+                              "предостовляет пользователю" 
+                              "возможность изменить" 
+                              "существующее оборудование" 
+                              "при удалении картинки в поле deleted_images" 
+                              "нужно передать id картинки",
         responses={
             200: EquipmentDetailSerializer,
             400: "Only the author can change",

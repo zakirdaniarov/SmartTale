@@ -31,9 +31,10 @@ SCHEDULE = (
 )
 
 CURRENCY = (
-    ('Сом', 'Сом'),
+    ('Som', 'Som'),
     ('USD', 'USD'),
-    ('Рубль', 'Рубль')
+    ('Ruble', 'Ruble'),
+    ('Euro', 'Euro')
 )
 
 

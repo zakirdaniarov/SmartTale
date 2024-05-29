@@ -174,7 +174,7 @@ class VacancyDetailAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Детальная страница вакансии",
-        operation_description="Этот предостовляет пользователю просмотреть детальную страницу вакансии",
+        operation_description="Этот эндпоинт предостовляет пользователю просмотреть детальную страницу вакансии",
         responses={
             200: VacancyDetailSerializer,
             404: "Vacancy does not exist"
@@ -196,7 +196,7 @@ class AddVacancyAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Добавление новой вакансии",
-        operation_description="Этот предостовляет пользователю состоящий в организации добавить новую вакансию",
+        operation_description="Этот эндпоинт предостовляет пользователю состоящий в организации добавить новую вакансию",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=["job_title", "min_salary", "max_salary"],
@@ -292,7 +292,7 @@ class DeleteVacancyAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Удаление вакансии",
-        operation_description="Этот предостовляет пользователю удалить вакансию",
+        operation_description="Этот эндпоинт предостовляет пользователю удалить вакансию",
         manual_parameters=[
             openapi.Parameter(
                 "vacancy_slug",
@@ -337,7 +337,7 @@ class VacancySearchAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Поиск вакансий",
-        operation_description="Этот предостовляет пользователю найти нужную вакансию, "
+        operation_description="Этот эндпоинт предостовляет пользователю найти нужную вакансию, "
                               "можно ввести только первую букву и выводится вакансии которые начинаются на эту букву",
         manual_parameters=[
             openapi.Parameter(
@@ -369,6 +369,29 @@ class VacancySearchAPIView(views.APIView):
             return paginator.get_paginated_response(serializer.data)
 
         serializer = VacancyListSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class VacancyByOrgAPIView(views.APIView):
+    permission_classes = [CurrentUserOrReadOnly]
+
+    @swagger_auto_schema(
+        operation_summary="Вакансии организации",
+        operation_description="Этот эндпоинт предостовляет организации вывести свои вакансии",
+        responses={
+            200: VacancyListSerializer,
+            404: "Vacancy does not exist",
+        },
+        tags=["Vacancy"]
+    )
+    def get(self, request, *args, **kwargs):
+        try:
+            current_organization = Organization.objects.filter(owner=request.user.user_profile).first()
+            vacancy = Vacancy.objects.filter(organization=current_organization)
+        except Vacancy.DoesNotExist:
+            return Response({"error": "Vacancy does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = VacancyListSerializer(vacancy, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -456,7 +479,7 @@ class ResumeDetailAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Детальная страница резюме",
-        operation_description="Этот предостовляет пользователю просмотреть детальную страницу резюме",
+        operation_description="Этот эндпоинт предостовляет пользователю просмотреть детальную страницу резюме",
         responses={
             200: ResumeDetailSerializer,
             404: "Resume does not exist"
@@ -478,7 +501,7 @@ class AddResumeAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Добавление резюме",
-        operation_description="Этот предостовляет пользователю добавить свое резюме",
+        operation_description="Этот эндпоинт предостовляет пользователю добавить свое резюме",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=["job_title"],
@@ -571,7 +594,7 @@ class DeleteResumeAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Удаление резюме",
-        operation_description="Этот предостовляет пользователю удалить свое резюме",
+        operation_description="Этот эндпоинт предостовляет пользователю удалить свое резюме",
         manual_parameters=[
             openapi.Parameter(
                 "resume_slug",
@@ -615,7 +638,7 @@ class SearchResumeAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Поиск резюме",
-        operation_description="Этот предостовляет пользователю найти нужное резюме, "
+        operation_description="Этот эндпоинт предостовляет пользователю найти нужное резюме, "
                               "можно ввести только первую букву и выводится резюме которые начинаются на эту букву",
         manual_parameters=[
             openapi.Parameter(
