@@ -30,6 +30,7 @@ urlpatterns = [
     path('order-categories/', OrderCategoriesAPIView.as_view(), name='smarttale-order-categories'),
     path('orders-by-category/', OrdersByCategoryAPIView.as_view(), name='smarttale-order--by-categories'),
     path('liked-orders/', LikedByUserOrdersAPIView.as_view(), name='smarttale-liked-orders'),
+    path('liked-items/', LikedByUserItemsAPIView.as_view(), name='smarttale-liked-items'),
 
     path('service-categories/', ServiceCategoriesAPIView.as_view()),
     path('my-services/', MyServiceAdsListView.as_view()),
@@ -43,8 +44,8 @@ urlpatterns = [
     path('liked-services/', LikedByUserServicesAPIView.as_view()),
 
     path('ads-search/', SearchAdsAPIView.as_view()),
+    path('my-ads/', MyAdsListAPIView.as_view()),
 
-    path('my-ads/', OrdersAndEquipmentsListAPIView.as_view()),
     path('equipments/', EquipmentsListAPIView.as_view()),
     path('equipment/search/', EquipmentSearchAPIView.as_view()),
     path('equipment/create/', CreateEquipmentAPIView.as_view()),

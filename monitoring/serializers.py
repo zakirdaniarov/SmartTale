@@ -5,14 +5,15 @@ from marketplace.models import Order
 from authorization.models import Organization, UserProfile
 from authorization.models import SUBCRIPTION_CHOICES
 
-class JobTitleSeriailizer(serializers.ModelSerializer):
+class JobTitleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = JobTitle
-        fields = ['title', 'description', 'flag_create_jobtitle',
+        fields = ['title', 'description', 'slug', 'flag_create_jobtitle',
                   'flag_remove_jobtitle', 'flag_update_access',
                   'flag_add_employee', 'flag_remove_employee',
                   'flag_update_order', 'flag_delete_order']
+        read_only_fields = ('slug',)
 
     def create(self, validated_data):
         org = self.context['org']
@@ -24,7 +25,7 @@ class OrganizationMonitoringSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Organization
-        fields = ['title', 'description', 'active']
+        fields = ['title', 'description', 'logo', 'active']
 
     def create(self, validated_data):
         user = self.context['user']
@@ -49,13 +50,13 @@ class OrganizationDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Organization
-        fields = ['slug', 'title', 'owner', 'description', 'created_at']
+        fields = ['slug', 'title', 'owner', 'logo', 'description', 'created_at']
 
 class OrganizationListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Organization
-        fields = ['slug', 'title', 'description', 'status']
+        fields = ['slug', 'title', 'logo', 'description', 'active']
 
 class ProfileDetailSerializer(serializers.ModelSerializer):
     email = serializers.ReadOnlyField(source = 'user.email')
@@ -63,6 +64,12 @@ class ProfileDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = ['first_name', 'last_name', 'middle_name', 'phone_number', 'profile_image', 'email', 'slug']
+
+class ProfileChangeSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = UserProfile
+        fields = ['first_name', 'last_name', 'middle_name', 'phone_number', 'profile_image']
 
 class OrderTitleSerializer(serializers.ModelSerializer):
 
@@ -108,19 +115,17 @@ class EmployeeDetailSerializer(serializers.ModelSerializer):
                   'job_title_flag_add_employee', 'job_title_flag_remove_employee',
                   'job_title_flag_update_order', 'job_title_flag_delete_order']
         
-class JobTitleSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = JobTitle
-        fields = ['title', 'description']
-
+# For openapi
 class EmployeeCreateSerializer(serializers.Serializer):
     email = serializers.EmailField()
-    org_title = serializers.CharField()
-    job_title = serializers.CharField()
+    org_slug = serializers.SlugField()
+    jt_slug = serializers.SlugField()
 
 class EmployeeDeleteSerializer(serializers.Serializer):
     user_slug = serializers.SlugField()
 
-class SubscribeSerializer(serializers.Serializer):
+class SubscribeResponseSerializer(serializers.Serializer):
     new_sub_dt = serializers.DateTimeField()
+
+class SubscribeRequestSerializer(serializers.Serializer):
+    subscription = serializers.CharField(max_length = 20)
