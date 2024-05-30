@@ -124,6 +124,8 @@ class EmployeeCreateSerializer(serializers.Serializer):
 class EmployeeDeleteSerializer(serializers.Serializer):
     user_slug = serializers.SlugField()
 
+class EmployeeChangeSerializer(serializers.Serializer):
+    jt_slug = serializers.CharField()
 class SubscribeResponseSerializer(serializers.Serializer):
     new_sub_dt = serializers.DateTimeField()
 
