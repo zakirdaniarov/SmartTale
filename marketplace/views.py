@@ -83,8 +83,6 @@ class BaseOrderListView(APIView):
         queryset = self.get_queryset()
         if isinstance(queryset, Response):
             return queryset
-        if not queryset:
-            return Response({"detail": "No results found."}, status=status.HTTP_404_NOT_FOUND)
         queryset = self.filter_queryset_by_search(queryset)
         paginated_data = get_paginated_data(queryset, request, self.get_list_type())
         return Response(paginated_data, status=status.HTTP_200_OK)
@@ -364,8 +362,6 @@ class ReceivedOrderStatusAPIView(APIView):
         }
 
         queryset = Order.objects.filter(org_work=org)
-        if not queryset:
-            return Response({"detail": "No results found."}, status=status.HTTP_404_NOT_FOUND)
         queryset = self.filter_queryset_by_search(queryset)
         for order in queryset:
             status_key = order.status
@@ -1471,8 +1467,6 @@ class MyAdsListAPIView(APIView):
         ads = request.query_params.get('ads')
         queryset = self.get_orders_and_equipments(ads)
         queryset = self.filter_queryset_by_search(queryset)
-        if not queryset:
-            return Response({"detail": "No results found."}, status=status.HTTP_404_NOT_FOUND)
         data = get_order_or_equipment(queryset, request)
         return Response(data, status=status.HTTP_200_OK)
 
@@ -1533,8 +1527,6 @@ class SearchAdsAPIView(APIView):
         ads = request.query_params.get('ads')
         queryset = self.get_orders_and_equipments(ads)
         queryset = self.filter_queryset_by_search(queryset)
-        if not queryset:
-            return Response({"detail": "No results found."}, status=status.HTTP_404_NOT_FOUND)
         data = get_order_or_equipment(queryset, request)
         return Response(data, status=status.HTTP_200_OK)
 
@@ -1596,8 +1588,6 @@ class SearchAdsAPIView(APIView):
         ads = request.query_params.get('ads')
         queryset = self.get_orders_and_equipments(ads)
         queryset = self.filter_queryset_by_search(queryset)
-        if not queryset:
-            return Response({"detail": "No results found."}, status=status.HTTP_404_NOT_FOUND)
         data = get_order_or_equipment(queryset, request)
         return Response(data, status=status.HTTP_200_OK)
 
@@ -1637,8 +1627,6 @@ class BaseServiceListView(APIView):
         queryset = self.get_queryset()
         if isinstance(queryset, Response):
             return queryset
-        if not queryset:
-            return Response({"detail": "No results found."}, status=status.HTTP_404_NOT_FOUND)
         queryset = self.filter_queryset_by_search(queryset)
         paginated_data = get_services_paginated_data(queryset, request)
         return Response(paginated_data, status=status.HTTP_200_OK)
@@ -2034,7 +2022,5 @@ class LikedByUserItemsAPIView(APIView):
         user = request.user.user_profile
         queryset = self.get_orders_and_equipments(user, item_type)
         queryset = self.filter_queryset_by_search(queryset)
-        if not queryset:
-            return Response({"detail": "No results found."}, status=status.HTTP_404_NOT_FOUND)
         data = get_order_or_equipment(queryset, request)
         return Response(data, status=status.HTTP_200_OK)
