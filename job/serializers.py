@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Vacancy, Resume
+from .models import Vacancy, Resume, VacancyResponse
 from authorization.models import Organization, UserProfile
 
 
@@ -13,16 +13,34 @@ class OrganizationSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['last_name', 'first_name', 'middle_name', 'slug']
+        fields = ['last_name', 'first_name', 'slug']
+
+
+class VacancyResponseSerializer(serializers.ModelSerializer):
+    applicant = UserProfileSerializer(read_only=True)
+
+    class Meta:
+        model = VacancyResponse
+        fields = ['id', 'cover_letter', 'applicant']
 
 
 class VacancyListSerializer(serializers.ModelSerializer):
     organization = OrganizationSerializer(read_only=True)
+    response_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Vacancy
-        fields = ['job_title', 'slug', 'min_salary', 'max_salary',
-                  'currency', 'organization', 'location', 'experience']
+        fields = ['job_title', 'slug', 'min_salary', 'max_salary', 'currency',
+                  'organization', 'location', 'experience', 'response_count']
+
+    def __init__(self, *args, **kwargs):
+        include_response_count = kwargs.pop('include_response_count', False)
+        super().__init__(*args, **kwargs)
+        if not include_response_count:
+            self.fields.pop('response_count')
+
+    def get_response_count(self, data):
+        return VacancyResponse.objects.filter(vacancy=data).count()
 
 
 class VacancyDetailSerializer(serializers.ModelSerializer):
@@ -30,8 +48,8 @@ class VacancyDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Vacancy
-        fields = ['job_title', 'slug', 'min_salary', 'max_salary', 'currency',
-                  'organization', 'location', 'experience', 'schedule', 'description']
+        fields = ['job_title', 'slug', 'min_salary', 'max_salary', 'currency', 'organization',
+                  'location', 'experience', 'schedule', 'description', 'hide']
 
     def to_internal_value(self, data):
         if self.instance is None:
@@ -45,6 +63,7 @@ class VacancyDetailSerializer(serializers.ModelSerializer):
             self.fields['experience'].required = False
             self.fields['schedule'].required = False
             self.fields['description'].required = False
+            self.fields['hide'].required = False
         return super().to_internal_value(data)
 
     def update(self, instance, validated_data):
@@ -75,8 +94,8 @@ class ResumeDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Resume
-        fields = ['job_title', 'slug', 'location', 'experience', 'author',
-                  'schedule', 'min_salary', 'max_salary', 'currency', 'about_me']
+        fields = ['job_title', 'slug', 'location', 'experience', 'author', 'schedule',
+                  'min_salary', 'max_salary', 'currency', 'about_me', 'hide']
 
     def to_internal_value(self, data):
         if self.instance is None:
@@ -90,6 +109,7 @@ class ResumeDetailSerializer(serializers.ModelSerializer):
             self.fields['experience'].required = False
             self.fields['schedule'].required = False
             self.fields['about_me'].required = False
+            self.fields['hide'].required = False
         return super().to_internal_value(data)
 
     def update(self, instance, validated_data):

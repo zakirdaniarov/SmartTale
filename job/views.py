@@ -8,9 +8,9 @@ from rest_framework.response import Response
 from django.db.models import Q
 
 from authorization.models import Organization
-from .models import Vacancy, Resume
+from .models import Vacancy, Resume, VacancyResponse
 from .serializers import (VacancyListSerializer, VacancyDetailSerializer,
-                          ResumeListSerializer, ResumeDetailSerializer)
+                          ResumeListSerializer, ResumeDetailSerializer, VacancyResponseSerializer)
 from .permissions import CurrentUserOrReadOnly
 from .services import MyCustomPagination
 
@@ -21,7 +21,7 @@ class VacancyListAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Список всех вакансий",
-        operation_description="Этот эндпоинт предоставляет пользователю посмотреть все вакансии,"
+        operation_description="Этот эндпоинт предоставляет пользователю возможность посмотреть все вакансии,"
                               "а также отфилтровать вакансии "
                               "по должности, опыту работы, по локации, по валюте, по зарплате "
                               "за последние сутки, неделю, месяц, по организации",
@@ -163,9 +163,9 @@ class VacancyListAPIView(views.APIView):
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(vacancy, request)
         if page is not None:
-            serializer = VacancyListSerializer(page, many=True)
+            serializer = VacancyListSerializer(page, many=True, include_response_count=False)
             return paginator.get_paginated_response(serializer.data)
-        serializer = VacancyListSerializer(vacancy, many=True)
+        serializer = VacancyListSerializer(vacancy, many=True, include_response_count=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -174,7 +174,8 @@ class VacancyDetailAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Детальная страница вакансии",
-        operation_description="Этот эндпоинт предостовляет пользователю просмотреть детальную страницу вакансии",
+        operation_description="Этот эндпоинт предостовляет пользователю возможность "
+                              "просмотреть детальную страницу вакансии",
         responses={
             200: VacancyDetailSerializer,
             404: "Vacancy does not exist"
@@ -196,7 +197,8 @@ class AddVacancyAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Добавление новой вакансии",
-        operation_description="Этот эндпоинт предостовляет пользователю состоящий в организации добавить новую вакансию",
+        operation_description="Этот эндпоинт предостовляет пользователю состоящий в организации "
+                              "возможность добавить новую вакансию",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=["job_title", "min_salary", "max_salary"],
@@ -238,7 +240,8 @@ class ChangeVacancyAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Изменение вакансии",
-        operation_description="Этот эндпоинт предостовляет пользователю состоящий в организации изменять вакансию",
+        operation_description="Этот эндпоинт предостовляет пользователю "
+                              "состоящий в организации возможность изменять вакансию",
         manual_parameters=[
             openapi.Parameter(
                 "vacancy_slug",
@@ -292,7 +295,7 @@ class DeleteVacancyAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Удаление вакансии",
-        operation_description="Этот эндпоинт предостовляет пользователю удалить вакансию",
+        operation_description="Этот эндпоинт предостовляет возможность пользователю удалить вакансию",
         manual_parameters=[
             openapi.Parameter(
                 "vacancy_slug",
@@ -337,7 +340,7 @@ class VacancySearchAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Поиск вакансий",
-        operation_description="Этот эндпоинт предостовляет пользователю найти нужную вакансию, "
+        operation_description="Этот эндпоинт предостовляет пользователю возможность найти нужную вакансию, "
                               "можно ввести только первую букву и выводится вакансии которые начинаются на эту букву",
         manual_parameters=[
             openapi.Parameter(
@@ -365,19 +368,19 @@ class VacancySearchAPIView(views.APIView):
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(vacancy, request)
         if page is not None:
-            serializer = VacancyListSerializer(page, many=True)
+            serializer = VacancyListSerializer(page, many=True, include_response_count=False)
             return paginator.get_paginated_response(serializer.data)
 
-        serializer = VacancyListSerializer(queryset, many=True)
+        serializer = VacancyListSerializer(queryset, many=True, include_response_count=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class VacancyByOrgAPIView(views.APIView):
-    permission_classes = [CurrentUserOrReadOnly]
+    permission_classes = [permissions.IsAuthenticated]
 
     @swagger_auto_schema(
         operation_summary="Вакансии организации",
-        operation_description="Этот эндпоинт предостовляет организации вывести свои вакансии",
+        operation_description="Этот эндпоинт предостовляет организации возможность вывести свои вакансии",
         responses={
             200: VacancyListSerializer,
             404: "Vacancy does not exist",
@@ -391,8 +394,99 @@ class VacancyByOrgAPIView(views.APIView):
         except Vacancy.DoesNotExist:
             return Response({"error": "Vacancy does not exist"}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = VacancyListSerializer(vacancy, many=True)
+        serializer = VacancyListSerializer(vacancy, many=True, include_response_count=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class VacancyResponseListAPIView(views.APIView):
+    permission_classes = [CurrentUserOrReadOnly]
+
+    @swagger_auto_schema(
+        operation_summary="Отклики вакансии",
+        operation_description="Этот эндпоинт предостовляет организации "
+                              "возможность вывести отклики определенной вакансии",
+        responses={
+            200: VacancyResponseSerializer,
+            404: "No responses found for the given vacancy",
+        },
+        tags=["Vacancy"]
+    )
+    def get(self, request, *args, **kwargs):
+        vacancy_slug = request.query_params.get('slug', None)
+
+        if vacancy_slug is not None:
+            vacancy_response = VacancyResponse.objects.filter(vacancy__slug=vacancy_slug)
+        if not vacancy_response.exists():
+            return Response({"error": "No responses found for the given vacancy"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = VacancyResponseSerializer(vacancy_response, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class AddVacancyResponseAPIVIew(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Отклик на вакансию",
+        operation_description="Этот эндпоинт предостовляет пользователю возможность "
+                              "откликнутся на определенную вакансию",
+        responses={
+            200: VacancyResponseSerializer,
+            404: "Vacancy does not exist",
+            400: "Bad request"
+        },
+        tags=["Vacancy"]
+    )
+    def post(self, request, *args, **kwargs):
+        try:
+            vacancy = Vacancy.objects.get(slug=kwargs['vacancy_slug'])
+        except Vacancy.DoesNotExist:
+            return Response({"error": "Vacancy does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = VacancyResponseSerializer(data=request.data)
+        if serializer.is_valid():
+            applicant = request.user.user_profile
+            serializer.save(vacancy=vacancy, applicant=applicant)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class VacancyHideAPIView(views.APIView):
+    permission_classes = [CurrentUserOrReadOnly]
+
+    @swagger_auto_schema(
+        operation_summary="Скрыть вакансию",
+        operation_description="Этот эндпоинт предостовляет органицазии возможность "
+                              "скрывать свои вакансии",
+        responses={
+            200: "Vacancy hidden",
+            404: "Vacancy does not exist",
+        },
+        tags=["Vacancy"]
+    )
+    def put(self, request, *args, **kwargs):
+        try:
+            vacancy = Vacancy.objects.get(slug=kwargs['vacancy_slug'])
+        except Vacancy.DoesNotExist:
+            return Response({"error": "Vacancy does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        current_organization = Organization.objects.filter(owner=request.user.user_profile).first()
+
+        try:
+            if vacancy.organization == current_organization:
+                vacancy.hide = True if not vacancy.hide else False
+                vacancy.save()
+            else:
+                return Response({"error": "Only the author can hide the vacancy"},
+                        status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": "Error when hiding vacancy"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        if vacancy.hide:
+            return Response({"data": "Vacancy hidden"}, status=status.HTTP_200_OK)
+        else:
+            return Response({"data": "Vacancy is not hidden"}, status=status.HTTP_200_OK)
 
 
 class ResumeListAPIView(views.APIView):
@@ -401,7 +495,7 @@ class ResumeListAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Список всех резюме",
-        operation_description="Этот эндпоинт предоставляет пользователю посмотреть все резюме"
+        operation_description="Этот эндпоинт предоставляет пользователю возможность посмотреть все резюме"
                               "а также отфильтровать резюме "
                               "по должности, опыту работы, "
                               "по локации, по графику работы",
@@ -479,7 +573,8 @@ class ResumeDetailAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Детальная страница резюме",
-        operation_description="Этот эндпоинт предостовляет пользователю просмотреть детальную страницу резюме",
+        operation_description="Этот эндпоинт предостовляет пользователю возможность "
+                              "просмотреть детальную страницу резюме",
         responses={
             200: ResumeDetailSerializer,
             404: "Resume does not exist"
@@ -501,7 +596,7 @@ class AddResumeAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Добавление резюме",
-        operation_description="Этот эндпоинт предостовляет пользователю добавить свое резюме",
+        operation_description="Этот эндпоинт предостовляет пользователю возможность добавлять свои резюме",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             required=["job_title"],
@@ -527,9 +622,6 @@ class AddResumeAPIView(views.APIView):
         serializer = ResumeDetailSerializer(data=request.data)
         if serializer.is_valid():
             author = request.user.user_profile
-            if hasattr(author, 'author_resume'):
-                return Response({"error": "You can't added more then 1 resume"},
-                                status=status.HTTP_400_BAD_REQUEST)
             serializer.save(author=author)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -540,7 +632,7 @@ class ChangeResumeAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Изменение резюме",
-        operation_description="Этот эндпоинт предостовляет пользователю изменять свое резюме",
+        operation_description="Этот эндпоинт предостовляет пользователю возможность возможность изменять свои резюме",
         manual_parameters=[
             openapi.Parameter(
                 "resume_slug",
@@ -594,7 +686,7 @@ class DeleteResumeAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Удаление резюме",
-        operation_description="Этот эндпоинт предостовляет пользователю удалить свое резюме",
+        operation_description="Этот эндпоинт предостовляет пользователю возможность удалять свои резюме",
         manual_parameters=[
             openapi.Parameter(
                 "resume_slug",
@@ -632,13 +724,73 @@ class DeleteResumeAPIView(views.APIView):
         return Response({"error": "Successfully deleted"}, status=status.HTTP_200_OK)
 
 
+class ResumeByAuthorAPIView(views.APIView):
+    permission_classes = [CurrentUserOrReadOnly]
+
+    @swagger_auto_schema(
+        operation_summary="Свои резюме",
+        operation_description="Этот эндпоинт предостовляет автору возможность "
+                              "посмотреть свои резюме",
+        responses={
+            200: ResumeListSerializer,
+            404: "You don't have a resume",
+        },
+        tags=["Resume"]
+    )
+    def get(self, request, *args, **kwargs):
+        author = request.user.user_profile
+        my_resume = author.author_resume.all()
+
+        if my_resume is None:
+            return Response({"error": "You don't have a resume"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ResumeListSerializer(my_resume, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ResumeHideAPIView(views.APIView):
+    permission_classes = [CurrentUserOrReadOnly]
+
+    @swagger_auto_schema(
+        operation_summary="Скрыть резюме",
+        operation_description="Этот эндпоинт предостовляет автору возможность "
+                              "скрывать свои резюме",
+        responses={
+            200: ResumeListSerializer,
+            404: "Resume does not exist",
+        },
+        tags=["Resume"]
+    )
+    def put(self, request, *args, **kwargs):
+        try:
+            resume = Resume.objects.get(slug=kwargs['resume_slug'])
+        except Resume.DoesNotExist:
+            return Response({"error": "Resume does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            if resume.author == request.user.user_profile:
+                resume.hide = True if not resume.hide else False
+                resume.save()
+            else:
+                return Response({"error": "Only the author can hide the resume"},
+                        status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": "Error when hiding resume"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        if resume.hide:
+            return Response({"data": "Resume hidden"}, status=status.HTTP_200_OK)
+        else:
+            return Response({"data": "Resume is not hidden"}, status=status.HTTP_200_OK)
+
+
 class SearchResumeAPIView(views.APIView):
     permission_classes = [permissions.AllowAny]
     pagination_class = MyCustomPagination
 
     @swagger_auto_schema(
         operation_summary="Поиск резюме",
-        operation_description="Этот эндпоинт предостовляет пользователю найти нужное резюме, "
+        operation_description="Этот эндпоинт предостовляет пользователю возможность найти нужное резюме, "
                               "можно ввести только первую букву и выводится резюме которые начинаются на эту букву",
         manual_parameters=[
             openapi.Parameter(
