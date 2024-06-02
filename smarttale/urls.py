@@ -43,4 +43,5 @@ urlpatterns = [
     path('', include('marketplace.urls')),
     path('', include('monitoring.urls')),
     path('', include('job.urls')),
+    path('', include('chat.urls')),
 ]

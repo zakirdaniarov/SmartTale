@@ -2,7 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('start/', views.start_convo, name='start_convo'),
-    path('<int:convo_id>/', views.get_conversation, name='get_conversation'),
-    path('', views.conversations, name='conversations')
+    path('conversation/start/', views.ConversationStartAPIView.as_view(), name='start-conversation'),
+    path('messages/<int:convo_id>/', views.MessageAPIView.as_view(), name='get-conversation'),
+    path('conversations/', views.ConversationListAPIView.as_view(), name='conversations')
 ]
