@@ -1138,7 +1138,7 @@ class EquipmentsListAPIView(APIView):
 
 
 class CreateEquipmentAPIView(APIView):
-    permission_classes = [CurrentUserOrReadOnly]
+    permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
         tags=['Equipment'],
@@ -1302,7 +1302,6 @@ class EquipmentDetailPageAPIView(APIView):
         return Response(content, status=status.HTTP_200_OK)
 
 
-
 class EquipmentLikeAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -1344,7 +1343,7 @@ class EquipmentLikeAPIView(APIView):
 
 
 class EquipmentByAuthorLikeAPIView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [CurrentUserOrReadOnly]
 
     def get_liked_equipments(self):
         author = self.request.user.user_profile
