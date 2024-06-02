@@ -475,6 +475,43 @@ class EmployeeDetailAPIView(APIView):
 
     @swagger_auto_schema(
         tags = ["Organization"],
+        operation_summary = "Изменение должности сотрудника в организаци.",
+        operation_description = "Предоставляет доступ к изменению должности пользователя в организации.",
+        request_body = EmployeeChangeSerializer,
+        responses = {
+            200: EmployeeDetailSerializer,
+            403: "No permission for changing job of employee",
+            404: "No found",
+        }
+    )
+    def put(self, request, employee_slug, *args, **kwargs):
+        user = request.user
+        cur_org = Organization.objects.filter(founder = user.user_profile, active = True).first()
+        if not cur_org:
+            employee = Employee.objects.filter(user = user.user_profile).first()
+            if not employee or not employee.job_title or not employee.job_title.flag_remove_employee:
+                return Response({"Error": "У Вас нет прав на удаление сотрудников!"}, status = status.HTTP_403_FORBIDDEN)
+            cur_org = employee.org
+        jt_slug = request.data['jt_slug']
+        try:
+            target_user = UserProfile.objects.get(slug = employee_slug)
+        except Exception:
+            return Response({}, status = status.HTTP_200_OK)
+        try:
+            target_employee = Employee.objects.get(org = cur_org, user = target_user)
+        except Exception:
+            return Response({}, status = status.HTTP_200_OK)
+        try:
+            job = JobTitle.objects.get(slug = jt_slug)
+        except:
+            return Response({}, status = status.HTTP_200_OK)
+        target_employee.job_title = job
+        target_employee.save()
+        serializer = EmployeeDetailSerializer(target_employee)
+        return Response(serializer.data, status = status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        tags = ["Organization"],
         operation_summary = "Удаление сотрудника из организации.",
         operation_description = "Предоставляет доступ к удалению сотрудника из организации.",
         request_body = EmployeeDeleteSerializer,

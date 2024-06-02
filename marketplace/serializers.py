@@ -284,7 +284,7 @@ class OrderListAPI(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ['title', 'slug', 'author', 'currency', 'type', 'category_slug', 'image', 'description',
-                  'price', 'is_liked', 'is_booked', 'booked_at', 'is_finished']
+                  'price', 'is_liked', 'status', 'deadline', 'finished_at', 'is_booked', 'booked_at', 'is_finished']
 
     def get_type(self, instance):
         if isinstance(instance, Equipment):
@@ -322,7 +322,6 @@ class OrderListAPI(serializers.ModelSerializer):
             representation['created_at'] = instance.created_at
             representation.pop('is_liked')
             representation.pop('booked_at')
-            representation['status'] = instance.status
         elif list_type == "my-received-orders":
             representation.pop('is_booked')
             representation.pop('is_liked')
@@ -335,7 +334,6 @@ class OrderListAPI(serializers.ModelSerializer):
             representation.pop('is_booked')
             representation.pop('is_liked')
             representation.pop('is_finished')
-            representation['status'] = instance.status
         elif list_type in ["my-org-orders", "orders-history-active", "orders-history-finished"]:
             representation.pop('author')
             representation.pop('price')
@@ -350,13 +348,11 @@ class OrderListAPI(serializers.ModelSerializer):
             representation.pop('is_finished')
 
         if list_type == "my-history-orders-finished":
-            representation['finished_at'] = instance.finished_at
             representation.pop('booked_at')
 
         if list_type == "applied-orders":
             representation.pop('is_booked')
             representation.pop('is_finished')
-            representation.pop('status')
             if instance.is_booked:
                 if instance.org_work == self.context['request'].user.user_profile.current_org:
                     representation['application_status'] = "approved"
