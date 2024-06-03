@@ -1,7 +1,11 @@
 from datetime import datetime
+
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_yasg import openapi
 from rest_framework.generics import ListAPIView
+
+from monitoring.models import Employee
 from .models import Equipment, Order, Reviews, EquipmentCategory, OrderCategory, EquipmentImages, OrderImages
 from .models import ServiceCategory, ServiceImages, Service
 from .serializers import *
@@ -1100,6 +1104,110 @@ class ReviewOrderAPIView(APIView):
             serializer.save(order=order, reviewer=user.user_profile)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class OrderAddEmployeeAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def has_permission(self, user_profile, org):
+        # Check if user is founder or owner
+        if user_profile == org.founder or user_profile == org.owner:
+            return True
+
+        # Check if user is an employee with the appropriate job title flag
+        employee = Employee.objects.filter(user=user_profile, org=org).first()
+        if employee and employee.job_title and employee.job_title.flag_add_employee:
+            return True
+
+        return False
+
+    @swagger_auto_schema(
+        operation_summary="Add employee to order",
+        operation_description="Endpoint to add an employee to the specified order if the user has the necessary permissions.",
+        responses={
+            200: "Employee added successfully",
+            400: "Bad Request",
+            403: "Forbidden",
+            404: "Order or Employee not found"
+        },
+        tags=["Order"]
+    )
+    def post(self, request, order_slug, employee_slug):
+        user_profile = request.user.user_profile
+        try:
+            order = Order.objects.get(slug=order_slug)
+            employee = Employee.objects.get(slug=employee_slug)
+        except (Order.DoesNotExist, Employee.DoesNotExist):
+            return Response({"error": "Order or Employee not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        org = order.org_work
+        if not org:
+            return Response({'error': 'Order is not received by any organization yet.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        if not self.has_permission(user_profile, org):
+            return Response({'error': 'User does not have permissions to add employee to this order.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        if employee in order.workers.all():
+            return Response({"error": "Employee is already involved in this order."}, status=status.HTTP_400_BAD_REQUEST)
+
+        order.workers.add(employee)
+        order.save()
+
+        return Response({"message": "Employee added successfully"}, status=status.HTTP_200_OK)
+
+
+class OrderRemoveEmployeeAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def has_permission(self, user_profile, org):
+        # Check if user is founder or owner
+        if user_profile == org.founder or user_profile == org.owner:
+            return True
+
+        # Check if user is an employee with the appropriate job title flag
+        employee = Employee.objects.filter(user=user_profile, org=org).first()
+        if employee and employee.job_title and employee.job_title.flag_remove_employee:
+            return True
+
+        return False
+
+    @swagger_auto_schema(
+        operation_summary="Remove employee from order",
+        operation_description="Endpoint to remove an employee from the specified order if the user has the necessary permissions.",
+        responses={
+            200: "Employee removed successfully",
+            400: "Bad Request",
+            403: "Forbidden",
+            404: "Order or Employee not found"
+        },
+        tags=["Order"]
+    )
+    def post(self, request, order_slug, employee_slug):
+        user_profile = request.user.user_profile
+        try:
+            order = Order.objects.get(slug=order_slug)
+            employee = Employee.objects.get(slug=employee_slug)
+        except (Order.DoesNotExist, Employee.DoesNotExist):
+            return Response({"error": "Order or Employee not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        org = order.org_work
+        if not org:
+            return Response({'error': 'Order is not received by any organization yet.'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        if not self.has_permission(user_profile, org):
+            return Response({'error': 'User does not have permissions to remove employee from this order.'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        if employee not in order.workers.all():
+            return Response({"error": "Employee is not involved in this order."}, status=status.HTTP_400_BAD_REQUEST)
+
+        order.workers.remove(employee)
+        order.save()
+
+        return Response({"message": "Employee removed successfully"}, status=status.HTTP_200_OK)
 
 
 class EquipmentsListAPIView(APIView):

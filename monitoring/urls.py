@@ -1,10 +1,6 @@
 from django.urls import path, include
 
-from .views import (UserDetailAPIView, OrganizationAPIView, EmployeeListAPIView,
-                    CreateJobTitleAPIView, JobTitleListAPIView, EmployeeDetailAPIView, 
-                    OrganizationDetailAPIView, OrganizationListAPIView, EmployeeCreateAPIView, 
-                    SubscriptionAPIView, MyProfileAPIView, OrganizationActivateAPIView, 
-                    JobTitleAPIView, UserAdsAPIView, EmployeeOrdersAPIView)
+from .views import *
 
 
 urlpatterns = [

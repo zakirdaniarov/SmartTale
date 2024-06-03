@@ -12,6 +12,8 @@ urlpatterns = [
     path('received-orders-status/', ReceivedOrderStatusAPIView.as_view(), name='smarttale-orders-received'),
     path('orders-history/', OrdersHistoryListView.as_view(), name='smarttale-orders-history'),
     path('order-detail/<slug:order_slug>/', OrderDetailAPIView.as_view(), name='smarttale-order-detail'),
+    path('order-add-employee/<slug:order_slug>/<slug:employee_slug>/', OrderAddEmployeeAPIView.as_view(), name='smarttale-order-add-employee'),
+    path('order-remove-employee/<slug:order_slug>/<slug:employee_slug>/', OrderRemoveEmployeeAPIView.as_view(), name='smarttale-order-remove-employeee'),
 
     path('add-order/', AddOrderAPIView.as_view(), name='smarttale-order-add'),
     path('update-order/<slug:order_slug>/', UpdateOrderAPIView.as_view(), name='smarttale-order-add'),
