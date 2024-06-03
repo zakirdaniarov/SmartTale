@@ -52,11 +52,20 @@ class OrganizationDetailSerializer(serializers.ModelSerializer):
         model = Organization
         fields = ['slug', 'title', 'owner', 'logo', 'description', 'created_at']
 
-class OrganizationListSerializer(serializers.ModelSerializer):
-
+class MyOrganizationListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization
         fields = ['slug', 'title', 'logo', 'description', 'active']
+
+class OtherOrganizationListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Organization
+        fields = ['slug', 'title', 'logo', 'description']
+
+class OrganizationListSerializer(serializers.Serializer):
+    my_orgs = MyOrganizationListSerializer()
+    other_orgs = OtherOrganizationListSerializer()
+
 
 class ProfileDetailSerializer(serializers.ModelSerializer):
     email = serializers.ReadOnlyField(source = 'user.email')
