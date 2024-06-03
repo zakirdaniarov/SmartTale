@@ -536,10 +536,10 @@ class ResumeListAPIView(views.APIView):
         tags=["Resume"]
     )
     def get(self, request, *args, **kwargs):
-        job_title = request.query_params.get('job_title', None)
+        job_title = request.query_params.getlist('job_title', None)
         experience = request.query_params.get('experience', None)
-        location = request.query_params.get('location', None)
-        schedule = request.query_params.get('schedule', None)
+        location = request.query_params.getlist('location', None)
+        schedule = request.query_params.getlist('schedule', None)
 
         try:
             resume = Resume.objects.all().order_by('-created_at')
@@ -547,13 +547,13 @@ class ResumeListAPIView(views.APIView):
             return Response({"error": "Resume does not exist"}, status=status.HTTP_404_NOT_FOUND)
 
         if job_title:
-            resume = resume.filter(job_title__icontains=job_title)
+            resume = resume.filter(job_title__in=job_title)
         if experience:
             resume = resume.filter(experience__icontains=experience)
         if location:
-            resume = resume.filter(location__icontains=location)
+            resume = resume.filter(location__in=location)
         if schedule:
-            resume = resume.filter(schedule__icontains=schedule)
+            resume = resume.filter(schedule__in=schedule)
 
         if not resume.exists():
             return Response({"error": "Nothing was found for your request"}, status=status.HTTP_404_NOT_FOUND)
