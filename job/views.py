@@ -111,11 +111,11 @@ class VacancyListAPIView(views.APIView):
         tags=["Vacancy"]
     )
     def get(self, request, *args, **kwargs):
-        job_title = request.query_params.get('job_title', None)
+        job_title = request.query_params.getlist('job_title', None)
         organization = request.query_params.get('organization', None)
-        location = request.query_params.get('location', None)
+        location = request.query_params.getlist('location', None)
         experience = request.query_params.get('experience', None)
-        schedule = request.query_params.get('schedule', None)
+        schedule = request.query_params.getlist('schedule', None)
         currency = request.query_params.get('currency', None)
         min_salary = request.query_params.get('min_salary', None)
         max_salary = request.query_params.get('max_salary', None)
@@ -129,15 +129,15 @@ class VacancyListAPIView(views.APIView):
             return Response({"error": "Vacancy does not exist"}, status=status.HTTP_404_NOT_FOUND)
 
         if job_title:
-            vacancy = vacancy.filter(job_title__icontains=job_title)
+            vacancy = vacancy.filter(job_title__in=job_title)
         if organization:
             vacancy = vacancy.filter(organization__title__icontains=organization)
         if location:
-            vacancy = vacancy.filter(location__icontains=location)
+            vacancy = vacancy.filter(location__in=location)
         if experience:
             vacancy = vacancy.filter(experience__icontains=experience)
         if schedule:
-            vacancy = vacancy.filter(schedule__icontains=schedule)
+            vacancy = vacancy.filter(schedule__in=schedule)
 
         # сортировка по зарплате
         if currency:
