@@ -1211,6 +1211,8 @@ class OrderRemoveEmployeeAPIView(APIView):
 
 
 class EquipmentsListAPIView(APIView):
+    permission_classes = [AllowAny]
+
     def get_equipments(self):
         try:
             equipments = Equipment.objects.all().order_by('-created_at')
@@ -1240,7 +1242,7 @@ class EquipmentsListAPIView(APIView):
 
 
 class CreateEquipmentAPIView(APIView):
-    permission_classes = [CurrentUserOrReadOnly]
+    permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
         tags=['Equipment'],
@@ -1267,10 +1269,12 @@ class ChangeEquipmentAPIView(APIView):
 
     @swagger_auto_schema(
         tags=['Equipment'],
-        operation_description="Этот эндпоинт"
-                              "предостовляет пользователю"
-                              "возможность изменить"
-                              "существующее оборудование",
+        operation_description="Этот эндпоинт" 
+                              "предостовляет пользователю" 
+                              "возможность изменить" 
+                              "существующее оборудование" 
+                              "при удалении картинки в поле deleted_images" 
+                              "нужно передать id картинки",
         responses={
             200: EquipmentDetailSerializer,
             400: "Only the author can change",
@@ -1283,14 +1287,19 @@ class ChangeEquipmentAPIView(APIView):
             equipment = Equipment.objects.get(slug=kwargs['equipment_slug'])
         except Equipment.DoesNotExist:
             return Response({"error": "Equipments doe not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        if request.user.user_profile != equipment.author:
+            return Response({"error": "Only the author can change"}, status=status.HTTP_400_BAD_REQUEST)
+
         equipment_serializer = EquipmentDetailSerializer(instance=equipment,
                                                          data=request.data,
                                                          context={'request': request})
+
         if equipment_serializer.is_valid():
             author = request.user.user_profile
             equipment_serializer.save(author=author)
             return Response(equipment_serializer.data, status=status.HTTP_200_OK)
-        return Response({"message": "Only the author can change"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(equipment_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class DeleteEquipmentAPIView(APIView):
@@ -1319,11 +1328,12 @@ class DeleteEquipmentAPIView(APIView):
         if author == "equipment_ads":
             equipment.delete()
         else:
-            return Response({"message": "Only the author can delete"})
+            return Response({"error": "Only the author can delete"})
         return Response({"data": "Successfully deleted"}, status=status.HTTP_200_OK)
 
 
 class EquipmentSearchAPIView(APIView):
+    permission_classes = [AllowAny]
     filter_backends = [SearchFilter]
     search_fields = ['title']
 
@@ -1349,6 +1359,30 @@ class EquipmentSearchAPIView(APIView):
         return Response(search_equipments, status=status.HTTP_200_OK)
 
 
+class EquipmentModalPageAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        tags=['Equipment'],
+        operation_description="Этот эндпоинт"
+                              "предостовляет пользователю"
+                              "возможность посмотреть"
+                              "модальную страницу оборудования",
+        responses={
+            200: EquipmentModalPageSerializer,
+            404: "Equipment does not exist",
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        try:
+            equipment = Equipment.objects.get(slug=kwargs['equipment_slug'])
+        except Equipment.DoesNotExist:
+            return Response({"error": "Equipment does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = EquipmentModalPageSerializer(equipment)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class EquipmentDetailPageAPIView(APIView):
     @swagger_auto_schema(
         tags=['Equipment'],
@@ -1370,7 +1404,6 @@ class EquipmentDetailPageAPIView(APIView):
         equipment_serializer = EquipmentDetailSerializer(equipment)
         content = {"data": equipment_serializer.data}
         return Response(content, status=status.HTTP_200_OK)
-
 
 
 class EquipmentLikeAPIView(APIView):
@@ -1513,7 +1546,7 @@ class SoldEquipmentAPIView(APIView):
 
         request.user.user_profile.add(equipment)
 
-        return Response({"message": "Equipment is available for purchase"}, status=status.HTTP_200_OK)
+        return Response({"data": "Equipment is available for purchase"}, status=status.HTTP_200_OK)
 
 
 class MyAdsListAPIView(APIView):

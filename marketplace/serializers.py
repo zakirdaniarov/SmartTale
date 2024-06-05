@@ -8,7 +8,7 @@ from .models import Service, ServiceCategory, ServiceImages, Size
 class AuthorSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['slug', 'first_name', 'last_name', 'profile_image']
+        fields = ['slug', 'first_name', 'last_name', 'profile_image', 'phone_number']
 
 
 class OrderCategoryListAPI(ModelSerializer):
@@ -489,6 +489,15 @@ class EquipmentImagesSerializer(serializers.ModelSerializer):
         fields = ['id', 'images']
 
 
+class EquipmentModalPageSerializer(serializers.ModelSerializer):
+    author = AuthorSerializer(read_only=True)
+    images = EquipmentImagesSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Equipment
+        fields = ['title', 'images', 'price', 'currency', 'author', 'description']
+
+
 class EquipmentDetailSerializer(serializers.ModelSerializer):
     author = AuthorSerializer(read_only=True)
     images = EquipmentImagesSerializer(many=True, read_only=True)
@@ -496,15 +505,41 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
         child=serializers.ImageField(max_length=100000, allow_empty_file=False, use_url=False),
         write_only=True
     )
-    sale_status = serializers.SerializerMethodField()
     deleted_images = serializers.ListField(
         child=serializers.IntegerField(), write_only=True, required=False
     )
+    sale_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Equipment
-        fields = ['id', 'title', 'category', 'images', 'uploaded_images', 'deleted_images', 'price', 'currency',
+        fields = ['title', 'category', 'images', 'uploaded_images', 'deleted_images', 'price', 'currency',
                   'description', 'phone_number', 'email', 'author', 'hide', 'sale_status']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Check if the instance is being created or updated
+        if self.instance is None:
+            # Fields required for creating a new equipment
+            self.fields['title'].required = True
+            self.fields['uploaded_images'].required = True
+            self.fields['deleted_images'].required = False
+            self.fields['description'].required = False
+            self.fields['price'].required = True
+            self.fields['category'].required = False
+            self.fields['phone_number'].required = True
+            self.fields['email'].required = False
+            self.fields['currency'].required = True
+        else:
+            # Fields not required for updating an existing equipment
+            self.fields['title'].required = False
+            self.fields['uploaded_images'].required = False
+            self.fields['deleted_images'].required = False
+            self.fields['description'].required = False
+            self.fields['price'].required = False
+            self.fields['category'].required = False
+            self.fields['phone_number'].required = False
+            self.fields['email'].required = False
+            self.fields['currency'].required = False
 
     def get_sale_status(self, instance):
         sale_status = instance.sold
@@ -513,7 +548,7 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
         return "Equipment available"
 
     def create(self, validated_data):
-        images_data = validated_data.pop('uploaded_images')
+        images_data = validated_data.pop('uploaded_images', [])
         equipment = Equipment.objects.create(**validated_data)
 
         max_images = 5
@@ -532,14 +567,15 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
             ServiceImages.objects.filter(id__in=deleted_images).delete()
 
         if images_data:
-            current_images = list(instance.images.all())
-
             max_images = 5
             if len(images_data) > max_images:
                 raise serializers.ValidationError(f"You can't add more then {max_images} images")
 
             for image_data in images_data:
-                EquipmentImages.objects.update_or_create(equipment=instance, images=image_data)
+                EquipmentImages.objects.create_or_update(equipment=instance, images=image_data)
+
+        if deleted_images:
+            EquipmentImages.objects.filter(id__in=deleted_images).delete()
         else:
             return instance
 
@@ -549,12 +585,12 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
         instance.price = validated_data.pop('price', instance.price)
         instance.currency = validated_data.pop('price', instance.currency)
         instance.phone_number = validated_data.pop('phone_number', instance.phone_number)
-        instance.phone_number = validated_data.pop('email', instance.email)
+        instance.email = validated_data.pop('email', instance.email)
         instance.author = validated_data.pop('author', instance.author)
         instance.hide = validated_data.pop('hide', instance.hide)
         instance.sold = validated_data.pop('sold', instance.sold)
-        instance.save()
 
+        instance.save()
         return instance
 
 

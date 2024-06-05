@@ -18,7 +18,8 @@ EXPERIENCE = (
     ('Без опыта', 'Без опыта'),
     ('От 1 года до 3 лет', 'От 1 года до 3 лет'),
     ('От 3 лет до 6 лет', 'От 3 лет до 6 лет'),
-    ('Более 6 лет', 'Более 6 лет')
+    ('Более 6 лет', 'Более 6 лет'),
+    ('Не имеет значение', 'Не имеет значение')
 )
 
 SCHEDULE = (
@@ -30,9 +31,10 @@ SCHEDULE = (
 )
 
 CURRENCY = (
-    ('Сом', 'Сом'),
+    ('Som', 'Som'),
     ('USD', 'USD'),
-    ('Рубль', 'Рубль')
+    ('Ruble', 'Ruble'),
+    ('Euro', 'Euro')
 )
 
 
@@ -47,7 +49,8 @@ class Vacancy(models.Model):
     experience = models.CharField(max_length=30, choices=EXPERIENCE, default='Без опыта')
     min_salary = models.DecimalField(max_digits=10, decimal_places=2)
     max_salary = models.DecimalField(max_digits=10, decimal_places=2)
-    currency = models.CharField(max_length=15, choices=CURRENCY, default='Сом')
+    currency = models.CharField(max_length=15, choices=CURRENCY, default='Som')
+    hide = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -60,12 +63,23 @@ class Resume(models.Model):
     location = models.CharField(max_length=30, choices=LOCATION, null=True, default='Бишкек')
     schedule = models.CharField(max_length=60, choices=SCHEDULE, default='Полный день')
     experience = models.CharField(max_length=30, choices=EXPERIENCE, default='Без опыта')
-    author = models.OneToOneField(UserProfile, on_delete=models.CASCADE, related_name='author_resume')
+    author = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='author_resume')
     about_me = models.TextField(max_length=1000, null=True)
     min_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     max_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    currency = models.CharField(max_length=15, choices=CURRENCY, default='Сом')
+    currency = models.CharField(max_length=15, choices=CURRENCY, default='Som')
+    hide = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"This {self.job_title} by {self.author.first_name}-{self.author.last_name}"
+
+
+class VacancyResponse(models.Model):
+    vacancy = models.ForeignKey(Vacancy, on_delete=models.CASCADE)
+    applicant = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    cover_letter = models.TextField(max_length=1000)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"This response by {self.author.last_name}"

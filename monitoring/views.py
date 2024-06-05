@@ -224,16 +224,28 @@ class OrganizationListAPIView(APIView):
         operation_summary = "Список организаций пользователя",
         operation_description = "Этот эндпоинт предоставляет доступ к списку организаций пользователя.",
         responses = {
-            200: OrganizationDetailSerializer
+            200: OrganizationListSerializer
         },
     )
     def get(self, request, *args, **kwargs):
         user = request.user
-        orgs = Organization.objects.filter(owner = user.user_profile)
-        if not orgs:
-            return Response({"Error": "You don't have organizations!"}, status = status.HTTP_404_NOT_FOUND)
-        serializer = OrganizationListSerializer(orgs, many = True)
-        return Response(serializer.data, status = status.HTTP_200_OK)
+        employee = Employee.objects.filter(user = user.user_profile)
+        my_orgs = []
+        other_orgs = []
+        for item in employee:
+            if item.org.owner != user.user_profile:
+                other_orgs.append(item.org.pk)
+            else:
+                my_orgs.append(item.org.pk)
+        my_orgs = Organization.objects.filter(pk__in = my_orgs)
+        other_orgs = Organization.objects.filter(pk__in = other_orgs)
+        serializer1 = MyOrganizationListSerializer(my_orgs, many = True)
+        serializer2 = OtherOrganizationListSerializer(other_orgs, many = True)
+        data = {
+            'my-orgs': serializer1.data,
+            'other-orgs': serializer2.data
+        }
+        return Response(data, status = status.HTTP_200_OK)
 
 class OrganizationActivateAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -400,7 +412,7 @@ class JobTitleListAPIView(APIView):
     @swagger_auto_schema(
         tags = ["Organization"],
         operation_summary = "Список должностей в текущей организации.",
-        operation_description = "Предоставляет доступ к подробной списку должностей текущей организации отсортированный по количесту прав.",
+        operation_description = "Предоставляет доступ к подробному списку должностей текущей организации отсортированный по количесту прав.",
         responses = {
             200: JobTitleSerializer,
             404: "Not found",
