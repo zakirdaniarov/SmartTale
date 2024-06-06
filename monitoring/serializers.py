@@ -25,7 +25,7 @@ class OrganizationMonitoringSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Organization
-        fields = ['title', 'description', 'logo', 'active']
+        fields = ['title', 'description', 'phone_number', 'logo', 'active']
 
     def create(self, validated_data):
         user = self.context['user']
@@ -50,8 +50,14 @@ class OrganizationDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Organization
-        fields = ['slug', 'title', 'owner', 'logo', 'description', 'created_at']
+        fields = ['slug', 'title', 'owner', 'logo', 'phone_number', 'description', 'created_at']
+        read_only_fields = ('slug', 'owner', 'created_at')
 
+class OrganizationDetailSwaggerSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Organization
+        fields = ['title', 'logo', 'description', 'phone_number']
 class MyOrganizationListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization

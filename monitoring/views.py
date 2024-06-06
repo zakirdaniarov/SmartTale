@@ -203,7 +203,8 @@ class OrganizationDetailAPIView(APIView):
         operation_summary = "Подробная информация об организации",
         operation_description = "Этот эндпоинт предоставляет доступ к подробной информации об организации с помощью slug.",
         responses = {
-            200: OrganizationDetailSerializer
+            200: OrganizationDetailSerializer,
+            404: "Not found."
         },
     )
     def get(self, request, org_slug):
@@ -211,9 +212,55 @@ class OrganizationDetailAPIView(APIView):
             org = Organization.objects.get(slug=org_slug)
         except Organization.DoesNotExist:
             return Response({"Error": "Организация не найдена."}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = self.serializer_class(org, context={'detail': True})
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        serializer = self.serializer_class(org)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @swagger_auto_schema(
+        tags = ["Organization"],
+        operation_summary = "Изменение информации об организации",
+        operation_description = "Этот эндпоинт предоставляет доступ к изменении информации об организации с помощью slug.",
+        request_body = OrganizationDetailSwaggerSerializer,
+        responses = {
+            200: OrganizationDetailSerializer,
+            403: "You are not the owner",
+            404: "Not found"
+        },
+    )
+    def put(self, request, org_slug):
+        try:
+            org = Organization.objects.get(slug=org_slug)
+        except Organization.DoesNotExist:
+            return Response({"Error": "Организация не найдена."}, status=status.HTTP_404_NOT_FOUND)
+        user = request.user.user_profile
+        if user != org.owner:
+            return Response({"Error": "Вы не можете изменять организацию."}, status=status.HTTP_403_FORBIDDEN)
+        serializer = self.serializer_class(org, data = request.data)
+        if serializer.is_valid():
+            serializer.save()
+        else:
+            return Response({"Error": "Bad data."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @swagger_auto_schema(
+        tags = ["Organization"],
+        operation_summary = "Удаление информации об организации",
+        operation_description = "Этот эндпоинт предоставляет доступ к удалению организации с помощью slug.",
+        responses = {
+            200: "Success",
+            403: "You are not the owner",
+            404: "Not found"
+        },
+    )
+    def delete(self, request, org_slug):
+        try:
+            org = Organization.objects.get(slug=org_slug)
+        except Organization.DoesNotExist:
+            return Response({"Error": "Организация не найдена."}, status=status.HTTP_404_NOT_FOUND)
+        user = request.user.user_profile
+        if user != org.owner:
+            return Response({"Error": "Вы не можете изменять организацию."}, status=status.HTTP_403_FORBIDDEN)
+        org.delete()
+        return Response({"Success": "Организация успешно удалена."}, status=status.HTTP_200_OK)
     
 class OrganizationListAPIView(APIView):
     permission_classes = [IsAuthenticated]
