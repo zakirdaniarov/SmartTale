@@ -1,10 +1,13 @@
 from datetime import datetime
 
+from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_yasg import openapi
 from rest_framework.generics import ListAPIView
 
+from job.models import Vacancy, Resume
+from job.serializers import VacancyListSerializer, ResumeListSerializer
 from monitoring.models import Employee
 from .models import Equipment, Order, Reviews, EquipmentCategory, OrderCategory, EquipmentImages, OrderImages
 from .models import ServiceCategory, ServiceImages, Service
@@ -1611,16 +1614,19 @@ class MyAdsListAPIView(APIView):
         data = get_order_or_equipment(queryset, request)
         return Response(data, status=status.HTTP_200_OK)
 
+
 class SearchAdsAPIView(APIView):
     permission_classes = [CurrentUserOrReadOnly]
 
     def get_search_query(self):
         return self.request.query_params.get('title', '')
 
-    def filter_queryset_by_search(self, queryset):
+    def filter_queryset_by_search(self, queryset, ads):
         search_query = self.get_search_query()
-        if search_query:
+        if ads in ['order', 'equipment', 'service'] and search_query:
             queryset = queryset.filter(Q(title__icontains=search_query))
+        elif ads in ['vacancy', 'resume'] and search_query:
+            queryset = queryset.filter(Q(job_title__icontains=search_query))
         return queryset
 
     def get_orders_and_equipments(self, ads=None):
@@ -1630,9 +1636,12 @@ class SearchAdsAPIView(APIView):
             queryset = Equipment.objects.all().order_by('-created_at')
         elif ads == 'service':
             queryset = Service.objects.all().order_by('-created_at')
+        elif ads == 'vacancy':
+            queryset = Vacancy.objects.all().order_by('-created_at')
+        elif ads == 'resume':
+            queryset = Resume.objects.all().order_by('-created_at')
         elif ads is None:
-            queryset = list(Equipment.objects.all()) + list(Order.objects.all()) + list(Service.objects.all())
-            queryset = sorted(queryset, key=attrgetter('created_at'), reverse=True)
+            queryset = []
         else:
             queryset = []
 
@@ -1650,87 +1659,54 @@ class SearchAdsAPIView(APIView):
             openapi.Parameter(
                 'ads',
                 openapi.IN_QUERY,
-                description="Filter the results by the type of advertisement (order, equipment, service). If not provided, returns all.",
+                description="Filter the results by the type of advertisement (order, equipment, service, vacancy, resume). If not provided, returns all.",
                 type=openapi.TYPE_STRING,
-                enum=['order', 'equipment', 'service'],
+                enum=['order', 'equipment', 'service', 'vacancy', 'resume'],
                 required=False
             )
         ],
-        tags=['Search Orders, Equipments, Services'],
-        operation_description="This endpoint provides the user with their orders, equipments, and services.",
+        tags=['Search Orders, Equipments, Services, Vacancies, Resumes'],
+        operation_description="This endpoint provides the user with their orders, equipments, services, vacancies, and resumes.",
         responses={
-            200: "Orders, services, and equipments list",
-            404: "Orders, services, or equipments do not exist",
+            200: "Orders, services, equipments, vacancies, and resumes list",
+            404: "Orders, services, equipments, vacancies, or resumes do not exist",
             500: "Server error",
         }
     )
     def get(self, request, *args, **kwargs):
         ads = request.query_params.get('ads')
         queryset = self.get_orders_and_equipments(ads)
-        queryset = self.filter_queryset_by_search(queryset)
-        data = get_order_or_equipment(queryset, request)
+        queryset = self.filter_queryset_by_search(queryset, ads)
+        data = self.get_paginated_response(queryset, request, ads)
         return Response(data, status=status.HTTP_200_OK)
 
+    def get_paginated_response(self, queryset, request, ads):
+        page_number = request.query_params.get('page', 1)
+        max_page = request.query_params.get('limit', 10)
 
-class SearchAdsAPIView(APIView):
-    permission_classes = [CurrentUserOrReadOnly]
+        paginator = Paginator(queryset, max_page)
+        page_obj = paginator.get_page(page_number)
 
-    def get_search_query(self):
-        return self.request.query_params.get('title', '')
-
-    def filter_queryset_by_search(self, queryset):
-        search_query = self.get_search_query()
-        if search_query:
-            queryset = queryset.filter(Q(title__icontains=search_query))
-        return queryset
-
-    def get_orders_and_equipments(self, ads=None):
-        if ads == 'order':
-            queryset = Order.objects.all().order_by('-created_at')
-        elif ads == 'equipment':
-            queryset = Equipment.objects.all().order_by('-created_at')
-        elif ads == 'service':
-            queryset = Service.objects.all().order_by('-created_at')
-        elif ads is None:
-            queryset = list(Equipment.objects.all()) + list(Order.objects.all()) + list(Service.objects.all())
-            queryset = sorted(queryset, key=attrgetter('created_at'), reverse=True)
+        if ads in ['order', 'equipment', 'service']:
+            serializer = MyAdsSerializer(page_obj, many=True, context={'request': request})
+        elif ads == 'vacancy':
+            serializer = VacancyListSerializer(page_obj, many=True, context={'request': request})
+        elif ads == 'resume':
+            serializer = ResumeListSerializer(page_obj, many=True, context={'request': request})
         else:
-            queryset = []
+            serializer = MyAdsSerializer(page_obj, many=True, context={'request': request})
 
-        return queryset
-
-    @swagger_auto_schema(
-        manual_parameters=[
-            openapi.Parameter(
-                'title',
-                openapi.IN_QUERY,
-                description="Filter the results by title (case insensitive).",
-                type=openapi.TYPE_STRING,
-                required=False
-            ),
-            openapi.Parameter(
-                'ads',
-                openapi.IN_QUERY,
-                description="Filter the results by the type of advertisement (order, equipment, service). If not provided, returns all.",
-                type=openapi.TYPE_STRING,
-                enum=['order', 'equipment', 'service'],
-                required=False
-            )
-        ],
-        tags=['Search Orders, Equipments, Services'],
-        operation_description="This endpoint provides the user with their orders, equipments, and services.",
-        responses={
-            200: "Orders, services, and equipments list",
-            404: "Orders, services, or equipments do not exist",
-            500: "Server error",
+        data = {
+            'data': serializer.data,
+            'total_pages': paginator.num_pages,
+            'current_page': page_obj.number,
+            'has_next_page': page_obj.has_next(),
+            'has_prev_page': page_obj.has_previous(),
+            'next_page_number': page_obj.next_page_number() if page_obj.has_next() else None,
+            'prev_page_number': page_obj.previous_page_number() if page_obj.has_previous() else None
         }
-    )
-    def get(self, request, *args, **kwargs):
-        ads = request.query_params.get('ads')
-        queryset = self.get_orders_and_equipments(ads)
-        queryset = self.filter_queryset_by_search(queryset)
-        data = get_order_or_equipment(queryset, request)
-        return Response(data, status=status.HTTP_200_OK)
+
+        return data
 
 
 #Service related views
