@@ -633,8 +633,12 @@ class EquipmentSerializer(serializers.ModelSerializer):
         return 'Images does not exist'
 
     def get_liked(self, instance):
-        author = self.context['request'].user.user_profile
-        return instance.liked_by.filter(slug=author.slug).exists()
+        author = self.context['request'].user if self.context.get('request') else None
+
+        if author and not author.is_anonymous:
+            return instance.liked_by.filter(author=author).exists()
+        else:
+            return False
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)

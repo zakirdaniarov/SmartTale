@@ -11,7 +11,7 @@ from authorization.models import Organization
 from .models import Vacancy, Resume, VacancyResponse
 from .serializers import (VacancyListSerializer, VacancyDetailSerializer,
                           ResumeListSerializer, ResumeDetailSerializer, VacancyResponseSerializer)
-from .permissions import CurrentUserOrReadOnly
+from .permissions import CurrentUserOrReadOnly, AddVacancyEmployee, IsOrganizationEmployeeReadOnly
 from .services import MyCustomPagination
 
 
@@ -170,7 +170,7 @@ class VacancyListAPIView(views.APIView):
 
 
 class VacancyDetailAPIView(views.APIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
 
     @swagger_auto_schema(
         operation_summary="Детальная страница вакансии",
@@ -193,7 +193,7 @@ class VacancyDetailAPIView(views.APIView):
 
 
 class AddVacancyAPIView(views.APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [AddVacancyEmployee]
 
     @swagger_auto_schema(
         operation_summary="Добавление новой вакансии",
@@ -236,7 +236,7 @@ class AddVacancyAPIView(views.APIView):
 
 
 class ChangeVacancyAPIView(views.APIView):
-    permission_classes = [CurrentUserOrReadOnly]
+    permission_classes = [AddVacancyEmployee]
 
     @swagger_auto_schema(
         operation_summary="Изменение вакансии",
@@ -291,7 +291,7 @@ class ChangeVacancyAPIView(views.APIView):
 
 
 class DeleteVacancyAPIView(views.APIView):
-    permission_classes = [CurrentUserOrReadOnly]
+    permission_classes = [AddVacancyEmployee]
 
     @swagger_auto_schema(
         operation_summary="Удаление вакансии",
@@ -335,7 +335,7 @@ class DeleteVacancyAPIView(views.APIView):
 
 
 class VacancySearchAPIView(views.APIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
     pagination_class = MyCustomPagination
 
     @swagger_auto_schema(
@@ -376,7 +376,7 @@ class VacancySearchAPIView(views.APIView):
 
 
 class VacancyByOrgAPIView(views.APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsOrganizationEmployeeReadOnly]
 
     @swagger_auto_schema(
         operation_summary="Вакансии организации",
@@ -390,7 +390,12 @@ class VacancyByOrgAPIView(views.APIView):
     def get(self, request, *args, **kwargs):
         try:
             current_organization = Organization.objects.filter(owner=request.user.user_profile).first()
+
+            if not current_organization:
+                return Response({"error": "Organization does not exist"}, status=status.HTTP_404_NOT_FOUND)
+
             vacancy = Vacancy.objects.filter(organization=current_organization)
+
         except Vacancy.DoesNotExist:
             return Response({"error": "Vacancy does not exist"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -399,7 +404,7 @@ class VacancyByOrgAPIView(views.APIView):
 
 
 class VacancyResponseListAPIView(views.APIView):
-    permission_classes = [CurrentUserOrReadOnly]
+    permission_classes = [IsOrganizationEmployeeReadOnly]
 
     @swagger_auto_schema(
         operation_summary="Отклики вакансии",
@@ -452,7 +457,7 @@ class AddVacancyResponseAPIVIew(views.APIView):
 
 
 class VacancyHideAPIView(views.APIView):
-    permission_classes = [CurrentUserOrReadOnly]
+    permission_classes = [AddVacancyEmployee]
 
     @swagger_auto_schema(
         operation_summary="Скрыть вакансию",
