@@ -1,4 +1,7 @@
 from django.core.paginator import Paginator
+from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
+
 from .serializers import OrderListAPI, EquipmentSerializer, MyAdsSerializer, ServiceListAPI
 
 
@@ -74,12 +77,6 @@ def get_order_or_equipment(queryset, request):
     page_obj = paginator.get_page(page_number)
 
     serializer = MyAdsSerializer(page_obj, many=True, context={'request': request})
-
-    # paginator = Paginator(queryset, max_page)
-    # page_objs = paginator.get_page(page_number)
-    # instance_list = list(page_objs.object_list)
-    #
-    # serializer = MyOrderEquipmentSerializer(instance=instance_list, many=True, context={"request": request})
 
     data = {
         'data': serializer.data,

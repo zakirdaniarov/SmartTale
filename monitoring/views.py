@@ -96,8 +96,9 @@ class UserAdsAPIView(APIView):
             )
         ],
         responses = {
-            200: ProfileDetailSerializer,
-            404: "Not found",
+            200: "Orders, services, and equipments list",
+            404: "Orders, services, or equipments do not exist",
+            500: "Server error",
         }
     )
     def get(self, request, userprofile_slug, *args, **kwargs):
