@@ -70,6 +70,7 @@ class Resume(models.Model):
     currency = models.CharField(max_length=15, choices=CURRENCY, default='Som')
     hide = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"This {self.job_title} by {self.author.first_name}-{self.author.last_name}"
