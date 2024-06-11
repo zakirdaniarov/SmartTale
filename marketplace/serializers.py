@@ -609,12 +609,12 @@ class ReviewPostAPI(ModelSerializer):
 class EquipmentSerializer(serializers.ModelSerializer):
     author = AuthorSerializer(read_only=True)
     image = serializers.SerializerMethodField()
-    liked = serializers.SerializerMethodField()
+    is_liked = serializers.SerializerMethodField()
     type = serializers.SerializerMethodField()
 
     class Meta:
         model = Equipment
-        fields = ['title', 'slug', 'type', 'price', 'currency', 'description', 'image', 'author', 'liked']
+        fields = ['title', 'slug', 'type', 'price', 'currency', 'description', 'image', 'author', 'is_liked']
 
     def get_type(self, instance):
         if isinstance(instance, Equipment):
@@ -632,7 +632,7 @@ class EquipmentSerializer(serializers.ModelSerializer):
             return image.images.url
         return 'Images does not exist'
 
-    def get_liked(self, instance):
+    def get_is_liked(self, instance):
         author = self.context['request'].user if self.context.get('request') else None
 
         if author and not author.is_anonymous:
@@ -646,7 +646,7 @@ class EquipmentSerializer(serializers.ModelSerializer):
 
         if equipments == 'my-like-equipments':
             representation.pop('author')
-            representation.pop('liked')
+            representation.pop('is_liked')
         elif equipments == 'equipments-list':
             representation.pop('title')
             representation.pop('slug')
@@ -654,7 +654,7 @@ class EquipmentSerializer(serializers.ModelSerializer):
             representation.pop('currency')
             representation.pop('image')
             representation.pop('author')
-            representation.pop('liked')
+            representation.pop('is_liked')
 
         return representation
 
