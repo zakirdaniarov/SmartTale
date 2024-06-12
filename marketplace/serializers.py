@@ -658,10 +658,11 @@ class EquipmentSerializer(serializers.ModelSerializer):
 class MyAdsSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
     type = serializers.SerializerMethodField()
+    author = UserProfileAPI(read_only=True)
 
     class Meta:
         model = Order  # Placeholder for dynamic model assignment
-        fields = ['title', 'slug', 'description', 'type', 'image', 'status', 'price', 'currency']  # Adjust fields as needed
+        fields = ['title', 'slug', 'author', 'description', 'type', 'image', 'status', 'price', 'currency']  # Adjust fields as needed
 
     def get_image(self, instance):
         image = instance.images.first()
