@@ -876,6 +876,9 @@ class ApplyOrderAPIView(APIView):
                 organization = user.user_profile.working_orgs.get().org
             except Exception:
                 return Response({"Error": "Вы не ещё не состоите ни в одной компании."}, status = status.HTTP_403_FORBIDDEN)
+        if organization in order.org_applicants.all():
+            return Response({'error': 'You already applied for this order.'},
+                            status=status.HTTP_403_FORBIDDEN)
         order.org_applicants.add(organization)
         order.save()
         return Response({"Success": "Order applied successfully."}, status=status.HTTP_200_OK)
