@@ -13,7 +13,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['last_name', 'first_name', 'slug']
+        fields = ['last_name', 'first_name', 'middle_name', 'profile_image', 'slug']
 
 
 class VacancyResponseSerializer(serializers.ModelSerializer):
@@ -86,7 +86,7 @@ class ResumeListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Resume
-        fields = ['job_title', 'slug', 'author', 'experience']
+        fields = ['job_title', 'slug', 'author', 'experience', 'updated_at']
 
 
 class ResumeDetailSerializer(serializers.ModelSerializer):

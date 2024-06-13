@@ -57,6 +57,7 @@ urlpatterns = [
     path('equipments/like/<str:equipment_slug>/', EquipmentLikeAPIView.as_view()),
     path('hide-equipment/<str:equipment_slug>/', HideEquipmentAPIView.as_view()),
     path('sold-equipment/<str:equipment_slug>/', SoldEquipmentAPIView.as_view()),
+    path('my-purchases/', MyPurchasesAPIView.as_view()),
     path('liked-equipments/', EquipmentByAuthorLikeAPIView.as_view()),
     path('equipment/<str:equipment_slug>/', EquipmentDetailPageAPIView.as_view()),
     path('equipment-modal/<slug:equipment_slug>/', EquipmentModalPageAPIView.as_view()),
