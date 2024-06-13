@@ -28,7 +28,7 @@ class Equipment(models.Model):
     author = models.ForeignKey(UserProfile, related_name='equipment_ads', on_delete=models.CASCADE)
     liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_equipment')
     hide = models.BooleanField(default=False)
-    sold = models.BooleanField(default=False)
+    quantity = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

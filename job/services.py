@@ -13,11 +13,3 @@ class MyCustomPagination(PageNumberPagination):
             'has_next_page': self.get_next_link(),
             'has_prev_page': self.get_previous_link()
         })
-        # return Response({"links": {
-        #     "next": self.get_next_link(),
-        #     "previous": self.get_previous_link()
-        # },
-        #     "page count": self.page.paginator.num_pages,
-        #     "current page": self.page.number,
-        #     "data": data
-        # })

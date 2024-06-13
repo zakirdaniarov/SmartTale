@@ -508,12 +508,11 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
     deleted_images = serializers.ListField(
         child=serializers.IntegerField(), write_only=True, required=False
     )
-    sale_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Equipment
         fields = ['title', 'category', 'images', 'uploaded_images', 'deleted_images', 'price', 'currency',
-                  'description', 'phone_number', 'email', 'author', 'hide', 'sale_status']
+                  'description', 'phone_number', 'email', 'author', 'hide', 'quantity']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -540,12 +539,6 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
             self.fields['phone_number'].required = False
             self.fields['email'].required = False
             self.fields['currency'].required = False
-
-    def get_sale_status(self, instance):
-        sale_status = instance.sold
-        if sale_status:
-            return "Equipment sold"
-        return "Equipment available"
 
     def create(self, validated_data):
         images_data = validated_data.pop('uploaded_images', [])
@@ -625,7 +618,6 @@ class EquipmentSerializer(serializers.ModelSerializer):
             return "Service"
         return None
 
-
     def get_image(self, instance):
         image = instance.images.first()
         if image:
@@ -636,7 +628,7 @@ class EquipmentSerializer(serializers.ModelSerializer):
         author = self.context['request'].user if self.context.get('request') else None
 
         if author and not author.is_anonymous:
-            return instance.liked_by.filter(author=author).exists()
+            return instance.liked_by.filter(id=author.id).exists()
         else:
             return False
 
@@ -645,16 +637,16 @@ class EquipmentSerializer(serializers.ModelSerializer):
         equipments = self.context.get('equipments_type')
 
         if equipments == 'my-like-equipments':
-            representation.pop('author')
-            representation.pop('is_liked')
+            fields_to_remove = ['author', 'is_liked']
         elif equipments == 'equipments-list':
-            representation.pop('title')
-            representation.pop('slug')
-            representation.pop('price')
-            representation.pop('currency')
-            representation.pop('image')
-            representation.pop('author')
-            representation.pop('is_liked')
+            fields_to_remove = ['title', 'slug', 'price', 'currency', 'image', 'author', 'is_liked']
+        elif equipments == 'my-purchases-equipments':
+            fields_to_remove = ['is_liked']
+        else:
+            fields_to_remove = []
+
+        for field in fields_to_remove:
+            representation.pop(field, None)
 
         return representation
 
