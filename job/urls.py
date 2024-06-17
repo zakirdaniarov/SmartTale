@@ -4,7 +4,7 @@ from .views import (VacancyListAPIView, AddVacancyAPIView, ChangeVacancyAPIView,
                     ResumeListAPIView, AddResumeAPIView, ChangeResumeAPIView, DeleteResumeAPIView,
                     VacancySearchAPIView, SearchResumeAPIView, VacancyDetailAPIView, ResumeDetailAPIView,
                     VacancyByOrgAPIView, ResumeByAuthorAPIView, ResumeHideAPIView, VacancyHideAPIView,
-                    AddVacancyResponseAPIVIew, VacancyResponseListAPIView)
+                    AddVacancyResponseAPIVIew, VacancyResponseListAPIView, VacancyResponseByUserAPIView)
 
 
 urlpatterns = [
@@ -18,6 +18,7 @@ urlpatterns = [
     path('vacancy/hide/<vacancy_slug>/', VacancyHideAPIView.as_view()),
     path('vacancy-response-list/', VacancyResponseListAPIView.as_view()),
     path('vacancy-response/<slug:vacancy_slug>/', AddVacancyResponseAPIVIew.as_view()),
+    path('vacancy-by-user/', VacancyResponseByUserAPIView.as_view()),
 
     path('resume/', ResumeListAPIView.as_view()),
     path('resume/<slug:resume_slug>/', ResumeDetailAPIView.as_view()),

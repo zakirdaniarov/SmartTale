@@ -27,6 +27,7 @@ from .serializers import EquipmentDetailSerializer
 from .permissions import CurrentUserOrReadOnly
 from operator import attrgetter
 from rest_framework.test import APIRequestFactory
+from django.db import transaction
 
 # Create your views here.
 class OrderCategoriesAPIView(APIView):
@@ -1638,8 +1639,8 @@ class SoldEquipmentAPIView(APIView):
                               "предостовляет пользователю"
                               "купить оборудование",
         responses={
-            200: "Equipment is available for purchase",
-            400: "Equipment has already been sold or you are trying to buy your own equipment",
+            200: "Equipment purchased",
+            400: "Equipment is out of stock OR you are trying to buy your own equipment",
             404: "Equipment does not exist",
             500: "Server error",
         }
@@ -1650,18 +1651,66 @@ class SoldEquipmentAPIView(APIView):
         except Equipment.DoesNotExist:
             return Response({"error": "Equipment does not exist"}, status=status.HTTP_404_NOT_FOUND)
 
-        if equipment.sold:
-            return Response({"error": "Equipment has already been sold"}, status=status.HTTP_400_BAD_REQUEST)
-
         if equipment.author == request.user:
             return Response({"error": "You cannot buy your own equipment"}, status=status.HTTP_400_BAD_REQUEST)
 
-        equipment.sold = True
+        if equipment.quantity < 1:
+            return Response({"error": "Equipment is out of stock"}, status=status.HTTP_400_BAD_REQUEST)
+
+        request.user.user_profile.equipment_ads.add(equipment)
+
+        equipment.quantity -= 1
         equipment.save()
 
-        request.user.user_profile.add(equipment)
+        return Response({"data": "Equipment purchased"}, status=status.HTTP_200_OK)
 
-        return Response({"data": "Equipment is available for purchase"}, status=status.HTTP_200_OK)
+
+class MyPurchasesAPIView(APIView):
+    permission_classes = [CurrentUserOrReadOnly]
+
+    def get_my_purchases(self):
+        author = self.request.user.user_profile
+        return author.equipment_ads.all().order_by('-created_at')
+
+    def get_equipments_type(self):
+        return "my-purchases-equipments"
+
+    @swagger_auto_schema(
+        tags=['Equipment'],
+        operation_description="Этот эндпоинт"
+                              "предостовляет пользователю"
+                              "посмотреть купленные оборудования",
+        responses={
+            200: EquipmentSerializer,
+            404: "Equipment does not exist",
+            500: "Server error",
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        purchases = self.get_my_purchases()
+        data = self.get_paginated_response(purchases, request, self.get_equipments_type())
+        return Response(data, status=status.HTTP_200_OK)
+
+    def get_paginated_response(self, queryset, request, equipments_type):
+        page_number = request.query_params.get('page', 1)
+        max_page = request.query_params.get('limit', 10)
+
+        paginator = Paginator(queryset, max_page)
+        page_obj = paginator.get_page(page_number)
+
+        serializer = EquipmentSerializer(page_obj, many=True, context={'request': request, 'equipments_type': equipments_type})
+
+        data = {
+            'data': serializer.data,
+            'total_pages': paginator.num_pages,
+            'current_page': page_obj.number,
+            'has_next_page': page_obj.has_next(),
+            'has_prev_page': page_obj.has_previous(),
+            'next_page_number': page_obj.next_page_number() if page_obj.has_next() else None,
+            'prev_page_number': page_obj.previous_page_number() if page_obj.has_previous() else None
+        }
+
+        return data
 
 
 class MyAdsListAPIView(APIView):
