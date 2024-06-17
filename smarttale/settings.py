@@ -65,7 +65,7 @@ INSTALLED_APPS = [
     'cloudinary_storage',
     'drf_yasg',
     'django_filters',
-    'django_q',
+    # 'django_q',
 
     'authorization',
     'marketplace',
@@ -119,10 +119,10 @@ if not DEBUG:
             'HOST': config('DB_HOST'),
             'PORT': config('DB_PORT'),
         },
-        'qcluster': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'qcluster.sqlite3',
-        }
+        # 'qcluster': {
+        #     'ENGINE': 'django.db.backends.sqlite3',
+        #     'NAME': BASE_DIR / 'qcluster.sqlite3',
+        # }
         # 'qcluster': {
         #     'ENGINE': 'django.db.backends.postgresql_psycopg2',
         #     'NAME': config('QC_DB_NAME'),
@@ -146,10 +146,10 @@ else:
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
         },
-        'qcluster': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'qcluster.sqlite3',
-        }
+        # 'qcluster': {
+        #     'ENGINE': 'django.db.backends.sqlite3',
+        #     'NAME': BASE_DIR / 'qcluster.sqlite3',
+        # }
     }
     CHANNEL_LAYERS = {
         'default': {
@@ -178,16 +178,16 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-Q_CLUSTER = {
-    'name': 'qcluster',
-    'workers': 4,
-    'timeout': 90,
-    'retry': 300,
-    'queue_limit': 50,
-    'bulk': 10,
-    'orm': 'default',
-    'database': 'qcluster',
-}
+# Q_CLUSTER = {
+#     'name': 'qcluster',
+#     'workers': 4,
+#     'timeout': 90,
+#     'retry': 300,
+#     'queue_limit': 50,
+#     'bulk': 10,
+#     'orm': 'default',
+#     'database': 'qcluster',
+# }
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/
