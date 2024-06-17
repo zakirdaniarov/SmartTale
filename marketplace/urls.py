@@ -33,6 +33,7 @@ urlpatterns = [
     path('orders-by-category/', OrdersByCategoryAPIView.as_view(), name='smarttale-order--by-categories'),
     path('liked-orders/', LikedByUserOrdersAPIView.as_view(), name='smarttale-liked-orders'),
     path('liked-items/', LikedByUserItemsAPIView.as_view(), name='smarttale-liked-items'),
+    path('org-orders/<str:org_slug>/', OrgOrdersListView.as_view(), name='org-orders-list'),
 
     path('service-categories/', ServiceCategoriesAPIView.as_view()),
     path('my-services/', MyServiceAdsListView.as_view()),
