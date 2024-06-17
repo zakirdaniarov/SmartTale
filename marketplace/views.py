@@ -9,6 +9,7 @@ from rest_framework.generics import ListAPIView
 from job.models import Vacancy, Resume
 from job.serializers import VacancyListSerializer, ResumeListSerializer
 from monitoring.models import Employee
+from .firebase_service import send_fcm_notification
 from .models import Equipment, Order, Reviews, EquipmentCategory, OrderCategory, EquipmentImages, OrderImages
 from .models import ServiceCategory, ServiceImages, Service
 from .serializers import *
@@ -287,8 +288,68 @@ class MyOrgOrdersListView(BaseOrderListView):
         return super().get(request)
 
 
-class MarketplaceOrdersListView(BaseOrderListView):
+class OrgOrdersListView(BaseOrderListView):
     permission_classes = [IsAuthenticated]
+    serializer_class = OrderListAPI
+
+    def get_queryset(self):
+        org_slug = self.kwargs.get('org_slug')
+        organization = get_object_or_404(Organization, slug=org_slug)
+
+        self.stage = self.request.query_params.get('stage')
+        queryset = Order.objects.filter(org_work=organization)
+
+        if self.stage == 'active':
+            # Return orders with statuses other than "Arrived"
+            queryset = queryset.filter(is_finished=False)
+        elif self.stage == 'finished':
+            # Return orders with status "Arrived"
+            queryset = queryset.filter(is_finished=True)
+        else:
+            # Handle invalid status parameter
+            queryset = Order.objects.filter(org_work=organization).order_by('booked_at')
+
+        # Apply default ordering
+        queryset = queryset.order_by('-created_at')
+        return queryset
+
+    def get_list_type(self):
+        if self.stage == 'active':
+            return "orders-history-active"
+        elif self.stage == 'finished':
+            return "orders-history-finished"
+        else:
+            # Handle invalid status parameter or return None
+            return None
+
+    @swagger_auto_schema(
+        operation_summary="List of received orders for a specific organization",
+        operation_description="Retrieve a list of received orders for a specified organization by slug.",
+        manual_parameters=[
+            openapi.Parameter(
+                "title",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Search query to filter orders by title (case-insensitive)",
+            ),
+            openapi.Parameter(
+                "stage",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Shows in which stage is order, active or finished",
+            )
+        ],
+        responses={200: serializer_class},
+        tags=["Order List"]
+    )
+    def get(self, request, org_slug):
+        return super().get(request)
+
+
+class MarketplaceOrdersListView(BaseOrderListView):
+    permission_classes = [CurrentUserOrReadOnly]
     serializer_class = OrderListAPI
 
     def get_queryset(self):
@@ -796,6 +857,19 @@ class FinishOrderAPIView(APIView):
         order.is_finished = True
         order.finished_at = timezone.now()
         order.save()
+
+        org = order.org_work
+        founder_or_owner_profile = org.founder if org.founder else org.owner
+        if founder_or_owner_profile.device_token:
+            try:
+                send_fcm_notification(
+                founder_or_owner_profile.device_token,
+                "Order Finished",
+                f"Your sent order '{order.title}' has been received successfully."
+                )
+            except Exception as e:
+                print(f"Failed to send FCM notification: {e}")
+
         return Response({"Message": "Order finished status is changed."}, status=status.HTTP_200_OK)
 
 
@@ -881,6 +955,19 @@ class ApplyOrderAPIView(APIView):
                             status=status.HTTP_403_FORBIDDEN)
         order.org_applicants.add(organization)
         order.save()
+
+        author_profile = order.author
+        if author_profile.device_token:
+            print(author_profile.device_token)
+            try:
+                send_fcm_notification(
+                    author_profile.device_token,
+                    "New Order Application",
+                    f"Your order '{order.title}' has received a new application from {organization.title}."
+                )
+            except Exception as e:
+                print(f"Failed to send FCM notification: {e}")
+
         return Response({"Success": "Order applied successfully."}, status=status.HTTP_200_OK)
 
 
@@ -937,6 +1024,17 @@ class BookOrderAPIView(APIView):
         order.is_booked = True
         order.booked_at = timezone.now()
         order.save()
+
+        founder_or_owner_profile = org.founder if org.founder else org.owner
+        if founder_or_owner_profile.device_token:
+            try:
+                send_fcm_notification(
+                founder_or_owner_profile.device_token,
+                "Application Successful",
+                f"Your application for order '{order.title}' has been successful."
+            )
+            except Exception as e:
+                print(f"Failed to send FCM notification: {e}")
         return Response({"Success": "Order booked successfully."}, status=status.HTTP_200_OK)
 
 
@@ -1020,6 +1118,17 @@ class UpdateOrderStatusAPIView(APIView):
         # Update the order status and save
         order.status = order_status
         order.save()
+
+        creator_profile = order.author
+        if creator_profile.device_token:
+            try:
+                send_fcm_notification(
+                creator_profile.device_token,
+                "Order Status Update",
+                f"Your order '{order.title}' status has changed to {order_status}"
+            )
+            except Exception as e:
+                print(f"Failed to send FCM notification: {e}")
 
         return Response({"Success": "Order status changed successfully."}, status=status.HTTP_200_OK)
 

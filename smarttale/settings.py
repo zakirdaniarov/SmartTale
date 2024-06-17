@@ -15,9 +15,15 @@ from datetime import timedelta
 import os
 
 from decouple import config
+import firebase_admin
+from firebase_admin import credentials
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+SERVICE_ACCOUNT_KEY_PATH = os.path.join(BASE_DIR, 'smarttale', 'serviceAccountKey.json')
+cred = credentials.Certificate(SERVICE_ACCOUNT_KEY_PATH)
+firebase_admin.initialize_app(cred)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
