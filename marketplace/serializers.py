@@ -343,7 +343,6 @@ class OrderListAPI(serializers.ModelSerializer):
             representation.pop('is_finished')
         elif list_type == "marketplace-orders":
             representation.pop('is_booked')
-            representation.pop('is_liked')
             representation.pop('booked_at')
             representation.pop('is_finished')
 
@@ -659,10 +658,11 @@ class MyAdsSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
     type = serializers.SerializerMethodField()
     author = UserProfileAPI(read_only=True)
+    is_liked = serializers.SerializerMethodField()
 
     class Meta:
         model = Order  # Placeholder for dynamic model assignment
-        fields = ['title', 'slug', 'author', 'description', 'type', 'image', 'status', 'price', 'currency']  # Adjust fields as needed
+        fields = ['title', 'slug', 'author', 'description', 'type', 'image', 'status', 'is_liked', 'price', 'currency']  # Adjust fields as needed
 
     def get_image(self, instance):
         image = instance.images.first()
@@ -670,6 +670,13 @@ class MyAdsSerializer(serializers.ModelSerializer):
             return image.images.url
         return 'Images does not exist'
 
+    def get_is_liked(self, instance):
+        user = self.context['request'].user if self.context.get('request') else None
+        if user and not user.is_anonymous:
+            return instance.liked_by.filter(user=user).exists()
+        else:
+            # If user is None or anonymous, set 'is_liked' to False
+            return False
 
     def get_type(self, instance):
         if isinstance(instance, Equipment):

@@ -57,6 +57,7 @@ class UserProfile(models.Model):
     AUTOSLUG_FIELDS = ("last_name", "first_name")
 
     user = models.OneToOneField(User, verbose_name = 'user', related_name = 'user_profile', on_delete = models.CASCADE)
+    device_token = models.CharField(max_length=255, blank=True, null=True)
     first_name = models.CharField(max_length = 50)
     last_name = models.CharField(max_length = 50)
     middle_name = models.CharField(max_length = 50)
