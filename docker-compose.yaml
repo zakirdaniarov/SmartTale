@@ -26,5 +26,20 @@ services:
     depends_on:
       - db2
 
+  daphne:
+    image: ${DJANGO_IMAGE}
+    build: .
+    command: sh -c "daphne -b 0.0.0.0 -p 9000 smarttale.asgi:application"
+    env_file:
+      - .env
+    ports:
+      - 9000:9000
+    depends_on:
+      - db2
+      - redis
+    restart: always
+
+  redis:
+    image: redis:alpine
 volumes:
   postgres:
