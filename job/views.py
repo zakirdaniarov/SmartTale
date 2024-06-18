@@ -13,10 +13,11 @@ from .serializers import (VacancyListSerializer, VacancyDetailSerializer,
                           ResumeListSerializer, ResumeDetailSerializer, VacancyResponseSerializer)
 from .permissions import CurrentUserOrReadOnly, AddVacancyEmployee, IsOrganizationEmployeeReadOnly
 from .services import MyCustomPagination
+from .firebase_config import send_fcm_notification
 
 
 class VacancyListAPIView(views.APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     pagination_class = MyCustomPagination
 
     @swagger_auto_schema(
@@ -111,11 +112,18 @@ class VacancyListAPIView(views.APIView):
         tags=["Vacancy"]
     )
     def get(self, request, *args, **kwargs):
-        job_title = request.query_params.getlist('job_title', None)
+        params = request.query_params.get('params', '').split(',')
+
+        all_job_titles = list(Vacancy.objects.values_list('job_title', flat=True).distinct())
+        all_locations = list(Vacancy.objects.values_list('location', flat=True).distinct())
+        all_schedules = list(Vacancy.objects.values_list('schedule', flat=True).distinct())
+
+        job_title = [param for param in params if param in all_job_titles]
+        location = [param for param in params if param in all_locations]
+        schedule = [param for param in params if param in all_schedules]
+
         organization = request.query_params.get('organization', None)
-        location = request.query_params.getlist('location', None)
         experience = request.query_params.get('experience', None)
-        schedule = request.query_params.getlist('schedule', None)
         currency = request.query_params.get('currency', None)
         min_salary = request.query_params.get('min_salary', None)
         max_salary = request.query_params.get('max_salary', None)
@@ -170,7 +178,7 @@ class VacancyListAPIView(views.APIView):
 
 
 class VacancyDetailAPIView(views.APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     @swagger_auto_schema(
         operation_summary="Детальная страница вакансии",
@@ -335,7 +343,7 @@ class DeleteVacancyAPIView(views.APIView):
 
 
 class VacancySearchAPIView(views.APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     pagination_class = MyCustomPagination
 
     @swagger_auto_schema(
@@ -499,6 +507,17 @@ class AddVacancyResponseAPIVIew(views.APIView):
         if serializer.is_valid():
             applicant = request.user.user_profile
             serializer.save(vacancy=vacancy, applicant=applicant)
+
+            if applicant.device_token:
+                try:
+                    send_fcm_notification(
+                        applicant.device_token,
+                        "",
+                        ""
+                    )
+                except Exception as e:
+                    print(f"Failed to send FCM notification: {e}")
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
