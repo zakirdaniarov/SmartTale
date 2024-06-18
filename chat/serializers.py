@@ -12,9 +12,10 @@ class UserChatSerializer(serializers.ModelSerializer):
                         'profile_image': {'read_only': True}}
 
 class MessageSerializer(serializers.ModelSerializer):
+    sender = UserChatSerializer()
     class Meta:
         model = Message
-        exclude = ('conversation_id',)
+        fields = ['sender', 'text', 'attachment', 'timestamp']
 
 
 class ConversationListSerializer(serializers.ModelSerializer):
