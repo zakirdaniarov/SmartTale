@@ -20,6 +20,19 @@ class JobTitleSerializer(serializers.ModelSerializer):
         job_title = JobTitle.objects.create(org = org, **validated_data)
         return job_title
 
+class MyEmployeeSerializer(serializers.ModelSerializer):
+    organization = serializers.ReadOnlyField(source = 'org.title')
+    job_title = serializers.ReadOnlyField(source = 'job_title.title')
+
+    class Meta:
+        model = Employee
+        fields = ['organization', 'job_title']
+
+class MyOrganizationSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Organization
+        fields = ['title']
 
 class OrganizationMonitoringSerializer(serializers.ModelSerializer):
 
