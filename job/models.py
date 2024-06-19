@@ -83,4 +83,4 @@ class VacancyResponse(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"This response by {self.author.last_name}"
+        return f"This response by {self.applicant.last_name}"
