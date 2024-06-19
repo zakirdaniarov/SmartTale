@@ -33,7 +33,6 @@ class ChatConsumer(WebsocketConsumer):
     def receive(self, text_data=None, bytes_data=None):
         # parse the json data into dictionary object
         text_data_json = json.loads(text_data)
-
         # Send message to room group
         chat_type = {"type": "chat_message"}
         return_dict = {**chat_type, **text_data_json}
