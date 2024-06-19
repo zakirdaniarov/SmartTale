@@ -125,7 +125,6 @@ class VacancyListAPIView(views.APIView):
 
         organization = request.query_params.get('organization', None)
         experience = request.query_params.get('experience', None)
-        currency = request.query_params.get('currency', None)
         min_salary = request.query_params.get('min_salary', None)
         max_salary = request.query_params.get('max_salary', None)
         day = request.query_params.get('day', None)
@@ -147,14 +146,10 @@ class VacancyListAPIView(views.APIView):
             vacancy = vacancy.filter(experience__icontains=experience)
         if schedule:
             vacancy = vacancy.filter(schedule__in=schedule)
-
-        # сортировка по зарплате
-        if currency:
-            vacancy = vacancy.filter(currency__icontains=currency)
-            if min_salary:
-                vacancy = vacancy.filter(min_salary__gte=min_salary)
-            if max_salary:
-                vacancy = vacancy.filter(max_salary__lte=max_salary)
+        if min_salary:
+            vacancy = vacancy.filter(min_salary__gte=min_salary)
+        if max_salary:
+            vacancy = vacancy.filter(max_salary__lte=max_salary)
 
         if day:
             day_ago = timezone.now() - timedelta(days=int(day))
@@ -642,10 +637,17 @@ class ResumeListAPIView(views.APIView):
         tags=["Resume"]
     )
     def get(self, request, *args, **kwargs):
-        job_title = request.query_params.getlist('job_title', None)
+        params = request.query_params.get('params', '').split(',')
+
+        all_job_titles = list(Vacancy.objects.values_list('job_title', flat=True).distinct())
+        all_locations = list(Vacancy.objects.values_list('location', flat=True).distinct())
+        all_schedules = list(Vacancy.objects.values_list('schedule', flat=True).distinct())
+
+        job_title = [param for param in params if param in all_job_titles]
+        location = [param for param in params if param in all_locations]
+        schedule = [param for param in params if param in all_schedules]
+
         experience = request.query_params.get('experience', None)
-        location = request.query_params.getlist('location', None)
-        schedule = request.query_params.getlist('schedule', None)
 
         try:
             resume = Resume.objects.all().order_by('-created_at')
