@@ -1,3 +1,4 @@
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from datetime import timedelta
 
@@ -531,6 +532,7 @@ class VacancyHideAPIView(views.APIView):
                               "скрывать свои вакансии",
         responses={
             200: "Vacancy hidden",
+            400: "Only an employee of a certain position can hide a vacancy",
             404: "Vacancy does not exist",
         },
         tags=["Vacancy"]
@@ -548,16 +550,49 @@ class VacancyHideAPIView(views.APIView):
                 vacancy.hide = True if not vacancy.hide else False
                 vacancy.save()
             else:
-                return Response({"error": "Only the author can hide the vacancy"},
+                return Response({"error": "Only an employee of a certain position can hide a vacancy"},
                         status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"error": "Error when hiding vacancy"},
+            return Response({"error": f"Error when hiding vacancy: {e}"},
                             status=status.HTTP_400_BAD_REQUEST)
 
         if vacancy.hide:
             return Response({"data": "Vacancy hidden"}, status=status.HTTP_200_OK)
         else:
             return Response({"data": "Vacancy is not hidden"}, status=status.HTTP_200_OK)
+
+
+class InviteEmployeeAPIView(views.APIView):
+    permission_classes = [AddVacancyEmployee]
+
+    @swagger_auto_schema(
+        operation_summary="Пригласить сотрудника",
+        operation_description="Этот эндпоинт предостовляет органицазии возможность "
+                              "пригласить сотрудника",
+        responses={
+            200: "Invitation sent",
+            400: "Failed to send FCM notification:",
+            404: "Vacancy does not exist",
+        },
+        tags=["Vacancy"]
+    )
+    def post(self, request, *args, **kwargs):
+        current_org = Organization.objects.filter(owner=request.user.user_profile).first()
+        vacancy_slug = kwargs.get('vacancy_slug')
+        vacancy = get_object_or_404(Vacancy, slug=vacancy_slug, organization=current_org)
+
+        author = request.user.user_profile
+        if author.device_token:
+            try:
+                send_fcm_notification(
+                    author.device_token,
+                    "Invite Employee",
+                    f"Organization {current_org.title} invites you to apply for a position {vacancy.job_title}"
+                )
+            except Exception as e:
+                print(f"Failed to send FCM notification: {e}")
+
+        return Response({"data": "Invitation sent"}, status=status.HTTP_200_OK)
 
 
 class ResumeListAPIView(views.APIView):
