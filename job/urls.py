@@ -17,7 +17,7 @@ urlpatterns = [
     path('vacancy/search/', VacancySearchAPIView.as_view()),
     path('org-vacancy/', VacancyByOrgAPIView.as_view()),
     path('vacancy/hide/<vacancy_slug>/', VacancyHideAPIView.as_view()),
-    path('vacancy-response-list/', VacancyResponseListAPIView.as_view()),
+    path('vacancy-response-list/<slug:vacancy_slug>/', VacancyResponseListAPIView.as_view()),
     path('vacancy-response/<slug:vacancy_slug>/', AddVacancyResponseAPIVIew.as_view()),
     path('vacancy-by-user/', VacancyResponseByUserAPIView.as_view()),
     path('invite-employee/<slug:vacancy_slug>/', InviteEmployeeAPIView.as_view()),
