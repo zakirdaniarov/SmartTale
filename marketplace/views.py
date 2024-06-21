@@ -10,7 +10,8 @@ from job.models import Vacancy, Resume
 from job.serializers import VacancyListSerializer, ResumeListSerializer
 from monitoring.models import Employee
 from .firebase_service import send_fcm_notification
-from .models import Equipment, Order, Reviews, EquipmentCategory, OrderCategory, EquipmentImages, OrderImages
+from .models import Equipment, Order, Reviews, EquipmentCategory, OrderCategory, EquipmentImages, OrderImages, \
+    Notification
 from .models import ServiceCategory, ServiceImages, Service
 from .serializers import *
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -349,7 +350,7 @@ class OrgOrdersListView(BaseOrderListView):
 
 
 class MarketplaceOrdersListView(BaseOrderListView):
-    permission_classes = [CurrentUserOrReadOnly]
+    permission_classes = [AllowAny]
     serializer_class = OrderListAPI
 
     def get_queryset(self):
@@ -870,6 +871,12 @@ class FinishOrderAPIView(APIView):
             except Exception as e:
                 print(f"Failed to send FCM notification: {e}")
 
+        Notification.objects.create(
+            user=founder_or_owner_profile,
+            title="Application Successful",
+            message=f"The order '{order.title}' has been marked as finished."
+        )
+
         return Response({"Message": "Order finished status is changed."}, status=status.HTTP_200_OK)
 
 
@@ -909,6 +916,23 @@ class DeleteOrderAPIView(APIView):
         order.delete()
         return Response({"Message": "Order has been deleted successfully."}, status=status.HTTP_200_OK)
 
+
+class UserNotificationsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="Get user notifications",
+        operation_description="Endpoint to retrieve all notifications for the authenticated user.",
+        responses={
+            200: NotificationSerializer(many=True)
+        },
+        tags=["Notification"]
+    )
+    def get(self, request):
+        user = self.request.user.user_profile
+        notifications = Notification.objects.filter(user=user).order_by('-created_at')
+        serializer = NotificationSerializer(notifications, many=True)
+        return Response(serializer.data)
 
 class ApplyOrderAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -967,6 +991,12 @@ class ApplyOrderAPIView(APIView):
                 )
             except Exception as e:
                 print(f"Failed to send FCM notification: {e}")
+
+        Notification.objects.create(
+            user=author_profile,
+            title="New Order Application",
+            message=f"Your order '{order.title}' has received a new application from {organization.title}."
+        )
 
         return Response({"Success": "Order applied successfully."}, status=status.HTTP_200_OK)
 
@@ -1035,6 +1065,12 @@ class BookOrderAPIView(APIView):
             )
             except Exception as e:
                 print(f"Failed to send FCM notification: {e}")
+
+        Notification.objects.create(
+            user=founder_or_owner_profile,
+            title="Application Successful",
+            message=f"Your application for the order '{order.title}' has been accepted."
+        )
         return Response({"Success": "Order booked successfully."}, status=status.HTTP_200_OK)
 
 
@@ -1129,6 +1165,12 @@ class UpdateOrderStatusAPIView(APIView):
             )
             except Exception as e:
                 print(f"Failed to send FCM notification: {e}")
+
+        Notification.objects.create(
+                user=creator_profile,
+                title="Order Status Updated",
+                message=f"The status of the order '{order.title}' has been updated to '{order_status}'."
+            )
 
         return Response({"Success": "Order status changed successfully."}, status=status.HTTP_200_OK)
 
@@ -1252,7 +1294,7 @@ class OrderAddEmployeeAPIView(APIView):
         user_profile = request.user.user_profile
         try:
             order = Order.objects.get(slug=order_slug)
-            employee = Employee.objects.get(slug=employee_slug)
+            employee = Employee.objects.get(user__slug=employee_slug)
         except (Order.DoesNotExist, Employee.DoesNotExist):
             return Response({"error": "Order or Employee not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1304,7 +1346,7 @@ class OrderRemoveEmployeeAPIView(APIView):
         user_profile = request.user.user_profile
         try:
             order = Order.objects.get(slug=order_slug)
-            employee = Employee.objects.get(slug=employee_slug)
+            employee = Employee.objects.get(user__slug=employee_slug)
         except (Order.DoesNotExist, Employee.DoesNotExist):
             return Response({"error": "Order or Employee not found"}, status=status.HTTP_404_NOT_FOUND)
 
