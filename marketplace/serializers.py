@@ -60,11 +60,12 @@ class OrderDetailAPI(ModelSerializer):
     category_slug = serializers.ReadOnlyField(source='category.slug')
     size = SizeSerializer(read_only=True, many=True)
     type = serializers.SerializerMethodField()
+    is_applied = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
         fields = ['title', 'slug', 'author', 'images', 'type', 'description', 'deadline', 'price',
-                  'currency', 'category_slug', 'phone_number', 'email', 'size', 'hide', 'is_finished']
+                  'currency', 'category_slug', 'phone_number', 'is_applied', 'email', 'size', 'hide', 'is_finished']
 
     def get_type(self, instance):
         if isinstance(instance, Equipment):
@@ -75,6 +76,17 @@ class OrderDetailAPI(ModelSerializer):
             return "Service"
         return None
 
+    def get_is_applied(self, instance):
+        user = self.context['request'].user if self.context.get('request') else None
+        if user and not user.is_anonymous:
+            if Organization.objects.filter(founder=user.user_profile):
+                organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
+                return organization in instance.org_applicants.all()
+            else:
+                # If user is None or anonymous, set 'is_liked' to False
+                return False
+        else:
+            return False
 
     def to_representation(self, instance):
         representation = super().to_representation(instance)
@@ -84,11 +96,13 @@ class OrderDetailAPI(ModelSerializer):
         else:
             # If user is None or anonymous, set 'is_liked' to False
             representation['is_liked'] = False
+
         if not self.context['author']:
             representation.pop('hide')
             representation.pop('is_finished')
         else:
             representation.pop('is_liked')
+            representation.pop('is_applied')
             representation['booked_at'] = instance.booked_at
             representation['created_at'] = instance.created_at
             representation['is_booked'] = instance.is_booked
@@ -276,6 +290,7 @@ class EquipmentCategorySerializer(serializers.ModelSerializer):
 class OrderListAPI(serializers.ModelSerializer):
     author = UserProfileAPI(read_only=True)
     is_liked = serializers.SerializerMethodField()
+    is_applied = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
     category_slug = serializers.ReadOnlyField(source='category.slug')
     type = serializers.SerializerMethodField()
@@ -283,7 +298,7 @@ class OrderListAPI(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ['title', 'slug', 'author', 'currency', 'type', 'category_slug', 'image', 'description',
-                  'price', 'is_liked', 'status', 'deadline', 'finished_at', 'is_booked', 'booked_at', 'is_finished']
+                  'price', 'is_liked', 'is_applied', 'status', 'deadline', 'finished_at', 'is_booked', 'booked_at', 'is_finished']
 
     def get_type(self, instance):
         if isinstance(instance, Equipment):
@@ -301,6 +316,18 @@ class OrderListAPI(serializers.ModelSerializer):
             return instance.liked_by.filter(user=user).exists()
         else:
             # If user is None or anonymous, set 'is_liked' to False
+            return False
+
+    def get_is_applied(self, instance):
+        user = self.context['request'].user if self.context.get('request') else None
+        if user and not user.is_anonymous:
+            if Organization.objects.filter(founder=user.user_profile):
+                organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
+                return organization in instance.org_applicants.all()
+            else:
+                # If user is None or anonymous, set 'is_liked' to False
+                return False
+        else:
             return False
 
     def get_image(self, instance):
