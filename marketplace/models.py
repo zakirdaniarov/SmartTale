@@ -7,6 +7,17 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 CURRENCY = (('Som', 'Som'), ('Ruble', 'Ruble'), ('USD', 'USD'), ('Euro', 'Euro'))
 
 
+class Notification(models.Model):
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    read = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.title}, user: {self.user}"
+
+
 class EquipmentCategory(models.Model):
     title = models.CharField(max_length=60)
     slug = AutoSlugField(populate_from='title', unique=True, always_update=True)

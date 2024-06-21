@@ -1,7 +1,8 @@
 from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
 from authorization.models import UserProfile, Organization
-from .models import Equipment, Order, Reviews, EquipmentCategory, OrderCategory, EquipmentImages, OrderImages
+from .models import Equipment, Order, Reviews, EquipmentCategory, OrderCategory, EquipmentImages, OrderImages, \
+    Notification
 from .models import Service, ServiceCategory, ServiceImages, Size
 
 
@@ -107,6 +108,12 @@ class OrderDetailAPI(ModelSerializer):
             representation['created_at'] = instance.created_at
             representation['is_booked'] = instance.is_booked
         return representation
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = ['id', 'title', 'message', 'created_at', 'read']
 
 
 class ServiceCategoryListAPI(ModelSerializer):
