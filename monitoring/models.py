@@ -34,7 +34,7 @@ class JobTitle(models.Model):
 class Employee(models.Model):
     user = models.ForeignKey(UserProfile, verbose_name = 'user', related_name = 'working_orgs', on_delete = models.CASCADE)
     org = models.ForeignKey(Organization, verbose_name = 'org', related_name = 'employees', on_delete = models.CASCADE)
-    order = models.ManyToManyField(Order, verbose_name = 'order', related_name = 'workers')
+    order = models.ManyToManyField(Order, verbose_name = 'order', related_name = 'workers', blank=True)
     job_title = models.ForeignKey(JobTitle, verbose_name = 'job_title', related_name = 'jt_employees', null = True, blank = True, on_delete = models.SET_NULL)
     status = models.CharField(max_length = 25, choices = STATUS_CHOICES, default = 'Авторизован')
     created_at = models.DateTimeField(auto_now_add = True)

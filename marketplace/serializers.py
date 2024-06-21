@@ -89,7 +89,6 @@ class OrderDetailAPI(ModelSerializer):
             representation.pop('is_finished')
         else:
             representation.pop('is_liked')
-            representation.pop('author')
             representation['booked_at'] = instance.booked_at
             representation['created_at'] = instance.created_at
             representation['is_booked'] = instance.is_booked

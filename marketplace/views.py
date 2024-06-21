@@ -349,7 +349,7 @@ class OrgOrdersListView(BaseOrderListView):
 
 
 class MarketplaceOrdersListView(BaseOrderListView):
-    permission_classes = [CurrentUserOrReadOnly]
+    permission_classes = [AllowAny]
     serializer_class = OrderListAPI
 
     def get_queryset(self):
