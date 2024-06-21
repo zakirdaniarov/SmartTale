@@ -506,11 +506,12 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
     deleted_images = serializers.ListField(
         child=serializers.IntegerField(), write_only=True, required=False
     )
+    is_liked = serializers.SerializerMethodField()
 
     class Meta:
         model = Equipment
         fields = ['title', 'category', 'images', 'uploaded_images', 'deleted_images', 'price', 'currency',
-                  'description', 'phone_number', 'email', 'author', 'hide', 'quantity']
+                  'description', 'phone_number', 'email', 'author', 'hide', 'quantity', 'is_liked']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -526,6 +527,7 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
             self.fields['phone_number'].required = True
             self.fields['email'].required = False
             self.fields['currency'].required = True
+            self.fields['is_liked'].required = False
         else:
             # Fields not required for updating an existing equipment
             self.fields['title'].required = False
@@ -537,6 +539,15 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
             self.fields['phone_number'].required = False
             self.fields['email'].required = False
             self.fields['currency'].required = False
+            self.fields['is_liked'].required = False
+
+    def get_is_liked(self, instance):
+        author = self.context['request'].user if self.context.get('request') else None
+
+        if author and not author.is_anonymous:
+            return instance.liked_by.filter(id=author.id).exists()
+        else:
+            return False
 
     def create(self, validated_data):
         images_data = validated_data.pop('uploaded_images', [])

@@ -34,17 +34,21 @@ SECRET_KEY = config("DJANGO_SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config("DEBUG", cast = bool)
 
-ALLOWED_HOSTS = [
-    '127.0.0.1',
-    '0.0.0.0',
-    'localhost',
-    '128.199.132.166',
-    'helsinki-backender.org.kg',
-]
+# ALLOWED_HOSTS = [
+#     '127.0.0.1',
+#     '0.0.0.0',
+#     'localhost',
+#     '128.199.132.166',
+#     'helsinki-backender.org.kg',
+# ]
 
+ALLOWED_HOSTS = [
+    "*",
+]
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -54,13 +58,14 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'corsheaders',
+    'channels',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'cloudinary',
     'cloudinary_storage',
     'drf_yasg',
     'django_filters',
-    'django_q',
+    # 'django_q',
 
     'authorization',
     'marketplace',
@@ -99,7 +104,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'smarttale.wsgi.application'
-
+ASGI_APPLICATION = 'smarttale.asgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
@@ -114,10 +119,10 @@ if not DEBUG:
             'HOST': config('DB_HOST'),
             'PORT': config('DB_PORT'),
         },
-        'qcluster': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'qcluster.sqlite3',
-        }
+        # 'qcluster': {
+        #     'ENGINE': 'django.db.backends.sqlite3',
+        #     'NAME': BASE_DIR / 'qcluster.sqlite3',
+        # }
         # 'qcluster': {
         #     'ENGINE': 'django.db.backends.postgresql_psycopg2',
         #     'NAME': config('QC_DB_NAME'),
@@ -127,15 +132,28 @@ if not DEBUG:
         #     'PORT': config('DB_PORT'),
         # }
     }
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [(config('BROKER_HOST', default='127.0.0.1'), config('BROKER_PORT', default=6379))],
+            },
+        },
+    }
 else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',
         },
-        'qcluster': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'qcluster.sqlite3',
+        # 'qcluster': {
+        #     'ENGINE': 'django.db.backends.sqlite3',
+        #     'NAME': BASE_DIR / 'qcluster.sqlite3',
+        # }
+    }
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer'
         }
     }
 
@@ -160,16 +178,16 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-Q_CLUSTER = {
-    'name': 'qcluster',
-    'workers': 4,
-    'timeout': 90,
-    'retry': 300,
-    'queue_limit': 50,
-    'bulk': 10,
-    'orm': 'default',
-    'database': 'qcluster',
-}
+# Q_CLUSTER = {
+#     'name': 'qcluster',
+#     'workers': 4,
+#     'timeout': 90,
+#     'retry': 300,
+#     'queue_limit': 50,
+#     'bulk': 10,
+#     'orm': 'default',
+#     'database': 'qcluster',
+# }
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/

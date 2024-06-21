@@ -1,3 +1,4 @@
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from datetime import timedelta
 
@@ -13,10 +14,11 @@ from .serializers import (VacancyListSerializer, VacancyDetailSerializer,
                           ResumeListSerializer, ResumeDetailSerializer, VacancyResponseSerializer)
 from .permissions import CurrentUserOrReadOnly, AddVacancyEmployee, IsOrganizationEmployeeReadOnly
 from .services import MyCustomPagination
+from .firebase_config import send_fcm_notification
 
 
 class VacancyListAPIView(views.APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     pagination_class = MyCustomPagination
 
     @swagger_auto_schema(
@@ -111,12 +113,18 @@ class VacancyListAPIView(views.APIView):
         tags=["Vacancy"]
     )
     def get(self, request, *args, **kwargs):
-        job_title = request.query_params.getlist('job_title', None)
+        params = request.query_params.get('params', '').split(',')
+
+        all_job_titles = list(Vacancy.objects.values_list('job_title', flat=True).distinct())
+        all_locations = list(Vacancy.objects.values_list('location', flat=True).distinct())
+        all_schedules = list(Vacancy.objects.values_list('schedule', flat=True).distinct())
+
+        job_title = [param for param in params if param in all_job_titles]
+        location = [param for param in params if param in all_locations]
+        schedule = [param for param in params if param in all_schedules]
+
         organization = request.query_params.get('organization', None)
-        location = request.query_params.getlist('location', None)
         experience = request.query_params.get('experience', None)
-        schedule = request.query_params.getlist('schedule', None)
-        currency = request.query_params.get('currency', None)
         min_salary = request.query_params.get('min_salary', None)
         max_salary = request.query_params.get('max_salary', None)
         day = request.query_params.get('day', None)
@@ -138,14 +146,10 @@ class VacancyListAPIView(views.APIView):
             vacancy = vacancy.filter(experience__icontains=experience)
         if schedule:
             vacancy = vacancy.filter(schedule__in=schedule)
-
-        # сортировка по зарплате
-        if currency:
-            vacancy = vacancy.filter(currency__icontains=currency)
-            if min_salary:
-                vacancy = vacancy.filter(min_salary__gte=min_salary)
-            if max_salary:
-                vacancy = vacancy.filter(max_salary__lte=max_salary)
+        if min_salary:
+            vacancy = vacancy.filter(min_salary__gte=min_salary)
+        if max_salary:
+            vacancy = vacancy.filter(max_salary__lte=max_salary)
 
         if day:
             day_ago = timezone.now() - timedelta(days=int(day))
@@ -170,7 +174,7 @@ class VacancyListAPIView(views.APIView):
 
 
 class VacancyDetailAPIView(views.APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     @swagger_auto_schema(
         operation_summary="Детальная страница вакансии",
@@ -335,7 +339,7 @@ class DeleteVacancyAPIView(views.APIView):
 
 
 class VacancySearchAPIView(views.APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
     pagination_class = MyCustomPagination
 
     @swagger_auto_schema(
@@ -499,6 +503,17 @@ class AddVacancyResponseAPIVIew(views.APIView):
         if serializer.is_valid():
             applicant = request.user.user_profile
             serializer.save(vacancy=vacancy, applicant=applicant)
+
+            if applicant.device_token:
+                try:
+                    send_fcm_notification(
+                        applicant.device_token,
+                        "",
+                        ""
+                    )
+                except Exception as e:
+                    print(f"Failed to send FCM notification: {e}")
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -512,6 +527,7 @@ class VacancyHideAPIView(views.APIView):
                               "скрывать свои вакансии",
         responses={
             200: "Vacancy hidden",
+            400: "Only an employee of a certain position can hide a vacancy",
             404: "Vacancy does not exist",
         },
         tags=["Vacancy"]
@@ -529,16 +545,49 @@ class VacancyHideAPIView(views.APIView):
                 vacancy.hide = True if not vacancy.hide else False
                 vacancy.save()
             else:
-                return Response({"error": "Only the author can hide the vacancy"},
+                return Response({"error": "Only an employee of a certain position can hide a vacancy"},
                         status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"error": "Error when hiding vacancy"},
+            return Response({"error": f"Error when hiding vacancy: {e}"},
                             status=status.HTTP_400_BAD_REQUEST)
 
         if vacancy.hide:
             return Response({"data": "Vacancy hidden"}, status=status.HTTP_200_OK)
         else:
             return Response({"data": "Vacancy is not hidden"}, status=status.HTTP_200_OK)
+
+
+class InviteEmployeeAPIView(views.APIView):
+    permission_classes = [AddVacancyEmployee]
+
+    @swagger_auto_schema(
+        operation_summary="Пригласить сотрудника",
+        operation_description="Этот эндпоинт предостовляет органицазии возможность "
+                              "пригласить сотрудника",
+        responses={
+            200: "Invitation sent",
+            400: "Failed to send FCM notification:",
+            404: "Vacancy does not exist",
+        },
+        tags=["Vacancy"]
+    )
+    def post(self, request, *args, **kwargs):
+        current_org = Organization.objects.filter(owner=request.user.user_profile).first()
+        vacancy_slug = kwargs.get('vacancy_slug')
+        vacancy = get_object_or_404(Vacancy, slug=vacancy_slug, organization=current_org)
+
+        author = request.user.user_profile
+        if author.device_token:
+            try:
+                send_fcm_notification(
+                    author.device_token,
+                    "Invite Employee",
+                    f"Organization {current_org.title} invites you to apply for a position {vacancy.job_title}"
+                )
+            except Exception as e:
+                print(f"Failed to send FCM notification: {e}")
+
+        return Response({"data": "Invitation sent"}, status=status.HTTP_200_OK)
 
 
 class ResumeListAPIView(views.APIView):
@@ -588,10 +637,17 @@ class ResumeListAPIView(views.APIView):
         tags=["Resume"]
     )
     def get(self, request, *args, **kwargs):
-        job_title = request.query_params.getlist('job_title', None)
+        params = request.query_params.get('params', '').split(',')
+
+        all_job_titles = list(Vacancy.objects.values_list('job_title', flat=True).distinct())
+        all_locations = list(Vacancy.objects.values_list('location', flat=True).distinct())
+        all_schedules = list(Vacancy.objects.values_list('schedule', flat=True).distinct())
+
+        job_title = [param for param in params if param in all_job_titles]
+        location = [param for param in params if param in all_locations]
+        schedule = [param for param in params if param in all_schedules]
+
         experience = request.query_params.get('experience', None)
-        location = request.query_params.getlist('location', None)
-        schedule = request.query_params.getlist('schedule', None)
 
         try:
             resume = Resume.objects.all().order_by('-created_at')

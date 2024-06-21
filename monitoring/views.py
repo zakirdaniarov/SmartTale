@@ -127,7 +127,23 @@ class MyProfileAPIView(APIView):
     def get(self, request, *args, **kwargs):
         user = request.user
         serializer = ProfileDetailSerializer(user.user_profile)
-        return Response(serializer.data, status = status.HTTP_200_OK)
+        sub = user.user_profile.subscription
+        sub_type = user.user_profile.sub_type
+        is_sub = False
+        if sub_type == SUBCRIPTION_CHOICES[2][0] or (sub and sub > dt.datetime.now(dt.timezone.utc)):
+            is_sub = True
+        empl = Employee.objects.filter(user = user.user_profile)
+        emp_serializer = MyEmployeeSerializer(empl, many = True)
+        org = Organization.objects.filter(owner = user.user_profile, active = True).first()
+        org_serializer = MyOrganizationSerializer(org)
+        data = {
+            'profile': serializer.data,
+            'subscription': sub,
+            'is_subbed': is_sub,
+            'job_titles': emp_serializer.data,
+            'org': org_serializer.data,
+        }
+        return Response(data, status = status.HTTP_200_OK)
     
     @swagger_auto_schema(
         tags = ["User"],
