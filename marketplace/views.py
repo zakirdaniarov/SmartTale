@@ -1704,17 +1704,6 @@ class SoldEquipmentAPIView(APIView):
         equipment.quantity -= 1
         equipment.save()
 
-        author = request.user.user_profile
-        if author.device_token:
-            try:
-                send_fcm_notification(
-                    author.device_token,
-                    "Purchase of equipment",
-                    f"User {request.user.user_profile.first_name} bought your equipment: {equipment.title}"
-                )
-            except Exception as e:
-                print(f"Failed to send FCM notification: {e}")
-
         return Response({"data": "Equipment purchased"}, status=status.HTTP_200_OK)
 
 

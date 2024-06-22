@@ -45,11 +45,22 @@ class VacancyListSerializer(serializers.ModelSerializer):
 
 class VacancyDetailSerializer(serializers.ModelSerializer):
     organization = OrganizationSerializer(read_only=True)
+    is_responsed = serializers.SerializerMethodField()
 
     class Meta:
         model = Vacancy
         fields = ['job_title', 'slug', 'min_salary', 'max_salary', 'currency', 'organization',
-                  'location', 'experience', 'schedule', 'description', 'hide']
+                  'location', 'experience', 'schedule', 'description', 'hide', 'is_responsed']
+
+    def get_is_responsed(self, data):
+        applicant = self.context['request'].user if self.context.get('request') else None
+        if applicant:
+            try:
+                user_profile = UserProfile.objects.get(user=applicant)
+            except UserProfile.DoesNotExist:
+                return False
+            return VacancyResponse.objects.filter(vacancy=data, applicant=user_profile).exists()
+        return False
 
     def to_internal_value(self, data):
         if self.instance is None:
@@ -86,7 +97,8 @@ class ResumeListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Resume
-        fields = ['job_title', 'slug', 'author', 'experience', 'updated_at']
+        fields = ['job_title', 'slug', 'author', 'min_salary', 'max_salary', 'currency',
+                  'location', 'experience', 'updated_at']
 
 
 class ResumeDetailSerializer(serializers.ModelSerializer):

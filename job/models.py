@@ -78,9 +78,9 @@ class Resume(models.Model):
 
 class VacancyResponse(models.Model):
     vacancy = models.ForeignKey(Vacancy, on_delete=models.CASCADE)
-    applicant = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    applicant = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='app_response')
     cover_letter = models.TextField(max_length=1000)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"This response by {self.applicant.last_name}"
+        return f"This response by {self.applicant.last_name}, for {self.vacancy.slug}"
