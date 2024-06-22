@@ -154,7 +154,7 @@ class VacancyListAPIView(views.APIView):
 
 
 class VacancyDetailAPIView(views.APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.AllowAny]
 
     @swagger_auto_schema(
         operation_summary="Детальная страница вакансии",
