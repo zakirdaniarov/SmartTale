@@ -651,23 +651,29 @@ class EmployeeOrdersAPIView(APIView):
         }
     )
     def get(self, request, employee_slug, *args, **kwargs):
-        stage = self.request.query_params.get('stage')
+        user = request.user
+        cur_org = Organization.objects.filter(founder = user.user_profile, active = True).first()
+        if not cur_org:
+            employee = Employee.objects.filter(user = user.user_profile).first()
+            if not employee:
+                return Response({"Error": "Вы не состоите ни в одной организации!"}, status = status.HTTP_403_FORBIDDEN)
+            cur_org = employee.org
         try:
-            user = UserProfile.objects.get(slug = employee_slug)
+            target_user = UserProfile.objects.get(slug = employee_slug)
         except Exception:
             return Response({"Error.": "Пользователь не найден."}, status = status.HTTP_404_NOT_FOUND)
-        try:
-            user = Employee.objects.get(user = user)
-        except Exception:
-            return Response({"Error.": "Пользователь не является сотрудником какой-либо компании."}, status = status.HTTP_404_NOT_FOUND)
+        target_user = Employee.objects.filter(user = target_user, org = cur_org).first()
+        if not target_user:
+            return Response({"Error.": "Нет такого сотрудника в Вашей активной организации"}, status = status.HTTP_403_FORBIDDEN)
+        stage = self.request.query_params.get('stage')
         if stage == 'active':
-            orders = user.order.filter(is_finished=False).order_by('booked_at')
+            orders = target_user.order.filter(is_finished=False).order_by('booked_at')
             list_type = "my-history-orders-active"
         elif stage == 'finished':
-            orders = user.order.filter(is_finished=True).order_by('booked_at')
+            orders = target_user.order.filter(is_finished=True).order_by('booked_at')
             list_type = "my-history-orders-finished"
         else:
-            orders = user.order.all().order_by('booked_at')
+            orders = target_user.order.all().order_by('booked_at')
             list_type = None
         order_queryset = self.filter_queryset_by_search(orders)
         paginated_data = get_paginated_data(order_queryset, request, list_type)

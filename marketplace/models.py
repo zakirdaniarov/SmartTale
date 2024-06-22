@@ -124,7 +124,7 @@ class Order(models.Model):
     status = models.CharField(max_length=20, choices=STATUS, default='Waiting')
     liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_orders')
     author = models.ForeignKey(UserProfile, related_name='order_ads', on_delete=models.CASCADE)
-    org_work = models.ForeignKey(Organization, related_name='received_orders', blank=True, null=True, on_delete=models.DO_NOTHING)
+    org_work = models.ForeignKey(Organization, related_name='received_orders', blank=True, null=True, on_delete=models.SET_NULL)
     org_applicants = models.ManyToManyField(Organization, related_name='applied_orders', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     booked_at = models.DateTimeField(blank=True, null=True)
