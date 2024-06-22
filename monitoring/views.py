@@ -415,7 +415,7 @@ class JobTitleAPIView(APIView):
             org = Organization.objects.filter(founder = user.user_profile, active = True).first()
         else:
             employee = Employee.objects.filter(user = user.user_profile).first()
-            if not employee or not employee.job_title or not employee.job_title.flag_update_access:
+            if not employee or not employee.job_title or not employee.job_title.flag_create_jobtitle:
                 return Response({"Error": "У Вас нет прав на изменение прав должностей!"}, status = status.HTTP_403_FORBIDDEN)
             org = employee.org     
         try:
@@ -467,6 +467,9 @@ def sort_for_jobs(item):
     result += item.flag_update_order
     result += item.flag_delete_order
     result += item.flag_remove_employee
+    result += item.flag_change_employee_job
+    result += item.flag_create_vacancy
+    result += item.flag_employee_detail_access
     return result
 
 class JobTitleListAPIView(APIView):
@@ -565,8 +568,8 @@ class EmployeeDetailAPIView(APIView):
         cur_org = Organization.objects.filter(founder = user.user_profile, active = True).first()
         if not cur_org:
             employee = Employee.objects.filter(user = user.user_profile).first()
-            if not employee or not employee.job_title or not employee.job_title.flag_remove_employee:
-                return Response({"Error": "У Вас нет прав на удаление сотрудников!"}, status = status.HTTP_403_FORBIDDEN)
+            if not employee or not employee.job_title or not employee.job_title.flag_change_employee_job:
+                return Response({"Error": "У Вас нет прав на изменение сотрудников!"}, status = status.HTTP_403_FORBIDDEN)
             cur_org = employee.org
         jt_slug = request.data['jt_slug']
         try:
@@ -651,29 +654,23 @@ class EmployeeOrdersAPIView(APIView):
         }
     )
     def get(self, request, employee_slug, *args, **kwargs):
-        user = request.user
-        cur_org = Organization.objects.filter(founder = user.user_profile, active = True).first()
-        if not cur_org:
-            employee = Employee.objects.filter(user = user.user_profile).first()
-            if not employee:
-                return Response({"Error": "Вы не состоите ни в одной организации!"}, status = status.HTTP_403_FORBIDDEN)
-            cur_org = employee.org
+        stage = self.request.query_params.get('stage')
         try:
-            target_user = UserProfile.objects.get(slug = employee_slug)
+            user = UserProfile.objects.get(slug = employee_slug)
         except Exception:
             return Response({"Error.": "Пользователь не найден."}, status = status.HTTP_404_NOT_FOUND)
-        target_user = Employee.objects.filter(user = target_user, org = cur_org).first()
-        if not target_user:
-            return Response({"Error.": "Нет такого сотрудника в Вашей активной организации"}, status = status.HTTP_403_FORBIDDEN)
-        stage = self.request.query_params.get('stage')
+        try:
+            user = Employee.objects.get(user = user)
+        except Exception:
+            return Response({"Error.": "Пользователь не является сотрудником какой-либо компании."}, status = status.HTTP_404_NOT_FOUND)
         if stage == 'active':
-            orders = target_user.order.filter(is_finished=False).order_by('booked_at')
+            orders = user.order.filter(is_finished=False).order_by('booked_at')
             list_type = "my-history-orders-active"
         elif stage == 'finished':
-            orders = target_user.order.filter(is_finished=True).order_by('booked_at')
+            orders = user.order.filter(is_finished=True).order_by('booked_at')
             list_type = "my-history-orders-finished"
         else:
-            orders = target_user.order.all().order_by('booked_at')
+            orders = user.order.all().order_by('booked_at')
             list_type = None
         order_queryset = self.filter_queryset_by_search(orders)
         paginated_data = get_paginated_data(order_queryset, request, list_type)

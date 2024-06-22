@@ -24,6 +24,9 @@ class JobTitle(models.Model):
     flag_update_order = models.BooleanField(default = False)
     flag_delete_order = models.BooleanField(default = False)
     flag_remove_employee = models.BooleanField(default = False)
+    flag_employee_detail_access = models.BooleanField(default = False)
+    flag_create_vacancy = models.BooleanField(default = False)
+    flag_change_employee_job = models.BooleanField(default = False)
 
     def __str__(self):
         return "{}-{}-{}".format(self.org.title, self.title, self.slug)

@@ -12,7 +12,8 @@ class JobTitleSerializer(serializers.ModelSerializer):
         fields = ['title', 'description', 'slug', 'flag_create_jobtitle',
                   'flag_remove_jobtitle', 'flag_update_access',
                   'flag_add_employee', 'flag_remove_employee',
-                  'flag_update_order', 'flag_delete_order']
+                  'flag_update_order', 'flag_delete_order', 'flag_employee_detail_access',
+                  'flag_create_vacancy', 'flag_change_employee_job']
         read_only_fields = ('slug',)
 
     def create(self, validated_data):
@@ -31,13 +32,17 @@ class MyEmployeeSerializer(serializers.ModelSerializer):
     flag_remove_employee = serializers.ReadOnlyField(source = 'job_title.flag_remove_employee')
     flag_update_order = serializers.ReadOnlyField(source = 'job_title.flag_update_order')
     flag_delete_order = serializers.ReadOnlyField(source = 'job_title.flag_delete_order')
+    flag_employee_detail_access = serializers.ReadOnlyField(source = 'job_title.flag_employee_detail_access')
+    flag_create_vacancy = serializers.ReadOnlyField(source = 'job_title.flag_create_vacancy')
+    flag_change_employee_job = serializers.ReadOnlyField(source = 'job_title.flag_change_employee_job')
 
     class Meta:
         model = Employee
         fields = ['organization', 'job_title', 'flag_create_jobtitle',
                   'flag_remove_jobtitle', 'flag_update_access',
                   'flag_add_employee', 'flag_remove_employee',
-                  'flag_update_order', 'flag_delete_order']
+                  'flag_update_order', 'flag_delete_order', 'flag_employee_detail_access',
+                  'flag_create_vacancy', 'flag_change_employee_job']
 
 class MyOrganizationSerializer(serializers.ModelSerializer):
 
@@ -146,6 +151,9 @@ class EmployeeDetailSerializer(serializers.ModelSerializer):
     flag_remove_employee = serializers.ReadOnlyField(source = 'job_title.flag_remove_employee')
     flag_update_order = serializers.ReadOnlyField(source = 'job_title.flag_update_order')
     flag_delete_order = serializers.ReadOnlyField(source = 'job_title.flag_delete_order')
+    flag_employee_detail_access = serializers.ReadOnlyField(source = 'job_title.flag_employee_detail_access')
+    flag_create_vacancy = serializers.ReadOnlyField(source = 'job_title.flag_create_vacancy')
+    flag_change_employee_job = serializers.ReadOnlyField(source = 'job_title.flag_change_employee_job')
 
     class Meta:
         model = Employee
@@ -153,7 +161,8 @@ class EmployeeDetailSerializer(serializers.ModelSerializer):
                   'job_title', 'flag_create_jobtitle',
                   'flag_remove_jobtitle', 'flag_update_access',
                   'flag_add_employee', 'flag_remove_employee',
-                  'flag_update_order', 'flag_delete_order']
+                  'flag_update_order', 'flag_delete_order', 'flag_employee_detail_access',
+                  'flag_create_vacancy', 'flag_change_employee_job']
         
 # For openapi
 class EmployeeCreateSerializer(serializers.Serializer):
