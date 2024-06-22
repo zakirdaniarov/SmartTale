@@ -32,8 +32,8 @@ class JwtAuthMiddleware(BaseMiddleware):
         close_old_connections()
 
         # Get the token
-        
-        token = dict(scope['headers'])["token"]
+        print(dict(scope['headers']))
+        token = dict(scope['headers'])["token".encode('utf-8')].decode('utf-8')
 
         # Try to authenticate the user
         try:
