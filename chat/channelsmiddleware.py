@@ -33,7 +33,7 @@ class JwtAuthMiddleware(BaseMiddleware):
 
         # Get the token
         
-        token = dict(scope['headers'])["token".encode('utf8')].decode('utf8')
+        token = dict(scope['headers'])["token"]
 
         # Try to authenticate the user
         try:
