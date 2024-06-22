@@ -1824,7 +1824,7 @@ class MyAdsListAPIView(APIView):
 
 
 class SearchAdsAPIView(APIView):
-    permission_classes = [CurrentUserOrReadOnly]
+    permission_classes = [AllowAny]
 
     def get_search_query(self):
         return self.request.query_params.get('title', '')
