@@ -134,6 +134,7 @@ class EmployeeDetailSerializer(serializers.ModelSerializer):
     first_name = serializers.ReadOnlyField(source = 'user.first_name')
     last_name = serializers.ReadOnlyField(source = 'user.last_name')
     middle_name = serializers.ReadOnlyField(source = 'user.middle_name')
+    profile_image = serializers.ReadOnlyField(source = 'user.profile_image')
     email = serializers.ReadOnlyField(source = 'user.user.email')
     user_slug = serializers.ReadOnlyField(source = 'user.slug')
     phone_number = serializers.ReadOnlyField(source = 'user.phone_number')
@@ -148,7 +149,7 @@ class EmployeeDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Employee
-        fields = ['first_name', 'last_name', 'middle_name', 'email', 'phone_number', 'user_slug',
+        fields = ['first_name', 'last_name', 'middle_name', 'profile_image', 'email', 'phone_number', 'user_slug',
                   'job_title', 'flag_create_jobtitle',
                   'flag_remove_jobtitle', 'flag_update_access',
                   'flag_add_employee', 'flag_remove_employee',
