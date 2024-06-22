@@ -1542,6 +1542,8 @@ class EquipmentModalPageAPIView(APIView):
 
 
 class EquipmentDetailPageAPIView(APIView):
+    permission_classes = [AllowAny]
+
     @swagger_auto_schema(
         tags=['Equipment'],
         operation_description="Этот эндпоинт"
@@ -1559,7 +1561,7 @@ class EquipmentDetailPageAPIView(APIView):
             equipment = Equipment.objects.get(slug=kwargs['equipment_slug'])
         except Equipment.DoesNotExist:
             return Response({"error": "Equipment does not exist"}, status=status.HTTP_404_NOT_FOUND)
-        equipment_serializer = EquipmentDetailSerializer(equipment)
+        equipment_serializer = EquipmentDetailSerializer(equipment, context={'request': request})
         content = {"data": equipment_serializer.data}
         return Response(content, status=status.HTTP_200_OK)
 
@@ -1591,15 +1593,17 @@ class EquipmentLikeAPIView(APIView):
         if author in equipment.liked_by.all():
             try:
                 equipment.liked_by.remove(author)
+                equipment.save()
             except Exception as e:
-                return Response({"error": "Error when removing like"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": f"Error when removing like {e}"}, status=status.HTTP_400_BAD_REQUEST)
             return Response({"data": "Equipment's favourite status is remove successfully."},
                             status=status.HTTP_200_OK)
         else:
             try:
                 equipment.liked_by.add(author)
+                equipment.save()
             except Exception as e:
-                return Response({"error": "Error when adding like"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": f"Error when adding like {e}"}, status=status.HTTP_400_BAD_REQUEST)
             return Response({"data": "Equipment's favourite status is add successfully."},
                             status=status.HTTP_200_OK)
 

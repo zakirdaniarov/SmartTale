@@ -54,13 +54,20 @@ class VacancyDetailSerializer(serializers.ModelSerializer):
 
     def get_is_responsed(self, data):
         applicant = self.context['request'].user if self.context.get('request') else None
-        if applicant:
+        if applicant and not applicant.is_anonymous:
             try:
                 user_profile = UserProfile.objects.get(user=applicant)
             except UserProfile.DoesNotExist:
                 return False
             return VacancyResponse.objects.filter(vacancy=data, applicant=user_profile).exists()
         return False
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user.is_anonymous:
+            representation.pop('is_responsed', None)
+        return representation
 
     def to_internal_value(self, data):
         if self.instance is None:

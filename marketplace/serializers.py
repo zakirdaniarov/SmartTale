@@ -544,7 +544,7 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Equipment
-        fields = ['title', 'category', 'images', 'uploaded_images', 'deleted_images', 'price', 'currency',
+        fields = ['title', 'slug', 'category', 'images', 'uploaded_images', 'deleted_images', 'price', 'currency',
                   'description', 'phone_number', 'email', 'author', 'hide', 'quantity', 'is_liked']
 
     def __init__(self, *args, **kwargs):
@@ -561,6 +561,7 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
             self.fields['phone_number'].required = True
             self.fields['email'].required = False
             self.fields['currency'].required = True
+            self.fields['quantity'].required = True
             self.fields['is_liked'].required = False
         else:
             # Fields not required for updating an existing equipment
@@ -573,6 +574,7 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
             self.fields['phone_number'].required = False
             self.fields['email'].required = False
             self.fields['currency'].required = False
+            self.fields['quantity'].required = False
             self.fields['is_liked'].required = False
 
     def get_is_liked(self, instance):
@@ -582,6 +584,13 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
             return instance.liked_by.filter(id=author.id).exists()
         else:
             return False
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user.is_anonymous:
+            representation.pop('is_liked', None)
+        return representation
 
     def create(self, validated_data):
         images_data = validated_data.pop('uploaded_images', [])
