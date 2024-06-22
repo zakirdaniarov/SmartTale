@@ -23,6 +23,7 @@ class JobTitleSerializer(serializers.ModelSerializer):
 class MyEmployeeSerializer(serializers.ModelSerializer):
     organization = serializers.ReadOnlyField(source = 'org.title')
     job_title = serializers.ReadOnlyField(source = 'job_title.title')
+    job_title = serializers.ReadOnlyField(source = 'job_title.slug')
     flag_create_jobtitle = serializers.ReadOnlyField(source = 'job_title.flag_create_jobtitle')
     flag_remove_jobtitle = serializers.ReadOnlyField(source = 'job_title.flag_remove_jobtitle')
     flag_update_access = serializers.ReadOnlyField(source = 'job_title.flag_update_access')
@@ -42,7 +43,7 @@ class MyOrganizationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Organization
-        fields = ['title']
+        fields = ['title', 'slug']
 
 class OrganizationMonitoringSerializer(serializers.ModelSerializer):
 

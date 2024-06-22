@@ -8,7 +8,8 @@ from rest_framework import views, status, permissions
 from rest_framework.response import Response
 from django.db.models import Q
 
-from authorization.models import Organization
+from authorization.models import Organization, UserProfile
+from monitoring.models import Employee
 from .models import Vacancy, Resume, VacancyResponse
 from .serializers import (VacancyListSerializer, VacancyDetailSerializer,
                           ResumeListSerializer, ResumeDetailSerializer, VacancyResponseSerializer)
@@ -29,9 +30,9 @@ class VacancyListAPIView(views.APIView):
                               "за последние сутки, неделю, месяц, по организации",
         manual_parameters=[
             openapi.Parameter(
-                "job_title",
+                "params",
                 openapi.IN_QUERY,
-                description="Фильтрация по должности",
+                description="Фильтрация по должности, по местоположении, по графику работы",
                 type=openapi.TYPE_STRING,
                 required=False,
             ),
@@ -46,27 +47,6 @@ class VacancyListAPIView(views.APIView):
                 "experience",
                 openapi.IN_QUERY,
                 description="Фильтрация по опыту работы",
-                type=openapi.TYPE_STRING,
-                required=False,
-            ),
-            openapi.Parameter(
-                "location",
-                openapi.IN_QUERY,
-                description="Фильтрация по местоположении",
-                type=openapi.TYPE_STRING,
-                required=False,
-            ),
-            openapi.Parameter(
-                "schedule",
-                openapi.IN_QUERY,
-                description="Фильтрация по графику работы",
-                type=openapi.TYPE_STRING,
-                required=False,
-            ),
-            openapi.Parameter(
-                "currency",
-                openapi.IN_QUERY,
-                description="Фильтрация по валюте",
                 type=openapi.TYPE_STRING,
                 required=False,
             ),
@@ -174,7 +154,7 @@ class VacancyListAPIView(views.APIView):
 
 
 class VacancyDetailAPIView(views.APIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
 
     @swagger_auto_schema(
         operation_summary="Детальная страница вакансии",
@@ -192,7 +172,7 @@ class VacancyDetailAPIView(views.APIView):
         except Resume.DoesNotExist:
             return Response({"error": "Vacancy does not exist"}, status=status.HTTP_404_NOT_FOUND)
 
-        serializer = VacancyDetailSerializer(vacancy)
+        serializer = VacancyDetailSerializer(vacancy, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -317,8 +297,7 @@ class DeleteVacancyAPIView(views.APIView):
         ),
         responses={
             200: "Successfully deleted",
-            400: "Bad Request",
-            403: "Only organization that added it can delete",
+            400: "Only organization that added it can delete",
             404: "Vacancy does not exist"
         },
         tags=["Vacancy"]
@@ -429,10 +408,13 @@ class VacancyResponseListAPIView(views.APIView):
         tags=["Vacancy"]
     )
     def get(self, request, *args, **kwargs):
-        vacancy_slug = request.query_params.get('slug', None)
+        try:
+            vacancy = Vacancy.objects.get(slug=kwargs['vacancy_slug'])
+        except Vacancy.DoesNotExist:
+            return Response({"error": "Vacancy does not exist"}, status=status.HTTP_404_NOT_FOUND)
 
-        if vacancy_slug is not None:
-            vacancy_response = VacancyResponse.objects.filter(vacancy__slug=vacancy_slug).order_by('-created_at')
+        if vacancy is not None:
+            vacancy_response = VacancyResponse.objects.filter(vacancy=vacancy).order_by('-created_at')
         if not vacancy_response.exists():
             return Response({"error": "No responses found for the given vacancy"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -499,20 +481,30 @@ class AddVacancyResponseAPIVIew(views.APIView):
         except Vacancy.DoesNotExist:
             return Response({"error": "Vacancy does not exist"}, status=status.HTTP_404_NOT_FOUND)
 
+        user = request.user
+        try:
+            applicant = UserProfile.objects.get(user=user)
+        except UserProfile.DoesNotExist:
+            return Response({"error": "User profile not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        organization = vacancy.organization
+
+        if organization.founder == applicant or organization.owner == applicant:
+            return Response({"error": "You can't respond to vacancies posted by your own organization"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        if Employee.objects.filter(user=applicant, org=organization).exists():
+            return Response({"error": "You can't respond to vacancies posted by your own organization"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        if VacancyResponse.objects.filter(vacancy=vacancy, applicant=applicant).exists():
+            return Response({"error": "You have already applied for this vacancy"},
+                            status=status.HTTP_400_BAD_REQUEST)
+
         serializer = VacancyResponseSerializer(data=request.data)
         if serializer.is_valid():
             applicant = request.user.user_profile
             serializer.save(vacancy=vacancy, applicant=applicant)
-
-            if applicant.device_token:
-                try:
-                    send_fcm_notification(
-                        applicant.device_token,
-                        "",
-                        ""
-                    )
-                except Exception as e:
-                    print(f"Failed to send FCM notification: {e}")
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

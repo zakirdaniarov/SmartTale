@@ -77,13 +77,11 @@ class LoginAPIView(APIView):
         if not user.check_password(password):
             return Response({"Error": "Неправильный пароль!"}, status = status.HTTP_400_BAD_REQUEST)
         tokens = get_tokens_for_user(user)
-        sub = user.user_profile.subscription
-        is_sub = True if user.user_profile.subscription else False
+        slug = user.user_profile.slug
         return_data = {
             'access': tokens['access'],
             'refresh': tokens['refresh'],
-            'data': {"subscription": sub,
-                     "is subscribed": is_sub},
+            'data': {'slug': slug},
         }
         return Response(return_data, status = status.HTTP_200_OK)
         
