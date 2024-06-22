@@ -676,7 +676,68 @@ class EmployeeOrdersAPIView(APIView):
         paginated_data = get_paginated_data(order_queryset, request, list_type)
         return Response(paginated_data, status=status.HTTP_200_OK)
 
-    
+
+class OrderEmployeesAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags=["Order"],
+        operation_summary="List employees for a specific order",
+        operation_description="Get a list of employees working on a specific order by order slug.",
+        manual_parameters=[
+            openapi.Parameter(
+                "order_slug",
+                openapi.IN_PATH,
+                type=openapi.TYPE_STRING,
+                required=True,
+                description="Slug of the order"
+            )
+        ],
+        responses={
+            200: openapi.Response(
+                description="List of employees",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_ARRAY,
+                    items=openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            "user_profile": openapi.Schema(type=openapi.TYPE_STRING),
+                            "job_title": openapi.Schema(type=openapi.TYPE_STRING),
+                            "status": openapi.Schema(type=openapi.TYPE_STRING),
+                            "created_at": openapi.Schema(type=openapi.TYPE_STRING),
+                        }
+                    )
+                )
+            ),
+            404: "Not found",
+        }
+    )
+    def get(self, request, order_slug, *args, **kwargs):
+        try:
+            order = Order.objects.get(slug=order_slug)
+        except Order.DoesNotExist:
+            return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+        user = request.user
+        cur_org = Organization.objects.filter(founder = user.user_profile, active = True).first()
+        if not cur_org:
+            employee = Employee.objects.filter(user=user.user_profile).first()
+            if not employee:
+                return Response({"Error": "Вы не состоите ни в одной организации!"}, status = status.HTTP_403_FORBIDDEN)
+            cur_org = employee.org
+        if cur_org != order.org_work:
+            return Response({"Error": "You don't have access for this page"}, status = status.HTTP_403_FORBIDDEN)
+        employees = order.workers.all()
+        employees_data = []
+        for employee in employees:
+            employees_data.append({
+                "user_profile": employee.user.slug,
+                "job_title": employee.job_title.name if employee.job_title else None,
+                "status": employee.status
+            })
+
+        return Response(employees_data, status=status.HTTP_200_OK)
+
+
 class EmployeeCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
