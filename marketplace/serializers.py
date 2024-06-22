@@ -22,7 +22,7 @@ class UserProfileAPI(ModelSerializer):
 
     class Meta:
         model = UserProfile
-        fields = ['slug', 'first_name', 'last_name', 'profile_image']
+        fields = ['slug', 'first_name', 'last_name', 'profile_image', 'phone_number']
 
 
 class OrgAPI(ModelSerializer):
@@ -65,7 +65,7 @@ class OrderDetailAPI(ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['title', 'slug', 'author', 'images', 'type', 'description', 'deadline', 'price',
+        fields = ['title', 'slug', 'author', 'images', 'type', 'description', 'deadline', 'price', 'org_work'
                   'currency', 'category_slug', 'phone_number', 'is_applied', 'email', 'size', 'hide', 'is_finished']
 
     def get_type(self, instance):
@@ -100,6 +100,7 @@ class OrderDetailAPI(ModelSerializer):
 
         if not self.context['author']:
             representation.pop('hide')
+            representation.pop('org_work')
             representation.pop('is_finished')
         else:
             representation.pop('is_liked')
@@ -361,7 +362,7 @@ class OrderListAPI(serializers.ModelSerializer):
             representation.pop('booked_at')
             representation.pop('is_finished')
         elif list_type in ["my-history-orders-active", "my-history-orders-finished"]:
-            representation.pop('author')
+            #representation.pop('author')
             representation.pop('image')
             representation.pop('description')
             representation.pop('is_booked')

@@ -980,6 +980,11 @@ class ApplyOrderAPIView(APIView):
         order.org_applicants.add(organization)
         order.save()
 
+        fcm_token = request.data.get('fcm_token')
+        if fcm_token:
+            user.user_profile.device_token = fcm_token
+            user.user_profile.save()
+
         author_profile = order.author
         if author_profile.device_token:
             print(author_profile.device_token)
@@ -1823,7 +1828,7 @@ class MyAdsListAPIView(APIView):
 
 
 class SearchAdsAPIView(APIView):
-    permission_classes = [CurrentUserOrReadOnly]
+    permission_classes = [AllowAny]
 
     def get_search_query(self):
         return self.request.query_params.get('title', '')
