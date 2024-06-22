@@ -40,6 +40,7 @@ class Employee(models.Model):
     order = models.ManyToManyField(Order, verbose_name = 'order', related_name = 'workers', blank=True)
     job_title = models.ForeignKey(JobTitle, verbose_name = 'job_title', related_name = 'jt_employees', null = True, blank = True, on_delete = models.SET_NULL)
     status = models.CharField(max_length = 25, choices = STATUS_CHOICES, default = 'Авторизован')
+    active = models.BooleanField(default = False)
     created_at = models.DateTimeField(auto_now_add = True)
 
     def __str__(self):
