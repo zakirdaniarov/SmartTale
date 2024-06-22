@@ -980,6 +980,11 @@ class ApplyOrderAPIView(APIView):
         order.org_applicants.add(organization)
         order.save()
 
+        fcm_token = request.data.get('fcm_token')
+        if fcm_token:
+            user.user_profile.device_token = fcm_token
+            user.user_profile.save()
+
         author_profile = order.author
         if author_profile.device_token:
             print(author_profile.device_token)
