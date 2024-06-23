@@ -44,4 +44,5 @@ urlpatterns = [
     path('', include('monitoring.urls')),
     path('', include('job.urls')),
     path('', include('chat.urls')),
+    path('', include('notif.urls')),
 ]
