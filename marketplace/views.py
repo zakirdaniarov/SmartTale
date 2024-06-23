@@ -1474,8 +1474,7 @@ class ChangeEquipmentAPIView(APIView):
                                                          context={'request': request})
 
         if equipment_serializer.is_valid():
-            author = request.user.user_profile
-            equipment_serializer.save(author=author)
+            equipment_serializer.save()
             return Response(equipment_serializer.data, status=status.HTTP_200_OK)
         return Response(equipment_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1501,12 +1500,10 @@ class DeleteEquipmentAPIView(APIView):
         except Equipment.DoesNotExist:
             return Response({"error": "Equipment does not exist"}, status=status.HTTP_404_NOT_FOUND)
 
-        author = request.user.user_profile
+        if request.user.user_profile != equipment.author:
+            return Response({"error": "Only the author can delete"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if author == "equipment_ads":
-            equipment.delete()
-        else:
-            return Response({"error": "Only the author can delete"})
+        equipment.delete()
         return Response({"data": "Successfully deleted"}, status=status.HTTP_200_OK)
 
 

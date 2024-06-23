@@ -25,8 +25,8 @@ class VacancyListAPIView(views.APIView):
     @swagger_auto_schema(
         operation_summary="Список всех вакансий",
         operation_description="Этот эндпоинт предоставляет пользователю возможность посмотреть все вакансии,"
-                              "а также отфилтровать вакансии "
-                              "по должности, опыту работы, по локации, по валюте, по зарплате "
+                              "а также отфильтровать вакансии "
+                              "по должности, опыту работы, по локации, по зарплате "
                               "за последние сутки, неделю, месяц, по организации",
         manual_parameters=[
             openapi.Parameter(
@@ -224,8 +224,8 @@ class ChangeVacancyAPIView(views.APIView):
 
     @swagger_auto_schema(
         operation_summary="Изменение вакансии",
-        operation_description="Этот эндпоинт предостовляет пользователю "
-                              "состоящий в организации возможность изменять вакансию",
+        operation_description="Этот эндпоинт предостовляет возможность пользователю состоящий в организации, "
+                              "и у которого есть права на добавление вакансии изменять вакансию",
         manual_parameters=[
             openapi.Parameter(
                 "vacancy_slug",
