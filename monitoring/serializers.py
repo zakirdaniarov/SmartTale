@@ -122,6 +122,14 @@ class OrderTitleSerializer(serializers.ModelSerializer):
         model = Order
         fields = ['title', 'slug']
 
+class InvitesSerializer(serializers.ModelSerializer):
+    org = OrganizationDetailSerializer()
+    job_title = JobTitleSerializer()
+
+    class Meta:
+        model = Employee
+        fields = ('org', 'job_title')
+
 class EmployeeListSerializer(serializers.ModelSerializer):
     first_name = serializers.ReadOnlyField(source = 'user.first_name')
     last_name = serializers.ReadOnlyField(source = 'user.last_name')

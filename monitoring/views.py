@@ -786,7 +786,7 @@ class EmployeeCreateAPIView(APIView):
             target_user = UserProfile.objects.get(user = target_user)
         except Exception:
             return Response({"Error": "Нет существует такого пользователя!"}, status = status.HTTP_404_NOT_FOUND)
-        if Employee.objects.filter(user = target_user).first():
+        if Employee.objects.filter(user = target_user, status = STATUS_CHOICES[0][0]).first():
             return Response({"Error": "Пользователь уже состоит в организации!"}, status = status.HTTP_400_BAD_REQUEST)
         try:
             org = Organization.objects.get(slug = org_slug)
@@ -798,8 +798,87 @@ class EmployeeCreateAPIView(APIView):
             job = JobTitle.objects.get(slug = jt_slug)
         except Exception:
             return Response({"Error": "Нет существует такой должности!"}, status = status.HTTP_404_NOT_FOUND)
-        Employee.objects.create(user = target_user, org = org, job_title = job)
-        return Response({"Success": "Сотрудник добавлен"}, status = status.HTTP_201_CREATED)
+        Employee.objects.create(user = target_user, org = org, job_title = job, status = STATUS_CHOICES[1][0])
+        return Response({"Success": "Приглашение отправлено"}, status = status.HTTP_201_CREATED)
+
+class EmployeeApplyAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags = ["Organization"],
+        operation_summary = "Принятие приглашения в организаци.",
+        operation_description = "Предоставляет доступ к принятию приглашения в организацию.",
+        request_body = EmployeeExitSerializer,
+        responses = {
+            200: "Success",
+            400: "Bad data",
+            404: "No such organization",
+        }
+    )
+    def put(self, request, *args, **kwargs):
+        user = request.user
+        org_slug = request.data['org_slug']
+        try:
+            org = Organization.objects.get(slug = org_slug)
+        except Exception:
+            return Response({"Error": "Нет существует такой организации!"}, status = status.HTTP_404_NOT_FOUND)
+        if Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0]).first():
+            return Response({"Error": "Вы уже состоите в организации!"}, status = status.HTTP_400_BAD_REQUEST)
+        employee = Employee.objects.filter(user = user.user_profile, org = org, status = STATUS_CHOICES[1][0]).first()
+        if not employee:
+            return Response({"Success": "Нет приглашения в данную организацию!"}, status = status.HTTP_400_BAD_REQUEST)
+        employee.status = STATUS_CHOICES[0][0]
+        employee.active = True
+        other_invites = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[1][0])
+        if other_invites:
+            other_invites.delete()
+        return Response({"Success": "Вы успешно вступили в организацию!"}, status = status.HTTP_200_OK)
+
+class EmployeeDeclineAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags = ["Organization"],
+        operation_summary = "Отказ приглашения в организаци.",
+        operation_description = "Предоставляет доступ к отказу приглашения в организацию.",
+        request_body = EmployeeExitSerializer,
+        responses = {
+            200: "Success",
+            400: "Bad data",
+            404: "No such organization",
+        }
+    )
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+        org_slug = request.data['org_slug']
+        try:
+            org = Organization.objects.get(slug = org_slug)
+        except Exception:
+            return Response({"Error": "Нет существует такой организации!"}, status = status.HTTP_404_NOT_FOUND)
+        employee = Employee.objects.filter(user = user.user_profile, org = org, status = STATUS_CHOICES[1][0]).first()
+        if not employee:
+            return Response({"Success": "Нет приглашения в данную организацию!"}, status = status.HTTP_400_BAD_REQUEST)
+        employee.delete()
+        return Response({"Success": "Вы отказались вступать в данную организацию!"}, status = status.HTTP_200_OK)
+
+class OrgInvitesAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags = ["Organization"],
+        operation_summary = "Список приглашений в организации.",
+        operation_description = "Предоставляет доступ к списку приглашений из организаций.",
+        responses = {
+            200: InvitesSerializer
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        employee = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[1][0])
+        serializer = InvitesSerializer(employee, many = True)
+        return Response(serializer.data, status = status.HTTP_200_OK)
+
+
 
 class EmployeeExitAPIView(APIView):
     permission_classes = [IsAuthenticated]
