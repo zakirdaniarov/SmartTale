@@ -15,6 +15,7 @@ urlpatterns = [
     path('employee/add/', EmployeeCreateAPIView.as_view(), name = 'employee-add'),
     path('employee/detail/<slug:employee_slug>/', EmployeeDetailAPIView.as_view(), name = 'employee-detail'),
     path('employee-order/<slug:employee_slug>/', EmployeeOrdersAPIView.as_view(), name = 'employee-order-detail'),
+    path('employee/exit/', EmployeeExitAPIView.as_view(), name = 'employee-exit'),
     path('order-employees/<slug:order_slug>/', OrderEmployeesAPIView.as_view(), name='order-employees'),
     path('org-jobs/add/', CreateJobTitleAPIView.as_view(), name = 'jobtitles-add'),
     path('org-jobs/detail/<slug:jt_slug>/', JobTitleAPIView.as_view(), name = 'jobtitles-detail'),
