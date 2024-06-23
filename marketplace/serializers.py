@@ -65,7 +65,7 @@ class OrderDetailAPI(ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['title', 'slug', 'author', 'images', 'type', 'description', 'deadline', 'price', 'org_work'
+        fields = ['title', 'slug', 'author', 'images', 'type', 'description', 'deadline', 'price', 'org_work',
                   'currency', 'category_slug', 'phone_number', 'is_applied', 'email', 'size', 'hide', 'is_finished']
 
     def get_type(self, instance):
