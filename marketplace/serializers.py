@@ -591,6 +591,7 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and request.user.is_anonymous:
             representation.pop('is_liked', None)
+            representation.pop('hide', None)
         return representation
 
     def create(self, validated_data):
@@ -688,6 +689,7 @@ class EquipmentSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         equipments = self.context.get('equipments_type')
+        request = self.context.get('request')
 
         if equipments == 'my-like-equipments':
             fields_to_remove = ['author', 'is_liked']
@@ -700,6 +702,9 @@ class EquipmentSerializer(serializers.ModelSerializer):
 
         for field in fields_to_remove:
             representation.pop(field, None)
+
+        if request and request.user.is_anonymous:
+            representation.pop('is_liked', None)
 
         return representation
 
