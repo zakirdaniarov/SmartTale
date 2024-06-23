@@ -28,14 +28,12 @@ class EquipmentCategory(models.Model):
 
 class Equipment(models.Model):
     title = models.CharField(max_length=70)
-    category = models.ForeignKey(EquipmentCategory, related_name='equipments', null=True, blank=True, on_delete=models.DO_NOTHING)
     slug = AutoSlugField(populate_from='title', unique=True, always_update=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     currency = models.CharField(max_length=10, choices=CURRENCY, default='Som')
     description = models.TextField(max_length=1000, null=True)
     email = models.EmailField(blank=True, max_length=70)
     phone_number = models.CharField(max_length=20)
-    email = models.EmailField(max_length=100, blank=True, null=True)
     author = models.ForeignKey(UserProfile, related_name='equipment_ads', on_delete=models.CASCADE)
     liked_by = models.ManyToManyField(UserProfile, blank=True, related_name='liked_equipment')
     hide = models.BooleanField(default=False)
