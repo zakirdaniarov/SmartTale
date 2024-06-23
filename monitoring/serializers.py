@@ -154,6 +154,10 @@ class EmployeeCreateSerializer(serializers.Serializer):
     org_slug = serializers.SlugField()
     jt_slug = serializers.SlugField()
 
+class EmployeeExitSerializer(serializers.Serializer):
+    org_slug = serializers.SlugField()
+
+
 class EmployeeDeleteSerializer(serializers.Serializer):
     user_slug = serializers.SlugField()
 

@@ -801,6 +801,39 @@ class EmployeeCreateAPIView(APIView):
         Employee.objects.create(user = target_user, org = org, job_title = job)
         return Response({"Success": "Сотрудник добавлен"}, status = status.HTTP_201_CREATED)
 
+class EmployeeExitAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags = ["Organization"],
+        operation_summary = "Уход из организаци.",
+        operation_description = "Предоставляет доступ к уходу пользователя из организации.",
+        request_body = EmployeeExitSerializer,
+        responses = {
+            200: "Success",
+            404: "No such org or employee",
+        }
+    )
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+        org_slug = request.data['org_slug']
+        try:
+            org = Organization.objects.get(slug = org_slug)
+        except Exception:
+            return Response({"Error": "Нет такой организации!"}, status = status.HTTP_404_NOT_FOUND)
+        employee = Employee.objects.filter(user = user.user_profile, org = org, status = STATUS_CHOICES[0][0]).first()
+        if not employee:
+            return Response({"Error": "Вы не являетесь сотрудником этой организации!"}, status = status.HTTP_400_BAD_REQUEST)
+        active = employee.active
+        employee.delete()
+        if active:
+            new_active = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0]).first()
+            if new_active:
+                new_active.active = True
+                new_active.save()
+        return Response({"Success": "Вы успешнок покинули организацию!"}, status = status.HTTP_200_OK)
+
+
 class SubscriptionAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
