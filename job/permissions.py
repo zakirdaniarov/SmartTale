@@ -23,7 +23,7 @@ class AddVacancyEmployee(IsAuthenticated):
 
         employee = Employee.objects.filter(user=user, org=current_organization).first()
         if employee and employee.job_title:
-            if employee.job_title.flag_create_jobtitle and employee.job_title.flag_remove_jobtitle:
+            if employee.job_title.flag_create_vacancy:
                 return True
         return False
 
