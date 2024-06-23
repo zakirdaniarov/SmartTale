@@ -206,7 +206,10 @@ class OrganizationAPIView(APIView):
                 flag_add_employee = True,
                 flag_update_order = True,
                 flag_delete_order = True,
-                flag_remove_employee = True
+                flag_remove_employee = True,
+                flag_employee_detail_access = True,
+                flag_create_vacancy = True,
+                flag_change_employee_job = True
             )
             Employee.objects.create(
                 user = user.user_profile,

@@ -144,10 +144,11 @@ class EmployeeListSerializer(serializers.ModelSerializer):
         fields = ['first_name', 'last_name', 'middle_name', 'email', 'user_slug',
                   'order', 'job_title','status']
 class UserEmployeeSerializer(serializers.ModelSerializer):
-    email = serializers.ReadOnlyField(source = 'user.user.email')
+    email = serializers.ReadOnlyField(source = 'user.email')
     class Meta:
         model = UserProfile
-        fields = ('first_name', 'last_name', 'middle_name', 'email', 'slug', 'profile_image')
+        fields = ('first_name', 'last_name', 'middle_name', 'email', 'phone_number', 'slug', 'profile_image')
+
 class EmployeeDetailSerializer(serializers.ModelSerializer):
     user = UserEmployeeSerializer()
     job_title = JobTitleSerializer()
