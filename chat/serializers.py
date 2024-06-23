@@ -7,7 +7,7 @@ class UserChatSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = ['first_name', 'last_name', 'slug', 'profile_image', 'phone_number']
-        extra_kwagrs = {'first_name': {'read_only': True}, 
+        extra_kwargs = {'first_name': {'read_only': True}, 
                         'last_name': {'read_only': True},
                         'profile_image': {'read_only': True},
                         'phone_number': {'read_only': True}}
