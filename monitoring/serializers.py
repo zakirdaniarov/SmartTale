@@ -48,7 +48,7 @@ class MyOrganizationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Organization
-        fields = ['title', 'slug']
+        fields = ['title', 'slug', 'founder']
 
 class OrganizationMonitoringSerializer(serializers.ModelSerializer):
 
@@ -108,7 +108,7 @@ class ProfileDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserProfile
-        fields = ['first_name', 'last_name', 'middle_name', 'phone_number', 'profile_image', 'email', 'slug']
+        fields = ['id', 'first_name', 'last_name', 'middle_name', 'phone_number', 'profile_image', 'email', 'slug']
 
 class ProfileChangeSerializer(serializers.ModelSerializer):
 

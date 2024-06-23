@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'monitoring',
     'job',
     'chat',
+    'notif',
 ]
 
 MIDDLEWARE = [
