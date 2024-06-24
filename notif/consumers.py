@@ -74,12 +74,19 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         print("WebSocket connected!")
         self.user_id = self.scope["url_route"]["kwargs"]["user_id"]
         self.user = await self.get_user(self.user_id)
+        jwt_user = self.scope['user']
         # print(self.user)
         self.user_group_name = f"{self.user_id}-notifications"
-        await self.channel_layer.group_add(self.user_group_name, self.channel_name)
+        jwt_user = await self.get_jwt_user(jwt_user)
+        if self.user == jwt_user:
+            await self.channel_layer.group_add(self.user_group_name, self.channel_name)
 
-        await self.accept()
-        await self.get_notifications()
+            await self.accept()
+            await self.get_notifications()
+
+    @database_sync_to_async
+    def get_jwt_user(self, jwt_user):
+        return jwt_user.user_profile
 
     @database_sync_to_async
     def get_user(self, user_id):
