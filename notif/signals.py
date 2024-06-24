@@ -5,7 +5,7 @@ from django.dispatch import receiver
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 
-from .models import Notif
+from .models import Notifications
 from monitoring.models import Employee, STATUS_CHOICES
 
 SLEEP_TIME = 3
@@ -13,7 +13,7 @@ SLEEP_TIME = 3
 
 
 
-@receiver(post_save, sender=Notif)
+@receiver(post_save, sender=Notifications)
 def notify_customers(sender, instance, **kwargs):
     """
     Updates notifications on customer side.
@@ -28,7 +28,7 @@ def notify_customers(sender, instance, **kwargs):
     )
 
 
-@receiver(post_delete, sender=Notif)
+@receiver(post_delete, sender=Notifications)
 def notify_customers_on_delete(sender, instance, **kwargs):
     time.sleep(SLEEP_TIME)
     channel_layer = get_channel_layer()  # Use this function
@@ -45,7 +45,7 @@ def customer_status_changed(sender, instance, created, **kwargs):
         if instance.status == STATUS_CHOICES[1][0]:
             title = "Invitation to organization"
             description = "You've been invited to organization '{}' for the role '{}'.".format(instance.org.title, instance.job_title.title)
-            Notif.objects.create(
+            Notifications.objects.create(
                 title=title,
                 description=description,
                 recipient=instance.user

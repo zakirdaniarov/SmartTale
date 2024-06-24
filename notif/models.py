@@ -5,7 +5,7 @@ from django.db import models
 from authorization.models import UserProfile
 
 
-class Notif(models.Model):
+class Notifications(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()
     timestamp = models.DateTimeField(auto_now_add=True)
@@ -15,5 +15,3 @@ class Notif(models.Model):
     def __str__(self):
         return f"{self.title} - {self.recipient.id}"
     
-    class Meta:
-        db_table = 'notif_notif'

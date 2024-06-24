@@ -65,7 +65,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from asgiref.sync import sync_to_async
 from django.utils import timezone
 
-from .models import Notif
+from .models import Notifications
 from authorization.models import UserProfile
 
 class NotificationConsumer(AsyncWebsocketConsumer):
@@ -93,7 +93,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
     async def get_notifications(self):
         notifications = await sync_to_async(list, thread_sensitive=True)(
-            Notif.objects.filter(recipient=self.user.id, read=False).order_by('-timestamp')
+            Notifications.objects.filter(recipient=self.user.id, read=False).order_by('-timestamp')
         )
         notifications_list = []
         for notification in notifications:
