@@ -14,3 +14,6 @@ class Notif(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.recipient.id}"
+    
+    class Meta:
+        db_table = 'notif_notif'
