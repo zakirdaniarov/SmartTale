@@ -45,6 +45,7 @@ class MyEmployeeSerializer(serializers.ModelSerializer):
                   'flag_create_vacancy', 'flag_change_employee_job']
 
 class MyOrganizationSerializer(serializers.ModelSerializer):
+    founder = serializers.ReadOnlyField(source = 'founder.slug')    
 
     class Meta:
         model = Organization

@@ -16,7 +16,7 @@ class MessageSerializer(serializers.ModelSerializer):
     sender = UserChatSerializer()
     class Meta:
         model = Message
-        fields = ['sender', 'text', 'attachment', 'timestamp']
+        fields = ['sender', 'text', 'attachment', 'timestamp', 'conversation_id']
 
 
 class ConversationListSerializer(serializers.ModelSerializer):
