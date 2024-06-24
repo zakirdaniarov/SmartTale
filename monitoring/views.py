@@ -12,6 +12,7 @@ from marketplace.services import get_order_or_equipment, get_paginated_data
 
 from .serializers import *
 from .models import Employee, JobTitle
+from .models import STATUS_CHOICES
 from marketplace.models import Order, Equipment, Service
 from marketplace.serializers import OrderListAPI
 from authorization.models import UserProfile, User, Organization
@@ -134,7 +135,11 @@ class MyProfileAPIView(APIView):
             is_sub = True
         empl = Employee.objects.filter(user = user.user_profile)
         emp_serializer = MyEmployeeSerializer(empl, many = True)
-        org = Organization.objects.filter(owner = user.user_profile, active = True).first()
+        active_emp = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True).first()
+        org = None
+        if active_emp:
+            org = active_emp.org
+        
         org_serializer = MyOrganizationSerializer(org)
         data = {
             'profile': serializer.data,
@@ -201,7 +206,10 @@ class OrganizationAPIView(APIView):
                 flag_add_employee = True,
                 flag_update_order = True,
                 flag_delete_order = True,
-                flag_remove_employee = True
+                flag_remove_employee = True,
+                flag_employee_detail_access = True,
+                flag_create_vacancy = True,
+                flag_change_employee_job = True
             )
             Employee.objects.create(
                 user = user.user_profile,
@@ -275,8 +283,12 @@ class OrganizationDetailAPIView(APIView):
             return Response({"Error": "Организация не найдена."}, status=status.HTTP_404_NOT_FOUND)
         user = request.user.user_profile
         if user != org.owner:
-            return Response({"Error": "Вы не можете изменять организацию."}, status=status.HTTP_403_FORBIDDEN)
+            return Response({"Error": "Вы не можете удалять организацию."}, status=status.HTTP_403_FORBIDDEN)
+        flag = Employee.objects.get(user = user, org = org).active
         org.delete()
+        employee = Employee.objects.filter(user = user).first()
+        if employee:
+            employee.active = True
         return Response({"Success": "Организация успешно удалена."}, status=status.HTTP_200_OK)
     
 class OrganizationListAPIView(APIView):
@@ -287,26 +299,28 @@ class OrganizationListAPIView(APIView):
         operation_summary = "Список организаций пользователя",
         operation_description = "Этот эндпоинт предоставляет доступ к списку организаций пользователя.",
         responses = {
-            200: OrganizationListSerializer
+            200: MyOrganizationListSerializer
         },
     )
     def get(self, request, *args, **kwargs):
         user = request.user
-        employee = Employee.objects.filter(user = user.user_profile)
-        my_orgs = []
-        other_orgs = []
-        for item in employee:
-            if item.org.owner != user.user_profile:
-                other_orgs.append(item.org.pk)
-            else:
-                my_orgs.append(item.org.pk)
-        my_orgs = Organization.objects.filter(pk__in = my_orgs)
-        other_orgs = Organization.objects.filter(pk__in = other_orgs)
-        serializer1 = MyOrganizationListSerializer(my_orgs, many = True)
-        serializer2 = OtherOrganizationListSerializer(other_orgs, many = True)
+        employee = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0])
+        org_ids = [item.org.id for item in employee]
+        orgs = Organization.objects.filter(id__in = org_ids)
+        # my_orgs = []
+        # other_orgs = []
+        # for item in employee:
+        #     if item.org.owner != user.user_profile:
+        #         other_orgs.append(item.org.pk)
+        #     else:
+        #         my_orgs.append(item.org.pk)
+        # my_orgs = Organization.objects.filter(pk__in = my_orgs)
+        # other_orgs = Organization.objects.filter(pk__in = other_orgs)
+        serializer1 = MyOrganizationListSerializer(orgs, many = True)
+        serializer2 = OrganizationActiveSerializer(employee, many = True)
         data = {
-            'my-orgs': serializer1.data,
-            'other-orgs': serializer2.data
+            'my_orgs': serializer1.data,
+            'orgs_active': serializer2.data
         }
         return Response(data, status = status.HTTP_200_OK)
 
@@ -318,20 +332,25 @@ class OrganizationActivateAPIView(APIView):
         operation_summary = "Активировать организацию",
         operation_description = "Этот эндпоинт предоставляет возможность сделать организацию активной, а ту, что была активной деактивировать.",
         responses = {
-            200: "Success"
+            200: "Success",
+            404: "No such organization"
         },
     )
     def put(self, request, org_slug, *args, **kwargs):
         user = request.user
-        org = Organization.objects.filter(owner = user.user_profile, active = True).first()
-        if not org:
-            return Response({"Error": "You don't have organizations!"}, status = status.HTTP_404_NOT_FOUND)
+        # org = Organization.objects.filter(owner = user.user_profile, active = True).first()
         try:
-            target_org = Organization.objects.get(owner = user.user_profile, slug = org_slug)
+            target_org = Organization.objects.get(slug = org_slug)
         except Exception:
-            return Response({"Error": "Организация не найдена"}, status = status.HTTP_404_NOT_FOUND)
-        org.active = False
-        org.save()
+            return Response({"Error": "No such organization!"}, status = status.HTTP_404_NOT_FOUND)
+        try:
+            target_org = Employee.objects.get(user = user.user_profile, status = STATUS_CHOICES[0][0], org = target_org)
+        except Exception:
+            return Response({"Error": "You aren't employee of this organization!"}, status = status.HTTP_404_NOT_FOUND)
+        org = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True).first()
+        if org:
+            org.active = False
+            org.save()
         target_org.active = True
         target_org.save()
         return Response({"Success": "Организация успешно активирована"}, status = status.HTTP_200_OK)
@@ -352,13 +371,13 @@ class CreateJobTitleAPIView(APIView):
     )
     def post(self, request, *args, **kwargs):
         user = request.user
-        if Organization.objects.filter(founder = user.user_profile):
-            org = Organization.objects.filter(founder = user.user_profile, active = True).first()
-        else:
-            employee = Employee.objects.filter(user = user.user_profile).first()
-            if not employee or not employee.job_title or not employee.job_title.flag_create_jobtitle:
-                return Response({"Error": "У Вас нет прав на создание должностей!"}, status = status.HTTP_403_FORBIDDEN)
-            org = employee.org   
+        # if Organization.objects.filter(founder = user.user_profile):
+        #     org = Organization.objects.filter(founder = user.user_profile, active = True).first()
+        # else:
+        employee = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True).first()
+        if not employee or not employee.job_title or not employee.job_title.flag_create_jobtitle:
+            return Response({"Error": "У Вас нет прав на создание должностей!"}, status = status.HTTP_403_FORBIDDEN)
+        org = employee.org   
         if JobTitle.objects.filter(org = org, title = request.data['title']).first():
             return Response({"Error": "Должность с таким именем в организации уже существует!"}, status = status.HTTP_400_BAD_REQUEST)
         serializer = JobTitleSerializer(data = request.data, context = {'org': org})
@@ -382,13 +401,13 @@ class JobTitleAPIView(APIView):
     )
     def get(self, request, jt_slug, *args, **kwargs):
         user = request.user
-        if Organization.objects.filter(founder = user.user_profile):
-            org = Organization.objects.filter(founder = user.user_profile, active = True).first()
-        else:
-            employee = Employee.objects.filter(user = user.user_profile).first()
-            if not employee:
-                return Response({"Error": "У Вас нет прав на просмотр должностей!"}, status = status.HTTP_403_FORBIDDEN)
-            org = employee.org
+        # if Organization.objects.filter(founder = user.user_profile):
+        #     org = Organization.objects.filter(founder = user.user_profile, active = True).first()
+        # else:
+        employee = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True).first()
+        if not employee:
+            return Response({"Error": "У Вас нет прав на просмотр должностей!"}, status = status.HTTP_403_FORBIDDEN)
+        org = employee.org
         try:
             job_title = JobTitle.objects.get(slug = jt_slug)
         except Exception:
@@ -411,13 +430,13 @@ class JobTitleAPIView(APIView):
     )
     def put(self, request, jt_slug, *args, **kwargs):
         user = request.user
-        if Organization.objects.filter(founder = user.user_profile):
-            org = Organization.objects.filter(founder = user.user_profile, active = True).first()
-        else:
-            employee = Employee.objects.filter(user = user.user_profile).first()
-            if not employee or not employee.job_title or not employee.job_title.flag_update_access:
-                return Response({"Error": "У Вас нет прав на изменение прав должностей!"}, status = status.HTTP_403_FORBIDDEN)
-            org = employee.org     
+        # if Organization.objects.filter(founder = user.user_profile):
+        #     org = Organization.objects.filter(founder = user.user_profile, active = True).first()
+        # else:
+        employee = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True).first()
+        if not employee or not employee.job_title or not employee.job_title.flag_create_jobtitle:
+            return Response({"Error": "У Вас нет прав на изменение прав должностей!"}, status = status.HTTP_403_FORBIDDEN)
+        org = employee.org     
         try:
             job_title = JobTitle.objects.get(slug = jt_slug)
         except Exception:
@@ -442,19 +461,19 @@ class JobTitleAPIView(APIView):
     )
     def delete(self, request, jt_slug, *args, **kwargs):
         user = request.user
-        if Organization.objects.filter(founder = user.user_profile):
-            org = Organization.objects.filter(founder = user.user_profile, active = True).first()
-        else:
-            employee = Employee.objects.filter(user = user.user_profile).first()
-            if not employee or not employee.job_title or not employee.job_title.flag_remove_jobtitle:
-                return Response({"Error": "У Вас нет прав на удаление должностей!"}, status = status.HTTP_403_FORBIDDEN)
-            org = employee.org   
+        # if Organization.objects.filter(founder = user.user_profile):
+        #     org = Organization.objects.filter(founder = user.user_profile, active = True).first()
+        # else:
+        employee = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True).first()
+        if not employee or not employee.job_title or not employee.job_title.flag_remove_jobtitle:
+            return Response({"Error": "У Вас нет прав на удаление должностей!"}, status = status.HTTP_403_FORBIDDEN)
+        org = employee.org   
         try:
             job_title = JobTitle.objects.get(slug = jt_slug)
         except Exception:
             return Response({"Error": "Нет такой должности"}, status = status.HTTP_404_NOT_FOUND)
         if job_title.org != org:
-            return Response({"Error": "Нельзя изменять должности не из своей активной организации"}, status = status.HTTP_404_NOT_FOUND)
+            return Response({"Error": "Нельзя удалять должности не из своей активной организации"}, status = status.HTTP_404_NOT_FOUND)
         job_title.delete()
         return Response({"Success": "Job title has been deleted!"}, status = status.HTTP_200_OK)
 
@@ -467,6 +486,9 @@ def sort_for_jobs(item):
     result += item.flag_update_order
     result += item.flag_delete_order
     result += item.flag_remove_employee
+    result += item.flag_change_employee_job
+    result += item.flag_create_vacancy
+    result += item.flag_employee_detail_access
     return result
 
 class JobTitleListAPIView(APIView):
@@ -483,14 +505,15 @@ class JobTitleListAPIView(APIView):
     )
     def get(self, request, *args, **kwargs):
         user = request.user
-        if Organization.objects.filter(founder = user.user_profile):
-            org = Organization.objects.filter(founder = user.user_profile, active = True).first()
-        else:
-            try:
-                org = user.user_profile.working_orgs.get().org
-            except Exception:
-                return Response({"Error": "Вы не ещё не состоите ни в одной компании."}, status = status.HTTP_403_FORBIDDEN)
-        jobs = JobTitle.objects.filter(org = org)
+        # if Organization.objects.filter(founder = user.user_profile):
+        #     org = Organization.objects.filter(founder = user.user_profile, active = True).first()
+        # else:
+        try:
+            # org = user.user_profile.working_orgs.get().org
+            employee = Employee.objects.get(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True)
+        except Exception:
+            return Response({"Error": "Вы не ещё не состоите ни в одной компании или не активирована ни одна из организаций."}, status = status.HTTP_403_FORBIDDEN)
+        jobs = JobTitle.objects.filter(org = employee.org)
         jobs = sorted(jobs, key = lambda item: sort_for_jobs(item), reverse = True)
         serializer = JobTitleSerializer(jobs, many = True)
         return Response(serializer.data, status = status.HTTP_200_OK)
@@ -508,14 +531,15 @@ class EmployeeListAPIView(APIView):
     )
     def get(self, request, *args, **kwargs):
         user = request.user
-        if Organization.objects.filter(founder = user.user_profile):
-            org = Organization.objects.filter(founder = user.user_profile, active = True).first()
-        else:
-            try:
-                org = user.user_profile.working_orgs.get().org
-            except Exception:
-                return Response({"Error": "Вы не ещё не состоите ни в одной компании."}, status = status.HTTP_403_FORBIDDEN)
-        employees = Employee.objects.filter(org = org)
+        # if Organization.objects.filter(founder = user.user_profile):
+        #     org = Organization.objects.filter(founder = user.user_profile, active = True).first()
+        # else:
+        try:
+            # org = user.user_profile.working_orgs.get().org
+            employee = Employee.objects.get(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True)
+        except Exception:
+                return Response({"Error": "Вы не ещё не состоите ни в одной компании или не активирована ни одна из организаций."}, status = status.HTTP_403_FORBIDDEN)
+        employees = Employee.objects.filter(org = employee.org)
         serializer = EmployeeListSerializer(employees, many = True)
         return Response(serializer.data, status = status.HTTP_200_OK)
     
@@ -533,12 +557,12 @@ class EmployeeDetailAPIView(APIView):
     )
     def get(self, request, employee_slug, *args, **kwargs):
         user = request.user
-        cur_org = Organization.objects.filter(founder = user.user_profile, active = True).first()
-        if not cur_org:
-            employee = Employee.objects.filter(user = user.user_profile).first()
-            if not employee:
-                return Response({"Error": "Вы не состоите ни в одной организации!"}, status = status.HTTP_403_FORBIDDEN)
-            cur_org = employee.org
+        # cur_org = Organization.objects.filter(founder = user.user_profile, active = True).first()
+        # if not cur_org:
+        employee = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True).first()
+        if not employee:
+            return Response({"Error": "Вы не состоите ни в одной организации!"}, status = status.HTTP_403_FORBIDDEN)
+        cur_org = employee.org
         try:
             target_user = UserProfile.objects.get(slug = employee_slug)
         except Exception:
@@ -562,12 +586,12 @@ class EmployeeDetailAPIView(APIView):
     )
     def put(self, request, employee_slug, *args, **kwargs):
         user = request.user
-        cur_org = Organization.objects.filter(founder = user.user_profile, active = True).first()
-        if not cur_org:
-            employee = Employee.objects.filter(user = user.user_profile).first()
-            if not employee or not employee.job_title or not employee.job_title.flag_remove_employee:
-                return Response({"Error": "У Вас нет прав на удаление сотрудников!"}, status = status.HTTP_403_FORBIDDEN)
-            cur_org = employee.org
+        # cur_org = Organization.objects.filter(founder = user.user_profile, active = True).first()
+        # if not cur_org:
+        employee = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True).first()
+        if not employee or not employee.job_title or not employee.job_title.flag_change_employee_job:
+            return Response({"Error": "У Вас нет прав на изменение сотрудников!"}, status = status.HTTP_403_FORBIDDEN)
+        cur_org = employee.org
         jt_slug = request.data['jt_slug']
         try:
             target_user = UserProfile.objects.get(slug = employee_slug)
@@ -599,12 +623,12 @@ class EmployeeDetailAPIView(APIView):
     )
     def delete(self, request, employee_slug, *args, **kwargs):
         user = request.user
-        cur_org = Organization.objects.filter(founder = user.user_profile, active = True).first()
-        if not cur_org:
-            employee = Employee.objects.filter(user = user.user_profile).first()
-            if not employee or not employee.job_title or not employee.job_title.flag_remove_employee:
-                return Response({"Error": "У Вас нет прав на удаление сотрудников!"}, status = status.HTTP_403_FORBIDDEN)
-            cur_org = employee.org
+        # cur_org = Organization.objects.filter(founder = user.user_profile, active = True).first()
+        # if not cur_org:
+        employee = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True).first()
+        if not employee or not employee.job_title or not employee.job_title.flag_remove_employee:
+            return Response({"Error": "У Вас нет прав на удаление сотрудников!"}, status = status.HTTP_403_FORBIDDEN)
+        cur_org = employee.org
         try:
             target_user = UserProfile.objects.get(slug = employee_slug)
         except Exception:
@@ -651,29 +675,23 @@ class EmployeeOrdersAPIView(APIView):
         }
     )
     def get(self, request, employee_slug, *args, **kwargs):
-        user = request.user
-        cur_org = Organization.objects.filter(founder = user.user_profile, active = True).first()
-        if not cur_org:
-            employee = Employee.objects.filter(user = user.user_profile).first()
-            if not employee:
-                return Response({"Error": "Вы не состоите ни в одной организации!"}, status = status.HTTP_403_FORBIDDEN)
-            cur_org = employee.org
+        stage = self.request.query_params.get('stage')
         try:
-            target_user = UserProfile.objects.get(slug = employee_slug)
+            user = UserProfile.objects.get(slug = employee_slug)
         except Exception:
             return Response({"Error.": "Пользователь не найден."}, status = status.HTTP_404_NOT_FOUND)
-        target_user = Employee.objects.filter(user = target_user, org = cur_org).first()
-        if not target_user:
-            return Response({"Error.": "Нет такого сотрудника в Вашей активной организации"}, status = status.HTTP_403_FORBIDDEN)
-        stage = self.request.query_params.get('stage')
+        try:
+            user = Employee.objects.get(user = user)
+        except Exception:
+            return Response({"Error.": "Пользователь не является сотрудником какой-либо компании."}, status = status.HTTP_404_NOT_FOUND)
         if stage == 'active':
-            orders = target_user.order.filter(is_finished=False).order_by('booked_at')
+            orders = user.order.filter(is_finished=False).order_by('booked_at')
             list_type = "my-history-orders-active"
         elif stage == 'finished':
-            orders = target_user.order.filter(is_finished=True).order_by('booked_at')
+            orders = user.order.filter(is_finished=True).order_by('booked_at')
             list_type = "my-history-orders-finished"
         else:
-            orders = target_user.order.all().order_by('booked_at')
+            orders = user.order.all().order_by('booked_at')
             list_type = None
         order_queryset = self.filter_queryset_by_search(orders)
         paginated_data = get_paginated_data(order_queryset, request, list_type)
@@ -721,12 +739,12 @@ class OrderEmployeesAPIView(APIView):
         except Order.DoesNotExist:
             return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
         user = request.user
-        cur_org = Organization.objects.filter(founder = user.user_profile, active = True).first()
-        if not cur_org:
-            employee = Employee.objects.filter(user=user.user_profile).first()
-            if not employee:
-                return Response({"Error": "Вы не состоите ни в одной организации!"}, status = status.HTTP_403_FORBIDDEN)
-            cur_org = employee.org
+        # cur_org = Organization.objects.filter(founder = user.user_profile, active = True).first()
+        # if not cur_org:
+        employee = Employee.objects.filter(user=user.user_profile, status = STATUS_CHOICES[0][0], active = True).first()
+        if not employee:
+            return Response({"Error": "Вы не состоите ни в одной организации!"}, status = status.HTTP_403_FORBIDDEN)
+        cur_org = employee.org
         if cur_org != order.org_work:
             return Response({"Error": "You don't have access for this page"}, status = status.HTTP_403_FORBIDDEN)
         employees = order.workers.all()
@@ -757,12 +775,12 @@ class EmployeeCreateAPIView(APIView):
     )
     def post(self, request, *args, **kwargs):
         user = request.user
-        cur_org = Organization.objects.filter(founder = user.user_profile).exists()
-        if not cur_org:
-            employee = Employee.objects.filter(user = user.user_profile).first()
-            if not employee or not employee.job_title or not employee.job_title.flag_add_employee:
-                return Response({"Error": "У Вас нет прав на добавление сотрудников!"}, status = status.HTTP_403_FORBIDDEN)
-            cur_org = employee.org
+        # cur_org = Organization.objects.filter(founder = user.user_profile).exists()
+        # if not cur_org:
+        employee = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True).first()
+        if not employee or not employee.job_title or not employee.job_title.flag_add_employee:
+            return Response({"Error": "У Вас нет прав на добавление сотрудников!"}, status = status.HTTP_403_FORBIDDEN)
+        cur_org = employee.org
         email = request.data['email']
         org_slug = request.data['org_slug']
         jt_slug = request.data['jt_slug']
@@ -771,7 +789,7 @@ class EmployeeCreateAPIView(APIView):
             target_user = UserProfile.objects.get(user = target_user)
         except Exception:
             return Response({"Error": "Нет существует такого пользователя!"}, status = status.HTTP_404_NOT_FOUND)
-        if Employee.objects.filter(user = target_user).first():
+        if Employee.objects.filter(user = target_user, status = STATUS_CHOICES[0][0]).first():
             return Response({"Error": "Пользователь уже состоит в организации!"}, status = status.HTTP_400_BAD_REQUEST)
         try:
             org = Organization.objects.get(slug = org_slug)
@@ -783,8 +801,120 @@ class EmployeeCreateAPIView(APIView):
             job = JobTitle.objects.get(slug = jt_slug)
         except Exception:
             return Response({"Error": "Нет существует такой должности!"}, status = status.HTTP_404_NOT_FOUND)
-        Employee.objects.create(user = target_user, org = org, job_title = job)
-        return Response({"Success": "Сотрудник добавлен"}, status = status.HTTP_201_CREATED)
+        Employee.objects.create(user = target_user, org = org, job_title = job, status = STATUS_CHOICES[1][0])
+        return Response({"Success": "Приглашение отправлено"}, status = status.HTTP_201_CREATED)
+
+class EmployeeApplyAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags = ["Organization"],
+        operation_summary = "Принятие приглашения в организаци.",
+        operation_description = "Предоставляет доступ к принятию приглашения в организацию.",
+        request_body = EmployeeExitSerializer,
+        responses = {
+            200: "Success",
+            400: "Bad data",
+            404: "No such organization",
+        }
+    )
+    def put(self, request, *args, **kwargs):
+        user = request.user
+        org_slug = request.data['org_slug']
+        try:
+            org = Organization.objects.get(slug = org_slug)
+        except Exception:
+            return Response({"Error": "Нет существует такой организации!"}, status = status.HTTP_404_NOT_FOUND)
+        if Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0]).first():
+            return Response({"Error": "Вы уже состоите в организации!"}, status = status.HTTP_400_BAD_REQUEST)
+        employee = Employee.objects.filter(user = user.user_profile, org = org, status = STATUS_CHOICES[1][0]).first()
+        if not employee:
+            return Response({"Success": "Нет приглашения в данную организацию!"}, status = status.HTTP_400_BAD_REQUEST)
+        employee.status = STATUS_CHOICES[0][0]
+        employee.active = True
+        other_invites = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[1][0])
+        if other_invites:
+            other_invites.delete()
+        return Response({"Success": "Вы успешно вступили в организацию!"}, status = status.HTTP_200_OK)
+
+class EmployeeDeclineAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags = ["Organization"],
+        operation_summary = "Отказ приглашения в организаци.",
+        operation_description = "Предоставляет доступ к отказу приглашения в организацию.",
+        request_body = EmployeeExitSerializer,
+        responses = {
+            200: "Success",
+            400: "Bad data",
+            404: "No such organization",
+        }
+    )
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+        org_slug = request.data['org_slug']
+        try:
+            org = Organization.objects.get(slug = org_slug)
+        except Exception:
+            return Response({"Error": "Нет существует такой организации!"}, status = status.HTTP_404_NOT_FOUND)
+        employee = Employee.objects.filter(user = user.user_profile, org = org, status = STATUS_CHOICES[1][0]).first()
+        if not employee:
+            return Response({"Success": "Нет приглашения в данную организацию!"}, status = status.HTTP_400_BAD_REQUEST)
+        employee.delete()
+        return Response({"Success": "Вы отказались вступать в данную организацию!"}, status = status.HTTP_200_OK)
+
+class OrgInvitesAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags = ["Organization"],
+        operation_summary = "Список приглашений в организации.",
+        operation_description = "Предоставляет доступ к списку приглашений из организаций.",
+        responses = {
+            200: InvitesSerializer
+        }
+    )
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        employee = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[1][0])
+        serializer = InvitesSerializer(employee, many = True)
+        return Response(serializer.data, status = status.HTTP_200_OK)
+
+
+
+class EmployeeExitAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags = ["Organization"],
+        operation_summary = "Уход из организаци.",
+        operation_description = "Предоставляет доступ к уходу пользователя из организации.",
+        request_body = EmployeeExitSerializer,
+        responses = {
+            200: "Success",
+            404: "No such org or employee",
+        }
+    )
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+        org_slug = request.data['org_slug']
+        try:
+            org = Organization.objects.get(slug = org_slug)
+        except Exception:
+            return Response({"Error": "Нет такой организации!"}, status = status.HTTP_404_NOT_FOUND)
+        employee = Employee.objects.filter(user = user.user_profile, org = org, status = STATUS_CHOICES[0][0]).first()
+        if not employee:
+            return Response({"Error": "Вы не являетесь сотрудником этой организации!"}, status = status.HTTP_400_BAD_REQUEST)
+        active = employee.active
+        employee.delete()
+        if active:
+            new_active = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0]).first()
+            if new_active:
+                new_active.active = True
+                new_active.save()
+        return Response({"Success": "Вы успешнок покинули организацию!"}, status = status.HTTP_200_OK)
+
 
 class SubscriptionAPIView(APIView):
     permission_classes = [IsAuthenticated]

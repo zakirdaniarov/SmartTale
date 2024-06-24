@@ -29,6 +29,7 @@ from .permissions import CurrentUserOrReadOnly
 from operator import attrgetter
 from rest_framework.test import APIRequestFactory
 from django.db import transaction
+from monitoring.models import STATUS_CHOICES
 
 # Create your views here.
 class OrderCategoriesAPIView(APIView):
@@ -133,15 +134,16 @@ class MyReceivedOrdersListView(BaseOrderListView):
 
     def get_queryset(self):
         user = self.request.user
-        if Organization.objects.filter(founder=user.user_profile):
-            organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
-            return Order.objects.filter(org_work=organization).order_by('booked_at')
-        else:
-            try:
-                organization = user.user_profile.working_orgs.get().org
-                return Order.objects.filter(org_work=organization).order_by('booked_at')
-            except Exception:
-                return Response({"Error": "Вы не ещё не состоите ни в одной компании."}, status = status.HTTP_403_FORBIDDEN)
+        # if Organization.objects.filter(founder=user.user_profile):
+        #     organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
+        #     return Order.objects.filter(org_work=organization).order_by('booked_at')
+        # else:
+        try:
+            # organization = user.user_profile.working_orgs.get().org
+            employee = Employee.objects.get(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True)
+            return Order.objects.filter(org_work=employee.org).order_by('booked_at')
+        except Exception:
+            return Response({"Error": "Вы не ещё не состоите ни в одной компании."}, status = status.HTTP_403_FORBIDDEN)
 
     def get_list_type(self):
         return "my-received-orders"
@@ -171,13 +173,14 @@ class MyHistoryOrdersListView(BaseOrderListView):
 
     def get_queryset(self):
         user = self.request.user
-        if Organization.objects.filter(founder=user.user_profile):
-            organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
-        else:
-            try:
-                organization = user.user_profile.working_orgs.get().org
-            except Exception:
-                return Response({"Error": "Вы не ещё не состоите ни в одной компании."}, status = status.HTTP_403_FORBIDDEN)
+        # if Organization.objects.filter(founder=user.user_profile):
+        #     organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
+        # else:
+        try:
+            employee = Employee.objects.get(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True)
+            organization = employee.org
+        except Exception:
+            return Response({"Error": "У вас нет активной организации."}, status = status.HTTP_403_FORBIDDEN)
         stage = self.request.query_params.get('stage')
         if stage == 'active':
             return Order.objects.filter(org_work=organization, is_finished=False).order_by('booked_at')
@@ -229,13 +232,15 @@ class MyOrgOrdersListView(BaseOrderListView):
 
     def get_queryset(self):
         user = self.request.user
-        if Organization.objects.filter(founder=user.user_profile):
-            organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
-        else:
-            try:
-                organization = user.user_profile.working_orgs.get().org
-            except Exception:
-                return Response({"Error": "Вы не ещё не состоите ни в одной компании."}, status = status.HTTP_403_FORBIDDEN)
+        # if Organization.objects.filter(founder=user.user_profile):
+        #     organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
+        # else:
+        try:
+            employee = Employee.objects.get(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True)
+            organization = employee.org
+            # organization = user.user_profile.working_orgs.get().org
+        except Exception:
+            return Response({"Error": "У вас нет активной организации."}, status = status.HTTP_403_FORBIDDEN)
 
         self.stage = self.request.query_params.get('stage')
         queryset = Order.objects.filter(org_work=organization)
@@ -411,13 +416,15 @@ class ReceivedOrderStatusAPIView(APIView):
     )
     def get(self, request):
         user = self.request.user
-        if Organization.objects.filter(founder=user.user_profile):
-            organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
-        else:
-            try:
-                organization = user.user_profile.working_orgs.get().org
-            except Exception:
-                return Response({"Error": "Вы не ещё не состоите ни в одной компании."}, status = status.HTTP_403_FORBIDDEN)
+        # if Organization.objects.filter(founder=user.user_profile):
+        #     organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
+        # else:
+        try:
+            # organization = user.user_profile.working_orgs.get().org
+            employee = Employee.objects.get(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True)
+            organization = employee.org
+        except Exception:
+            return Response({"Error": "У вас нет активной организации."}, status = status.HTTP_403_FORBIDDEN)
 
         orders_data = self.get_orders_data(organization)
         return Response(orders_data, status=status.HTTP_200_OK)
@@ -446,13 +453,15 @@ class OrdersHistoryListView(BaseOrderListView):
 
     def get_queryset(self):
         user = self.request.user
-        if Organization.objects.filter(founder=user.user_profile):
-            organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
-        else:
-            try:
-                organization = user.user_profile.working_orgs.get().org
-            except Exception:
-                return Response({"Error": "Вы не ещё не состоите ни в одной компании."}, status = status.HTTP_403_FORBIDDEN)
+        # if Organization.objects.filter(founder=user.user_profile):
+        #     organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
+        # else:
+        try:
+            # organization = user.user_profile.working_orgs.get().org
+            employee = Employee.objects.get(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True)
+            organization = employee.org
+        except Exception:
+            return Response({"Error": "У вас нет активной организации."}, status = status.HTTP_403_FORBIDDEN)
 
         stage = self.request.query_params.get('stage')
         min_booked_at = self.request.query_params.get('min_booked_at')
@@ -552,13 +561,15 @@ class MyAppliedOrdersListView(BaseOrderListView):
 
     def get_queryset(self):
         user = self.request.user
-        if Organization.objects.filter(founder=user.user_profile):
-            organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
-        else:
-            try:
-                organization = user.user_profile.working_orgs.get().org
-            except Exception:
-                return Response({"Error": "Вы не ещё не состоите ни в одной компании."}, status = status.HTTP_403_FORBIDDEN)
+        # if Organization.objects.filter(founder=user.user_profile):
+        #     organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
+        # else:
+        try:
+            # organization = user.user_profile.working_orgs.get().org
+            employee = Employee.objects.get(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True)
+            organization = employee.org
+        except Exception:
+            return Response({"Error": "У вас нет активной организации."}, status = status.HTTP_403_FORBIDDEN)
         return organization.applied_orders.all().order_by('-created_at')
 
     def get_list_type(self):
@@ -969,13 +980,15 @@ class ApplyOrderAPIView(APIView):
                             status=status.HTTP_403_FORBIDDEN)
 
         user = self.request.user
-        if Organization.objects.filter(founder=user.user_profile):
-            organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
-        else:
-            try:
-                organization = user.user_profile.working_orgs.get().org
-            except Exception:
-                return Response({"Error": "Вы не ещё не состоите ни в одной компании."}, status = status.HTTP_403_FORBIDDEN)
+        # if Organization.objects.filter(founder=user.user_profile):
+        #     organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
+        # else:
+        try:
+            # organization = user.user_profile.working_orgs.get().org
+            employee = Employee.objects.get(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True)
+            organization = employee.org
+        except Exception:
+            return Response({"Error": "Вы не ещё не состоите ни в одной компании."}, status = status.HTTP_403_FORBIDDEN)
         if organization in order.org_applicants.all():
             return Response({'error': 'You already applied for this order.'},
                             status=status.HTTP_403_FORBIDDEN)
@@ -1120,13 +1133,15 @@ class UpdateOrderStatusAPIView(APIView):
             return Response({"message": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
         user = self.request.user
-        if Organization.objects.filter(founder=user.user_profile):
-            organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
-        else:
-            try:
-                organization = user.user_profile.working_orgs.get().org
-            except Exception:
-                return Response({"Error": "Вы не ещё не состоите ни в одной компании."}, status = status.HTTP_403_FORBIDDEN)
+        # if Organization.objects.filter(founder=user.user_profile):
+        #     organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
+        # else:
+        try:
+            # organization = user.user_profile.working_orgs.get().org
+            employee = Employee.objects.get(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True)
+            organization = employee.org
+        except Exception:
+            return Response({"Error": "У вас нет активной организации."}, status = status.HTTP_403_FORBIDDEN)
 
         if order not in organization.received_orders.all():
             return Response({'error': 'This order is not booked by this organization'},
@@ -1487,12 +1502,10 @@ class DeleteEquipmentAPIView(APIView):
         except Equipment.DoesNotExist:
             return Response({"error": "Equipment does not exist"}, status=status.HTTP_404_NOT_FOUND)
 
-        author = request.user.user_profile
+        if request.user.user_profile != equipment.author:
+            return Response({"error": "Only the author can delete"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if author == "equipment_ads":
-            equipment.delete()
-        else:
-            return Response({"error": "Only the author can delete"})
+        equipment.delete()
         return Response({"data": "Successfully deleted"}, status=status.HTTP_200_OK)
 
 
@@ -1548,6 +1561,8 @@ class EquipmentModalPageAPIView(APIView):
 
 
 class EquipmentDetailPageAPIView(APIView):
+    permission_classes = [AllowAny]
+
     @swagger_auto_schema(
         tags=['Equipment'],
         operation_description="Этот эндпоинт"
@@ -1565,7 +1580,7 @@ class EquipmentDetailPageAPIView(APIView):
             equipment = Equipment.objects.get(slug=kwargs['equipment_slug'])
         except Equipment.DoesNotExist:
             return Response({"error": "Equipment does not exist"}, status=status.HTTP_404_NOT_FOUND)
-        equipment_serializer = EquipmentDetailSerializer(equipment)
+        equipment_serializer = EquipmentDetailSerializer(equipment, context={'request': request})
         content = {"data": equipment_serializer.data}
         return Response(content, status=status.HTTP_200_OK)
 
@@ -1597,15 +1612,17 @@ class EquipmentLikeAPIView(APIView):
         if author in equipment.liked_by.all():
             try:
                 equipment.liked_by.remove(author)
+                equipment.save()
             except Exception as e:
-                return Response({"error": "Error when removing like"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": f"Error when removing like {e}"}, status=status.HTTP_400_BAD_REQUEST)
             return Response({"data": "Equipment's favourite status is remove successfully."},
                             status=status.HTTP_200_OK)
         else:
             try:
                 equipment.liked_by.add(author)
+                equipment.save()
             except Exception as e:
-                return Response({"error": "Error when adding like"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"error": f"Error when adding like {e}"}, status=status.HTTP_400_BAD_REQUEST)
             return Response({"data": "Equipment's favourite status is add successfully."},
                             status=status.HTTP_200_OK)
 

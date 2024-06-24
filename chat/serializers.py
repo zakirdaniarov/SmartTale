@@ -6,10 +6,11 @@ from authorization.models import UserProfile
 class UserChatSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ['first_name', 'last_name', 'slug', 'profile_image']
-        extra_kwagrs = {'first_name': {'read_only': True}, 
+        fields = ['first_name', 'last_name', 'slug', 'profile_image', 'phone_number']
+        extra_kwargs = {'first_name': {'read_only': True}, 
                         'last_name': {'read_only': True},
-                        'profile_image': {'read_only': True}}
+                        'profile_image': {'read_only': True},
+                        'phone_number': {'read_only': True}}
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserChatSerializer()
@@ -25,11 +26,11 @@ class ConversationListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Conversation
-        fields = ['initiator', 'receiver', 'last_message']
+        fields = ['id', 'initiator', 'receiver', 'last_message']
 
     def get_last_message(self, instance):
         message = instance.message_set.first()
-        return message.text
+        return message.text if message else None
 
 
 class ConversationSerializer(serializers.ModelSerializer):
@@ -39,4 +40,4 @@ class ConversationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Conversation
-        fields = ['initiator', 'receiver', 'message_set']
+        fields = ['id', 'initiator', 'receiver', 'message_set']

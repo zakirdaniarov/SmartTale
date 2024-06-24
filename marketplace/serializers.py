@@ -65,7 +65,7 @@ class OrderDetailAPI(ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ['title', 'slug', 'author', 'images', 'type', 'description', 'deadline', 'price', 'org_work'
+        fields = ['title', 'slug', 'author', 'images', 'type', 'description', 'deadline', 'price', 'org_work',
                   'currency', 'category_slug', 'phone_number', 'is_applied', 'email', 'size', 'hide', 'is_finished']
 
     def get_type(self, instance):
@@ -545,7 +545,7 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Equipment
-        fields = ['title', 'category', 'images', 'uploaded_images', 'deleted_images', 'price', 'currency',
+        fields = ['title', 'slug', 'images', 'uploaded_images', 'deleted_images', 'price', 'currency',
                   'description', 'phone_number', 'email', 'author', 'hide', 'quantity', 'is_liked']
 
     def __init__(self, *args, **kwargs):
@@ -558,10 +558,10 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
             self.fields['deleted_images'].required = False
             self.fields['description'].required = False
             self.fields['price'].required = True
-            self.fields['category'].required = False
             self.fields['phone_number'].required = True
             self.fields['email'].required = False
             self.fields['currency'].required = True
+            self.fields['quantity'].required = True
             self.fields['is_liked'].required = False
         else:
             # Fields not required for updating an existing equipment
@@ -570,10 +570,10 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
             self.fields['deleted_images'].required = False
             self.fields['description'].required = False
             self.fields['price'].required = False
-            self.fields['category'].required = False
             self.fields['phone_number'].required = False
             self.fields['email'].required = False
             self.fields['currency'].required = False
+            self.fields['quantity'].required = False
             self.fields['is_liked'].required = False
 
     def get_is_liked(self, instance):
@@ -583,6 +583,14 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
             return instance.liked_by.filter(id=author.id).exists()
         else:
             return False
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        request = self.context.get('request')
+        if request and request.user.is_anonymous:
+            representation.pop('is_liked', None)
+            representation.pop('hide', None)
+        return representation
 
     def create(self, validated_data):
         images_data = validated_data.pop('uploaded_images', [])
@@ -601,7 +609,7 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
         deleted_images = validated_data.pop('deleted_images', [])
 
         if deleted_images:
-            ServiceImages.objects.filter(id__in=deleted_images).delete()
+            EquipmentImages.objects.filter(id__in=deleted_images).delete()
 
         if images_data:
             max_images = 5
@@ -609,23 +617,10 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(f"You can't add more then {max_images} images")
 
             for image_data in images_data:
-                EquipmentImages.objects.create_or_update(equipment=instance, images=image_data)
+                EquipmentImages.objects.create(equipment=instance, images=image_data)
 
-        if deleted_images:
-            EquipmentImages.objects.filter(id__in=deleted_images).delete()
-        else:
-            return instance
-
-        instance.title = validated_data.pop('title', instance.title)
-        instance.description = validated_data.pop('description', instance.description)
-        instance.category = validated_data.pop('category', instance.category)
-        instance.price = validated_data.pop('price', instance.price)
-        instance.currency = validated_data.pop('price', instance.currency)
-        instance.phone_number = validated_data.pop('phone_number', instance.phone_number)
-        instance.email = validated_data.pop('email', instance.email)
-        instance.author = validated_data.pop('author', instance.author)
-        instance.hide = validated_data.pop('hide', instance.hide)
-        instance.sold = validated_data.pop('sold', instance.sold)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
 
         instance.save()
         return instance
@@ -679,6 +674,7 @@ class EquipmentSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         representation = super().to_representation(instance)
         equipments = self.context.get('equipments_type')
+        request = self.context.get('request')
 
         if equipments == 'my-like-equipments':
             fields_to_remove = ['author', 'is_liked']
@@ -691,6 +687,9 @@ class EquipmentSerializer(serializers.ModelSerializer):
 
         for field in fields_to_remove:
             representation.pop(field, None)
+
+        if request and request.user.is_anonymous:
+            representation.pop('is_liked', None)
 
         return representation
 

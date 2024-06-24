@@ -48,7 +48,7 @@ urlpatterns = [
 
     path('ads-search/', SearchAdsAPIView.as_view()),
     path('my-ads/', MyAdsListAPIView.as_view()),
-    path('my-notifications/', UserNotificationsAPIView.as_view(), name='user-notifications'),
+    # path('my-notifications/', UserNotificationsAPIView.as_view(), name='user-notifications'),
 
     path('equipments/', EquipmentsListAPIView.as_view()),
     path('equipment/search/', EquipmentSearchAPIView.as_view()),
