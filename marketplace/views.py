@@ -771,8 +771,10 @@ class UpdateOrderAPIView(APIView):
 
         serializer = self.serializer_class(order, data=request.data, context={'request': request})
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            updated_order = serializer.save()
+            response_data = serializer.data
+            response_data['slug'] = updated_order.slug
+            return Response(response_data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -1459,8 +1461,7 @@ class ChangeEquipmentAPIView(APIView):
                                                          context={'request': request})
 
         if equipment_serializer.is_valid():
-            author = request.user.user_profile
-            equipment_serializer.save(author=author)
+            equipment_serializer.save()
             return Response(equipment_serializer.data, status=status.HTTP_200_OK)
         return Response(equipment_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -2173,8 +2174,10 @@ class UpdateServiceAPIView(APIView):
 
         serializer = self.serializer_class(service, data=request.data, context={'request': request})
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            updated_service = serializer.save()
+            response_data = serializer.data
+            response_data['slug'] = updated_service.slug
+            return Response(response_data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
