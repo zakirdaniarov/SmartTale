@@ -8,6 +8,7 @@ from asgiref.sync import async_to_sync
 from marketplace.models import Order
 from .models import Notifications
 from monitoring.models import Employee, STATUS_CHOICES
+from chat.models import Message
 
 SLEEP_TIME = 3
 
@@ -168,6 +169,30 @@ def order_status_update_notification(sender, instance, **kwargs):
 
         user_name = f"{instance.author.id}-notifications"
         channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            user_name,
+            {
+                "type": "get_notifications_handler",
+            }
+        )
+
+@receiver(post_save, sender=Message, dispatch_uid="employee-create")
+def customer_status_changed(sender, instance, created, **kwargs):
+    if created:
+        title = "Новое сообщение"
+        description = "У вас новое сообщение от {}".format(instance.sender.first_name)
+        user = instance.conversation_id.initiator if instance.conversation_id.receiver == instance.sender else instance.conversation_id.receiver
+
+        Notifications.objects.create(
+            type = 'Chat',
+            title=title,
+            description=description,
+            recipient=user,
+        )
+
+        user_name = f"{user.id}-notifications"
+
+        channel_layer = get_channel_layer()  # Use this function
         async_to_sync(channel_layer.group_send)(
             user_name,
             {
