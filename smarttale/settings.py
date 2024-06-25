@@ -66,12 +66,14 @@ INSTALLED_APPS = [
     'drf_yasg',
     'django_filters',
     # 'django_q',
+    'channels_auth_token_middlewares',
 
     'authorization',
     'marketplace',
     'monitoring',
     'job',
     'chat',
+    'notif',
 ]
 
 MIDDLEWARE = [

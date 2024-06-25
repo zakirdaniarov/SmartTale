@@ -45,10 +45,11 @@ class MyEmployeeSerializer(serializers.ModelSerializer):
                   'flag_create_vacancy', 'flag_change_employee_job']
 
 class MyOrganizationSerializer(serializers.ModelSerializer):
+    founder = serializers.ReadOnlyField(source = 'founder.slug')    
 
     class Meta:
         model = Organization
-        fields = ['title', 'slug']
+        fields = ['title', 'slug', 'founder']
 
 class OrganizationMonitoringSerializer(serializers.ModelSerializer):
 
@@ -108,7 +109,7 @@ class ProfileDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserProfile
-        fields = ['first_name', 'last_name', 'middle_name', 'phone_number', 'profile_image', 'email', 'slug']
+        fields = ['id', 'first_name', 'last_name', 'middle_name', 'phone_number', 'profile_image', 'email', 'slug']
 
 class ProfileChangeSerializer(serializers.ModelSerializer):
 
@@ -121,6 +122,14 @@ class OrderTitleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ['title', 'slug']
+
+class InvitesSerializer(serializers.ModelSerializer):
+    org = OrganizationDetailSerializer()
+    job_title = JobTitleSerializer()
+
+    class Meta:
+        model = Employee
+        fields = ('org', 'job_title')
 
 class EmployeeListSerializer(serializers.ModelSerializer):
     first_name = serializers.ReadOnlyField(source = 'user.first_name')
@@ -136,10 +145,11 @@ class EmployeeListSerializer(serializers.ModelSerializer):
         fields = ['first_name', 'last_name', 'middle_name', 'email', 'user_slug',
                   'order', 'job_title','status']
 class UserEmployeeSerializer(serializers.ModelSerializer):
-    email = serializers.ReadOnlyField(source = 'user.user.email')
+    email = serializers.ReadOnlyField(source = 'user.email')
     class Meta:
         model = UserProfile
-        fields = ('first_name', 'last_name', 'middle_name', 'email', 'slug', 'profile_image')
+        fields = ('first_name', 'last_name', 'middle_name', 'email', 'phone_number', 'slug', 'profile_image')
+
 class EmployeeDetailSerializer(serializers.ModelSerializer):
     user = UserEmployeeSerializer()
     job_title = JobTitleSerializer()

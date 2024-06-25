@@ -12,6 +12,7 @@ cachetools==5.3.3
 certifi==2024.2.2
 cffi==1.16.0
 channels==4.1.0
+channels-auth-token-middlewares==1.1.0
 channels-redis==4.2.0
 charset-normalizer==3.3.2
 cloudinary==1.39.1

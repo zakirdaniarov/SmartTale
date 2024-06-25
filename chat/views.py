@@ -7,8 +7,8 @@ from django.urls import reverse
 from drf_yasg.utils import swagger_auto_schema
 
 from authorization.models import UserProfile
-from .models import Conversation
-from .serializers import ConversationListSerializer, ConversationSerializer
+from .models import Conversation, Message
+from .serializers import ConversationListSerializer, ConversationSerializer, MessageSerializer
 
 # Create your views here.
 
@@ -35,7 +35,7 @@ class ConversationStartAPIView(APIView):
         conversation = Conversation.objects.filter(Q(initiator=request.user.user_profile, receiver=participant) |
                                                 Q(initiator=participant, receiver=request.user.user_profile))
         if conversation.exists():
-            return redirect(reverse('get_conversation', args=(conversation[0].id,)))
+            return redirect(reverse('getconversation', args=(conversation[0].id,)))
         else:
             conversation = Conversation.objects.create(initiator=request.user.user_profile, receiver=participant)
             return Response(ConversationSerializer(instance=conversation).data)
@@ -60,6 +60,33 @@ class MessageAPIView(APIView):
         else:
             serializer = ConversationSerializer(instance=conversation[0])
             return Response(serializer.data)
+
+class SendMessageAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        tags = ["Chat"],
+        operation_summary = "Отправить сообщение.",
+        operation_description = "Предоставляет доступ к отправке сообщения другому пользователю.",
+        responses = {
+            200: MessageSerializer,
+            404: "Not found",
+        }
+    )
+    def get(self, request, user_slug):
+        data = request.data
+        try:
+            participant = UserProfile.objects.get(slug = user_slug)
+        except UserProfile.DoesNotExist:
+            return Response({'message': 'You cannot chat with a non existent user'})
+
+        conversation = Conversation.objects.filter(Q(initiator=request.user.user_profile, receiver=participant) |
+                                                Q(initiator=participant, receiver=request.user.user_profile)).first()
+        if not conversation:
+            conversation = Conversation.objects.create(initiator=request.user.user_profile, receiver=participant)
+        attachment = data.get('attachment', None)
+        message = Message.objects.create(sender = request.user.user_profile, text = data['text'], conversation_id = conversation, attachment = attachment)
+        return Response(MessageSerializer(instance=message).data)
 
 
 class ConversationListAPIView(APIView):
