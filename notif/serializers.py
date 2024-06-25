@@ -20,6 +20,6 @@ class UserNotificationSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
-        ret['title'] = ret['title'].encode('utf-8').decode('unicode_escape')
-        ret['description'] = ret['description'].encode('utf-8').decode('unicode_escape')
+        ret['title'] = ret['title']
+        ret['description'] = ret['description']
         return ret

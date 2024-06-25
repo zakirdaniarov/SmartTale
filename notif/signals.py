@@ -43,8 +43,8 @@ def notify_customers_on_delete(sender, instance, **kwargs):
 def customer_status_changed(sender, instance, created, **kwargs):
     if created:
         if instance.status == STATUS_CHOICES[1][0]:
-            title = "Invitation to organization"
-            description = "You've been invited to organization '{}' for the role '{}'.".format(instance.org.title, instance.job_title.title)
+            title = "Приглашение в организацию"
+            description = "Вы были приглашены в организацию {} на должность {}".format(instance.org.title, instance.job_title.title)
             Notifications.objects.create(
                 title=title,
                 description=description,
