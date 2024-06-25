@@ -47,9 +47,11 @@ def customer_status_changed(sender, instance, created, **kwargs):
             title = "Приглашение в организацию"
             description = "Вы были приглашены в организацию {} на должность {}".format(instance.org.title, instance.job_title.title)
             Notifications.objects.create(
+                type = 'Organization',
                 title=title,
                 description=description,
-                recipient=instance.user
+                recipient=instance.user,
+                org = instance.org
             )
 
             user_name = f"{instance.user.id}-notifications"
@@ -112,6 +114,7 @@ def order_book_notification(sender, instance, **kwargs):
             title = "Заказ забронирован"
             description = f"Ваш заказ {instance.title} был забронирован."
             Notifications.objects.create(
+                type = 'Order',
                 title=title,
                 description=description,
                 recipient=instance.author
@@ -134,6 +137,7 @@ def order_finish_notification(sender, instance, **kwargs):
         title = "Заказ готов"
         description = f"Ваш заказ - '{instance.title}' готов."
         Notifications.objects.create(
+            type = 'Order',
             title=title,
             description=description,
             recipient=instance.author
@@ -156,6 +160,7 @@ def order_status_update_notification(sender, instance, **kwargs):
         title = "Статус заказа изменился!"
         description = f"Статус вашего заказа {instance.title} изменился c {previous.status} на {instance.status}."
         Notifications.objects.create(
+            type = 'Order',
             title=title,
             description=description,
             recipient=instance.author
