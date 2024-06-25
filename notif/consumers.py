@@ -110,7 +110,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
                     "id": notification.id,
                     "title": notification.title,
                     "description": notification.description,
-                    "timestamp": notification.timestamp.strftime("%H:%M"),
+                    "timestamp": notification.timestamp.strftime("%d.%m.%Y %H:%M"),
                 }
             )
         await self.send(text_data=json.dumps({"notifications": notifications_list}))
