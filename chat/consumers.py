@@ -13,15 +13,20 @@ from .serializers import MessageSerializer
 
 class ChatConsumer(WebsocketConsumer):
     def connect(self):
-        print("here")
-        self.room_name = self.scope["url_route"]["kwargs"]["room_name"]
-        self.room_group_name = f"chat_{self.room_name}"
+        self.sender = self.scope['user']
+        if self.sender.is_authenticated:
+            self.room_name = self.scope["url_route"]["kwargs"]["room_name"]
+            self.conversation = Conversation.objects.get(id=int(self.room_name))
+            self.room_group_name = f"chat_{self.room_name}"
 
-        # Join room group
-        async_to_sync(self.channel_layer.group_add)(
-            self.room_group_name, self.channel_name
-        )
-        self.accept()
+            if self.conversation.receiver == self.sender.user_profile or self.conversation.initiator == self.sender.user_profile:
+                async_to_sync(self.channel_layer.group_add)(
+                    self.room_group_name, self.channel_name
+                )
+                self.accept()
+                self.send(json.dumps({"accept": True}))
+            
+        # self.send({"close": True})
 
     def disconnect(self, close_code):
         # Leave room group
@@ -50,8 +55,8 @@ class ChatConsumer(WebsocketConsumer):
             text_data_json.get("attachment"),
         )
 
-        conversation = Conversation.objects.get(id=int(self.room_name))
-        sender = self.scope['user']
+        conversation = self.conversation
+        sender = self.sender
 
         # Attachment
         if attachment:

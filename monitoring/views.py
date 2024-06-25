@@ -739,12 +739,10 @@ class OrderEmployeesAPIView(APIView):
         except Order.DoesNotExist:
             return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
         user = request.user
-        cur_org = Organization.objects.filter(founder = user.user_profile, active = True).first()
-        if not cur_org:
-            employee = Employee.objects.filter(user=user.user_profile, status = STATUS_CHOICES[0][0], active = True).first()
-            if not employee:
-                return Response({"Error": "Вы не состоите ни в одной организации!"}, status = status.HTTP_403_FORBIDDEN)
-            cur_org = employee.org
+        employee = Employee.objects.filter(user=user.user_profile, status = STATUS_CHOICES[0][0], active = True).first()
+        if not employee:
+            return Response({"Error": "Вы не состоите ни в одной организации!"}, status = status.HTTP_403_FORBIDDEN)
+        cur_org = employee.org
         if cur_org != order.org_work:
             return Response({"Error": "You don't have access for this page"}, status = status.HTTP_403_FORBIDDEN)
         employees = order.workers.all()
@@ -755,7 +753,7 @@ class OrderEmployeesAPIView(APIView):
                 "user_first_name": employee.user.first_name,
                 "user_last_name": employee.user.last_name,
                 "user_profile_image": employee.user.profile_image,
-                "job_title": employee.job_title.name if employee.job_title else None,
+                "job_title": employee.job_title.title if employee.job_title else None,
                 "status": employee.status
             })
 

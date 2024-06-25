@@ -65,7 +65,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from asgiref.sync import sync_to_async
 from django.utils import timezone
 
-from .models import Notif
+from .models import Notifications
 from authorization.models import UserProfile
 
 class NotificationConsumer(AsyncWebsocketConsumer):
@@ -74,12 +74,19 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         print("WebSocket connected!")
         self.user_id = self.scope["url_route"]["kwargs"]["user_id"]
         self.user = await self.get_user(self.user_id)
+        jwt_user = self.scope['user']
         # print(self.user)
         self.user_group_name = f"{self.user_id}-notifications"
-        await self.channel_layer.group_add(self.user_group_name, self.channel_name)
+        jwt_user = await self.get_jwt_user(jwt_user)
+        if self.user == jwt_user:
+            await self.channel_layer.group_add(self.user_group_name, self.channel_name)
 
-        await self.accept()
-        await self.get_notifications()
+            await self.accept()
+            await self.get_notifications()
+
+    @database_sync_to_async
+    def get_jwt_user(self, jwt_user):
+        return jwt_user.user_profile
 
     @database_sync_to_async
     def get_user(self, user_id):
@@ -93,7 +100,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
     async def get_notifications(self):
         notifications = await sync_to_async(list, thread_sensitive=True)(
-            Notif.objects.filter(recipient=self.user.id, read=False).order_by('-timestamp')
+            Notifications.objects.filter(recipient=self.user.id, read=False).order_by('-timestamp')
         )
         notifications_list = []
         for notification in notifications:

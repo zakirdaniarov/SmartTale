@@ -17,14 +17,15 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "smarttale.settings")
 django_asgi_app = get_asgi_application()
 
 import chat.routing
-from chat.channelsmiddleware import JwtAuthMiddlewareStack
+# from chat.channelsmiddleware import JwtAuthMiddlewareStack
+from channels_auth_token_middlewares.middleware import QueryStringSimpleJWTAuthTokenMiddleware
 
 
 application = ProtocolTypeRouter(
     {
         "http": django_asgi_app,
         "websocket": AllowedHostsOriginValidator(
-            JwtAuthMiddlewareStack(
+            QueryStringSimpleJWTAuthTokenMiddleware(
                 URLRouter(
                     # [
                     chat.routing.websocket_urlpatterns
