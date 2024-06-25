@@ -100,7 +100,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
     async def get_notifications(self):
         notifications = await sync_to_async(list, thread_sensitive=True)(
-            Notifications.objects.filter(recipient=self.user.id).order_by('-timestamp')
+            Notifications.objects.filter(recipient=self.user.id, read = False).order_by('-timestamp')
         )
         notifications_list = []
         for notification in notifications:
