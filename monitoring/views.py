@@ -750,6 +750,9 @@ class OrderEmployeesAPIView(APIView):
         for employee in employees:
             employees_data.append({
                 "user_profile": employee.user.slug,
+                "user_first_name": employee.user.first_name,
+                "user_last_name": employee.user.last_name,
+                "user_profile_image": employee.user.profile_image,
                 "job_title": employee.job_title.title if employee.job_title else None,
                 "status": employee.status
             })

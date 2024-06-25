@@ -5,6 +5,7 @@ from django.dispatch import receiver
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 
+from marketplace.models import Order
 from .models import Notifications
 from monitoring.models import Employee, STATUS_CHOICES
 
@@ -60,3 +61,106 @@ def customer_status_changed(sender, instance, created, **kwargs):
                     "type": "get_notifications_handler",
                 }
             )
+
+@receiver(post_save, sender=Order, dispatch_uid="order-apply")
+def order_apply_notification(sender, instance, created, **kwargs):
+    if created:
+        order = instance
+        applicant_org = instance.org_applicants
+
+        # Notify the order author
+        title = "New Order Application"
+        description = f"Your order '{order.title}' has received a new application from {applicant_org.title}."
+        Notifications.objects.create(
+            title=title,
+            description=description,
+            recipient=order.author
+        )
+
+        user_name = f"{order.author.id}-notifications"
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            user_name,
+            {
+                "type": "get_notifications_handler",
+            }
+        )
+
+        # Notify the applicant organization
+        title = "Application Submitted"
+        description = f"Your organization '{applicant_org.title}' has successfully applied for the order '{order.title}'."
+        Notifications.objects.create(
+            title=title,
+            description=description,
+            recipient=applicant_org.founder
+        )
+
+        user_name = f"{applicant_org.founder.id}-notifications"
+        async_to_sync(channel_layer.group_send)(
+            user_name,
+            {
+                "type": "get_notifications_handler",
+            }
+        )
+
+@receiver(post_save, sender=Order, dispatch_uid="order-book")
+def order_book_notification(sender, instance, **kwargs):
+    if instance.is_booked:
+        # Notify the order author
+        title = "Order Booked"
+        description = f"Your order '{instance.title}' has been booked."
+        Notifications.objects.create(
+            title=title,
+            description=description,
+            recipient=instance.author
+        )
+
+        user_name = f"{instance.author.id}-notifications"
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            user_name,
+            {
+                "type": "get_notifications_handler",
+            }
+        )
+
+@receiver(post_save, sender=Order, dispatch_uid="order-finish")
+def order_finish_notification(sender, instance, **kwargs):
+    if instance.is_finished:
+        # Notify the order author
+        title = "Order Finished"
+        description = f"Your order '{instance.title}' has been marked as finished."
+        Notifications.objects.create(
+            title=title,
+            description=description,
+            recipient=instance.author
+        )
+
+        user_name = f"{instance.author.id}-notifications"
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            user_name,
+            {
+                "type": "get_notifications_handler",
+            }
+        )
+
+@receiver(post_save, sender=Order, dispatch_uid="order-status-update")
+def order_status_update_notification(sender, instance, **kwargs):
+    # Notify the order author about the status change
+    title = "Order Status Updated"
+    description = f"The status of your order '{instance.title}' has been updated to {instance.status}."
+    Notifications.objects.create(
+        title=title,
+        description=description,
+        recipient=instance.author
+    )
+
+    user_name = f"{instance.author.id}-notifications"
+    channel_layer = get_channel_layer()
+    async_to_sync(channel_layer.group_send)(
+        user_name,
+        {
+            "type": "get_notifications_handler",
+        }
+    )
