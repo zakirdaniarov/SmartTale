@@ -577,10 +577,9 @@ class EquipmentDetailSerializer(serializers.ModelSerializer):
             self.fields['is_liked'].required = False
 
     def get_is_liked(self, instance):
-        author = self.context['request'].user if self.context.get('request') else None
-
-        if author and not author.is_anonymous:
-            return instance.liked_by.filter(id=author.id).exists()
+        user = self.context['request'].user if self.context.get('request') else None
+        if user and not user.is_anonymous:
+            return instance.liked_by.filter(user=user).exists()
         else:
             return False
 
@@ -664,11 +663,11 @@ class EquipmentSerializer(serializers.ModelSerializer):
         return 'Images does not exist'
 
     def get_is_liked(self, instance):
-        author = self.context['request'].user if self.context.get('request') else None
-
-        if author and not author.is_anonymous:
-            return instance.liked_by.filter(id=author.id).exists()
+        user = self.context['request'].user if self.context.get('request') else None
+        if user and not user.is_anonymous:
+            return instance.liked_by.filter(user=user).exists()
         else:
+            # If user is None or anonymous, set 'is_liked' to False
             return False
 
     def to_representation(self, instance):

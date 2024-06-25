@@ -114,7 +114,7 @@ class VacancyListAPIView(views.APIView):
         try:
             vacancy = Vacancy.objects.all().order_by('-created_at')
         except Vacancy.DoesNotExist:
-            return Response({"error": "Vacancy does not exist"}, status=status.HTTP_404_NOT_FOUND)
+            return Response([], status=status.HTTP_404_NOT_FOUND)
 
         if job_title:
             vacancy = vacancy.filter(job_title__in=job_title)
@@ -206,11 +206,15 @@ class AddVacancyAPIView(views.APIView):
         tags=["Vacancy"]
     )
     def post(self, request, *args, **kwargs):
-        organization = Organization.objects.filter(owner=request.user.user_profile).first()
-
-        if not organization:
-            return Response({"error": "You must belong to an organization to create a vacancy"},
-                            status=status.HTTP_403_FORBIDDEN)
+        user = request.user
+        if Organization.objects.filter(founder=user.user_profile):
+            organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
+        else:
+            try:
+                organization = user.user_profile.working_orgs.get().org()
+            except Exception as e:
+                return Response({"error": "You must belong to an organization to create a vacancy"},
+                                status=status.HTTP_403_FORBIDDEN)
 
         serializer = VacancyDetailSerializer(data=request.data)
         if serializer.is_valid():
@@ -260,12 +264,17 @@ class ChangeVacancyAPIView(views.APIView):
         try:
             vacancy = Vacancy.objects.get(slug=kwargs['vacancy_slug'])
         except Vacancy.DoesNotExist:
-            return Response({"error": "Vacancy does not exist"}, status=status.HTTP_404_NOT_FOUND)
+            return Response([])
 
-        organization = Organization.objects.filter(owner=request.user.user_profile).first()
-
-        if not organization:
-            return Response({"error": "Only organization that added it can change"}, status=status.HTTP_403_FORBIDDEN)
+        user = request.user.user_profile
+        if Organization.objects.filter(founder=user):
+            organization = Organization.objects.filter(founder=user, active=True).first()
+        else:
+            try:
+                organization = user.working_orgs.get().org()
+            except Exception as e:
+                return Response({"error": "Only organization that added it can change"},
+                                status=status.HTTP_400_BAD_REQUEST)
 
         serializer = VacancyDetailSerializer(instance=vacancy, data=request.data)
         if serializer.is_valid():
