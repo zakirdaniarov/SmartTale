@@ -9,7 +9,7 @@ class UserSlugSerializer(serializers.ModelSerializer):
 
 class OrgNotifSerializer(serializers.ModelSerializer):
     class Meta:
-        model = UserProfile
+        model = Organization
         fields = ('slug', 'title')
 
 class UserNotificationSerializer(serializers.ModelSerializer):
