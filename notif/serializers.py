@@ -1,15 +1,20 @@
 from rest_framework import serializers
 from .models import Notifications
-from authorization.models import UserProfile
+from authorization.models import UserProfile, Organization
 
 class UserSlugSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = ('slug',)
 
+# class OrgNotifSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Organization
+#         fields = ('slug', 'title')
 
 class UserNotificationSerializer(serializers.ModelSerializer):
     timestamp = serializers.DateTimeField(format="%d.%m.%Y %H:%M", read_only=True)
+    org = serializers.ReadOnlyField(source = 'org.slug')
     recipient = UserSlugSerializer()
     #title = serializers.CharField(max_length=255)
     #description = serializers.CharField(max_length=255)
@@ -17,9 +22,3 @@ class UserNotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notifications
         fields = '__all__'
-
-    def to_representation(self, instance):
-        ret = super().to_representation(instance)
-        ret['title'] = ret['title'].encode('utf-8').decode('unicode_escape')
-        ret['description'] = ret['description'].encode('utf-8').decode('unicode_escape')
-        return ret

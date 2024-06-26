@@ -750,10 +750,12 @@ class OrderEmployeesAPIView(APIView):
         for employee in employees:
             employees_data.append({
                 "user_profile": employee.user.slug,
+                "user_first_name": employee.user.first_name,
+                "user_last_name": employee.user.last_name,
+                "user_profile_image": employee.user.profile_image if employee.user.profile_image else None,
                 "job_title": employee.job_title.title if employee.job_title else None,
                 "status": employee.status
             })
-
         return Response(employees_data, status=status.HTTP_200_OK)
 
 
@@ -830,6 +832,7 @@ class EmployeeApplyAPIView(APIView):
             return Response({"Success": "Нет приглашения в данную организацию!"}, status = status.HTTP_400_BAD_REQUEST)
         employee.status = STATUS_CHOICES[0][0]
         employee.active = True
+        employee.save()
         other_invites = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[1][0])
         if other_invites:
             other_invites.delete()

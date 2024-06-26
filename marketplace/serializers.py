@@ -54,11 +54,17 @@ class SizeSerializer(serializers.ModelSerializer):
         model = Size
         fields = ['id', 'size']
 
+class OrderOrgSlugSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Organization
+        fields = ['slug']
 
 class OrderDetailAPI(ModelSerializer):
     author = UserProfileAPI(read_only=True)
     images = OrderImageSerializer(many=True, read_only=True)
     category_slug = serializers.ReadOnlyField(source='category.slug')
+    org_work = serializers.ReadOnlyField(source='org_work.slug')
     size = SizeSerializer(read_only=True, many=True)
     type = serializers.SerializerMethodField()
     is_applied = serializers.SerializerMethodField()
@@ -100,7 +106,8 @@ class OrderDetailAPI(ModelSerializer):
 
         if not self.context['author']:
             representation.pop('hide')
-            representation.pop('org_work')
+            if instance.org_work:
+                representation.pop('org_work')
             representation.pop('is_finished')
         else:
             representation.pop('is_liked')

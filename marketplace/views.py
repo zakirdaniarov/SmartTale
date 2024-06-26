@@ -104,10 +104,25 @@ class MyOrderAdsListView(BaseOrderListView):
     serializer_class = OrderListAPI
 
     def get_queryset(self):
-        return Order.objects.filter(author=self.request.user.user_profile).order_by('-created_at')
+        orders = Order.objects.filter(author=self.request.user.user_profile).order_by('-created_at')
+        stage = self.request.query_params.get('stage')
+        if stage == 'active':
+            return orders.filter(is_finished=False).order_by('booked_at')
+        elif stage == 'finished':
+            return orders.filter(is_finished=True).order_by('booked_at')
+        else:
+            # Handle invalid status parameter
+            return orders.order_by('booked_at')
 
     def get_list_type(self):
-        return "my-order-ads"
+        stage = self.request.query_params.get('stage')
+        if stage == 'active':
+            return "my-history-orders-active"
+        elif stage == 'finished':
+            return "my-history-orders-finished"
+        else:
+            # Handle invalid status parameter
+            return None
 
     @swagger_auto_schema(
         operation_summary="List of orders created by the current user",
@@ -120,6 +135,13 @@ class MyOrderAdsListView(BaseOrderListView):
                 required=False,
                 description="Search query to filter orders by title (case-insensitive)",
             ),
+            openapi.Parameter(
+                "stage",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Shows in which stage is order, active or finished",
+            )
         ],
         responses={200: serializer_class},
         tags=["Order List"]
@@ -192,9 +214,9 @@ class MyHistoryOrdersListView(BaseOrderListView):
 
     def get_list_type(self):
         stage = self.request.query_params.get('stage')
-        if status == 'active':
+        if stage == 'active':
             return "my-history-orders-active"
-        elif status == 'finished':
+        elif stage == 'finished':
             return "my-history-orders-finished"
         else:
             # Handle invalid status parameter
@@ -872,24 +894,6 @@ class FinishOrderAPIView(APIView):
         order.finished_at = timezone.now()
         order.save()
 
-        org = order.org_work
-        founder_or_owner_profile = org.founder if org.founder else org.owner
-        if founder_or_owner_profile.device_token:
-            try:
-                send_fcm_notification(
-                founder_or_owner_profile.device_token,
-                "Order Finished",
-                f"Your sent order '{order.title}' has been received successfully."
-                )
-            except Exception as e:
-                print(f"Failed to send FCM notification: {e}")
-
-        Notification.objects.create(
-            user=founder_or_owner_profile,
-            title="Application Successful",
-            message=f"The order '{order.title}' has been marked as finished."
-        )
-
         return Response({"Message": "Order finished status is changed."}, status=status.HTTP_200_OK)
 
 
@@ -994,30 +998,6 @@ class ApplyOrderAPIView(APIView):
                             status=status.HTTP_403_FORBIDDEN)
         order.org_applicants.add(organization)
         order.save()
-
-        fcm_token = request.data.get('fcm_token')
-        if fcm_token:
-            user.user_profile.device_token = fcm_token
-            user.user_profile.save()
-
-        author_profile = order.author
-        if author_profile.device_token:
-            print(author_profile.device_token)
-            try:
-                send_fcm_notification(
-                    author_profile.device_token,
-                    "New Order Application",
-                    f"Your order '{order.title}' has received a new application from {organization.title}."
-                )
-            except Exception as e:
-                print(f"Failed to send FCM notification: {e}")
-
-        Notification.objects.create(
-            user=author_profile,
-            title="New Order Application",
-            message=f"Your order '{order.title}' has received a new application from {organization.title}."
-        )
-
         return Response({"Success": "Order applied successfully."}, status=status.HTTP_200_OK)
 
 
@@ -1074,23 +1054,6 @@ class BookOrderAPIView(APIView):
         order.is_booked = True
         order.booked_at = timezone.now()
         order.save()
-
-        founder_or_owner_profile = org.founder if org.founder else org.owner
-        if founder_or_owner_profile.device_token:
-            try:
-                send_fcm_notification(
-                founder_or_owner_profile.device_token,
-                "Application Successful",
-                f"Your application for order '{order.title}' has been successful."
-            )
-            except Exception as e:
-                print(f"Failed to send FCM notification: {e}")
-
-        Notification.objects.create(
-            user=founder_or_owner_profile,
-            title="Application Successful",
-            message=f"Your application for the order '{order.title}' has been accepted."
-        )
         return Response({"Success": "Order booked successfully."}, status=status.HTTP_200_OK)
 
 
@@ -1176,23 +1139,6 @@ class UpdateOrderStatusAPIView(APIView):
         # Update the order status and save
         order.status = order_status
         order.save()
-
-        creator_profile = order.author
-        if creator_profile.device_token:
-            try:
-                send_fcm_notification(
-                creator_profile.device_token,
-                "Order Status Update",
-                f"Your order '{order.title}' status has changed to {order_status}"
-            )
-            except Exception as e:
-                print(f"Failed to send FCM notification: {e}")
-
-        Notification.objects.create(
-                user=creator_profile,
-                title="Order Status Updated",
-                message=f"The status of the order '{order.title}' has been updated to '{order_status}'."
-            )
 
         return Response({"Success": "Order status changed successfully."}, status=status.HTTP_200_OK)
 
