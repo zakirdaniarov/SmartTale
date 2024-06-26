@@ -89,10 +89,6 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         return jwt_user.user_profile
 
     @database_sync_to_async
-    def get_org(self, notification):
-        return notification.org
-
-    @database_sync_to_async
     def get_user(self, user_id):
         return UserProfile.objects.get(id = user_id)
 
@@ -109,15 +105,13 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         notifications_list = []
         for notification in notifications:
             notification.timestamp = timezone.localtime(notification.timestamp)
-            org = await self.get_org(notification)
-            org_slug = org.slug if org else None
             notifications_list.append(
                 {
                     "id": notification.id,
                     "type": notification.type,
                     "title": notification.title,
                     "description": notification.description,
-                    "org": org_slug,
+                    "target_slug": notification.target_slug,
                     "timestamp": notification.timestamp.strftime("%d.%m.%Y %H:%M"),
                 }
             )

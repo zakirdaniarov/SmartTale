@@ -19,7 +19,7 @@ class Notifications(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     read = models.BooleanField(default=False)
     recipient = models.ForeignKey(UserProfile, related_name='recipient_name', on_delete=models.CASCADE)
-    org = models.ForeignKey(Organization, related_name='org_notif', blank=True, null=True, on_delete=models.CASCADE)
+    target_slug = models.SlugField(null = True, blank = True)
 
     def __str__(self):
         return f"{self.title} - {self.recipient.id}"

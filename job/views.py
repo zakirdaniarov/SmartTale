@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from django.db.models import Q
 
 from authorization.models import Organization, UserProfile
+from monitoring.models import STATUS_CHOICES
 from monitoring.models import Employee
 from .models import Vacancy, Resume, VacancyResponse
 from .serializers import (VacancyListSerializer, VacancyDetailSerializer,
@@ -93,29 +94,31 @@ class VacancyListAPIView(views.APIView):
         tags=["Vacancy"]
     )
     def get(self, request, *args, **kwargs):
-        params = request.query_params.get('params', '').split(',')
-
+        # params = request.query_params.get('params', '').split(',')
+        params = dict(request.GET)
+        for param in params:
+            params[param] = params[param][0].split(',')
         all_job_titles = list(Vacancy.objects.values_list('job_title', flat=True).distinct())
         all_locations = list(Vacancy.objects.values_list('location', flat=True).distinct())
         all_schedules = list(Vacancy.objects.values_list('schedule', flat=True).distinct())
-
-        job_title = [param for param in params if param in all_job_titles]
-        location = [param for param in params if param in all_locations]
-        schedule = [param for param in params if param in all_schedules]
-
-        organization = request.query_params.get('organization', None)
-        experience = request.query_params.get('experience', None)
-        min_salary = request.query_params.get('min_salary', None)
-        max_salary = request.query_params.get('max_salary', None)
-        day = request.query_params.get('day', None)
-        week = request.query_params.get('week', None)
-        month = request.query_params.get('month', None)
+        print(params)
+        job_title = [param for param in params.get('job_title', [])]
+        location = [param for param in params.get('location', [])]
+        schedule = [param for param in params.get('schedule', [])]
+        organization = params.get('organization', None)
+        experience = params.get('experience', None)
+        min_salary = params.get('min_salary', None)
+        min_salary = min_salary[0] if min_salary else None
+        max_salary = params.get('max_salary', None)
+        max_salary = max_salary[0] if max_salary else None
+        day = params.get('day', None)
+        week = params.get('week', None)
+        month = params.get('month', None)
 
         try:
             vacancy = Vacancy.objects.all().order_by('-created_at')
         except Vacancy.DoesNotExist:
             return Response([], status=status.HTTP_404_NOT_FOUND)
-
         if job_title:
             vacancy = vacancy.filter(job_title__in=job_title)
         if organization:
@@ -381,17 +384,12 @@ class VacancyByOrgAPIView(views.APIView):
         tags=["Vacancy"]
     )
     def get(self, request, *args, **kwargs):
-        user = request.user.user_profile
-        if Organization.objects.filter(founder=user):
-            organization = Organization.objects.filter(founder=user, active=True).first()
-        else:
-            try:
-                organization = user.working_orgs.get().org()
-            except Exception as e:
-                return Response({"error": "You don't have permissions"},
-                                status=status.HTTP_403_FORBIDDEN)
+        user = request.user
+        employee = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True).first()
+        if not employee:
+            return Response({"Error": "У Вас нет активной организации!"}, status = status.HTTP_403_FORBIDDEN)
 
-        vacancy = Vacancy.objects.filter(organization=organization).order_by('-created_at')
+        vacancy = Vacancy.objects.filter(organization=employee.org).order_by('-created_at')
 
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(vacancy, request)
