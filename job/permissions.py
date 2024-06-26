@@ -32,20 +32,15 @@ class IsOrganizationEmployeeReadOnly(IsAuthenticated):
         user = request.user
 
         if user and not user.is_anonymous:
-            # Проверяем, является ли метод запроса безопасным (например, GET, HEAD, OPTIONS)
+            current_organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
+            if not current_organization:
+                return False
             if request.method in SAFE_METHODS:
-                # Получаем организацию, где пользователь является владельцем
-                current_organization = Organization.objects.filter(founder=user.user_profile).first()
-                if current_organization:
-                    employee = user.user_profile
-                    # Проверяем, является ли пользователь основателем или владельцем организации
-                    if employee == current_organization.founder or employee == current_organization.owner:
-                        return True
-                    # Проверяем, является ли пользователь сотрудником организации
-                    if Employee.objects.filter(user=user.user_profile, org=current_organization).exists():
-                        return True
-            # Если метод запроса не безопасный, запрещаем доступ
+                employee = user.user_profile
+                if employee == current_organization.founder or employee == current_organization.owner:
+                    return True
+                if Employee.objects.filter(user=user.user_profile, org=current_organization).exists():
+                    return True
             return False
         else:
-            # Если пользователь анонимный, запрещаем доступ
             return False
