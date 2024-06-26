@@ -82,5 +82,5 @@ class ChatConsumer(WebsocketConsumer):
         self.send(
             text_data=json.dumps(
                 serializer.data
-            )
+            ).encode('utf-8').decode()
         )

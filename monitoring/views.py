@@ -832,6 +832,7 @@ class EmployeeApplyAPIView(APIView):
             return Response({"Success": "Нет приглашения в данную организацию!"}, status = status.HTTP_400_BAD_REQUEST)
         employee.status = STATUS_CHOICES[0][0]
         employee.active = True
+        employee.save()
         other_invites = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[1][0])
         if other_invites:
             other_invites.delete()
