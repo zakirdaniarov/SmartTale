@@ -114,7 +114,7 @@ class VacancyListAPIView(views.APIView):
         try:
             vacancy = Vacancy.objects.all().order_by('-created_at')
         except Vacancy.DoesNotExist:
-            return Response({"error": "Vacancy does not exist"}, status=status.HTTP_404_NOT_FOUND)
+            return Response([], status=status.HTTP_404_NOT_FOUND)
 
         if job_title:
             vacancy = vacancy.filter(job_title__in=job_title)
@@ -206,11 +206,15 @@ class AddVacancyAPIView(views.APIView):
         tags=["Vacancy"]
     )
     def post(self, request, *args, **kwargs):
-        organization = Organization.objects.filter(owner=request.user.user_profile).first()
-
-        if not organization:
-            return Response({"error": "You must belong to an organization to create a vacancy"},
-                            status=status.HTTP_403_FORBIDDEN)
+        user = request.user
+        if Organization.objects.filter(founder=user.user_profile):
+            organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
+        else:
+            try:
+                organization = user.user_profile.working_orgs.get().org()
+            except Exception as e:
+                return Response({"error": "You must belong to an organization to create a vacancy"},
+                                status=status.HTTP_403_FORBIDDEN)
 
         serializer = VacancyDetailSerializer(data=request.data)
         if serializer.is_valid():
@@ -260,12 +264,17 @@ class ChangeVacancyAPIView(views.APIView):
         try:
             vacancy = Vacancy.objects.get(slug=kwargs['vacancy_slug'])
         except Vacancy.DoesNotExist:
-            return Response({"error": "Vacancy does not exist"}, status=status.HTTP_404_NOT_FOUND)
+            return Response([])
 
-        organization = Organization.objects.filter(owner=request.user.user_profile).first()
-
-        if not organization:
-            return Response({"error": "Only organization that added it can change"}, status=status.HTTP_403_FORBIDDEN)
+        user = request.user.user_profile
+        if Organization.objects.filter(founder=user):
+            organization = Organization.objects.filter(founder=user, active=True).first()
+        else:
+            try:
+                organization = user.working_orgs.get().org()
+            except Exception as e:
+                return Response({"error": "Only organization that added it can change"},
+                                status=status.HTTP_400_BAD_REQUEST)
 
         serializer = VacancyDetailSerializer(instance=vacancy, data=request.data)
         if serializer.is_valid():
@@ -359,7 +368,7 @@ class VacancySearchAPIView(views.APIView):
 
 
 class VacancyByOrgAPIView(views.APIView):
-    permission_classes = [IsOrganizationEmployeeReadOnly]
+    permission_classes = [ IsOrganizationEmployeeReadOnly]
     pagination_class = MyCustomPagination
 
     @swagger_auto_schema(
@@ -372,20 +381,20 @@ class VacancyByOrgAPIView(views.APIView):
         tags=["Vacancy"]
     )
     def get(self, request, *args, **kwargs):
-        try:
-            current_organization = Organization.objects.filter(owner=request.user.user_profile).first()
+        user = request.user.user_profile
+        if Organization.objects.filter(founder=user):
+            organization = Organization.objects.filter(founder=user, active=True).first()
+        else:
+            try:
+                organization = user.working_orgs.get().org()
+            except Exception as e:
+                return Response({"error": "You don't have permissions"},
+                                status=status.HTTP_403_FORBIDDEN)
 
-            if not current_organization:
-                return Response({"error": "Organization does not exist"}, status=status.HTTP_404_NOT_FOUND)
-
-            vacancy = Vacancy.objects.filter(organization=current_organization).order_by('-created_at')
-
-        except Vacancy.DoesNotExist:
-            return Response({"error": "Vacancy does not exist"}, status=status.HTTP_404_NOT_FOUND)
+        vacancy = Vacancy.objects.filter(organization=organization).order_by('-created_at')
 
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(vacancy, request)
-
         if page is not None:
             serializer = VacancyListSerializer(vacancy, many=True, include_response_count=True)
             return paginator.get_paginated_response(serializer.data)
@@ -549,39 +558,6 @@ class VacancyHideAPIView(views.APIView):
             return Response({"data": "Vacancy is not hidden"}, status=status.HTTP_200_OK)
 
 
-class InviteEmployeeAPIView(views.APIView):
-    permission_classes = [AddVacancyEmployee]
-
-    @swagger_auto_schema(
-        operation_summary="Пригласить сотрудника",
-        operation_description="Этот эндпоинт предостовляет органицазии возможность "
-                              "пригласить сотрудника",
-        responses={
-            200: "Invitation sent",
-            400: "Failed to send FCM notification:",
-            404: "Vacancy does not exist",
-        },
-        tags=["Vacancy"]
-    )
-    def post(self, request, *args, **kwargs):
-        current_org = Organization.objects.filter(owner=request.user.user_profile).first()
-        vacancy_slug = kwargs.get('vacancy_slug')
-        vacancy = get_object_or_404(Vacancy, slug=vacancy_slug, organization=current_org)
-
-        author = request.user.user_profile
-        if author.device_token:
-            try:
-                send_fcm_notification(
-                    author.device_token,
-                    "Invite Employee",
-                    f"Organization {current_org.title} invites you to apply for a position {vacancy.job_title}"
-                )
-            except Exception as e:
-                print(f"Failed to send FCM notification: {e}")
-
-        return Response({"data": "Invitation sent"}, status=status.HTTP_200_OK)
-
-
 class ResumeListAPIView(views.APIView):
     permission_classes = [permissions.AllowAny]
     pagination_class = MyCustomPagination
@@ -631,9 +607,9 @@ class ResumeListAPIView(views.APIView):
     def get(self, request, *args, **kwargs):
         params = request.query_params.get('params', '').split(',')
 
-        all_job_titles = list(Vacancy.objects.values_list('job_title', flat=True).distinct())
-        all_locations = list(Vacancy.objects.values_list('location', flat=True).distinct())
-        all_schedules = list(Vacancy.objects.values_list('schedule', flat=True).distinct())
+        all_job_titles = list(Resume.objects.values_list('job_title', flat=True).distinct())
+        all_locations = list(Resume.objects.values_list('location', flat=True).distinct())
+        all_schedules = list(Resume.objects.values_list('schedule', flat=True).distinct())
 
         job_title = [param for param in params if param in all_job_titles]
         location = [param for param in params if param in all_locations]
