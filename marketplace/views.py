@@ -104,10 +104,25 @@ class MyOrderAdsListView(BaseOrderListView):
     serializer_class = OrderListAPI
 
     def get_queryset(self):
-        return Order.objects.filter(author=self.request.user.user_profile).order_by('-created_at')
+        orders = Order.objects.filter(author=self.request.user.user_profile).order_by('-created_at')
+        stage = self.request.query_params.get('stage')
+        if stage == 'active':
+            return orders.filter(is_finished=False).order_by('booked_at')
+        elif stage == 'finished':
+            return orders.filter(is_finished=True).order_by('booked_at')
+        else:
+            # Handle invalid status parameter
+            return orders.order_by('booked_at')
 
     def get_list_type(self):
-        return "my-order-ads"
+        stage = self.request.query_params.get('stage')
+        if stage == 'active':
+            return "my-history-orders-active"
+        elif stage == 'finished':
+            return "my-history-orders-finished"
+        else:
+            # Handle invalid status parameter
+            return None
 
     @swagger_auto_schema(
         operation_summary="List of orders created by the current user",
@@ -120,6 +135,13 @@ class MyOrderAdsListView(BaseOrderListView):
                 required=False,
                 description="Search query to filter orders by title (case-insensitive)",
             ),
+            openapi.Parameter(
+                "stage",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Shows in which stage is order, active or finished",
+            )
         ],
         responses={200: serializer_class},
         tags=["Order List"]
@@ -192,9 +214,9 @@ class MyHistoryOrdersListView(BaseOrderListView):
 
     def get_list_type(self):
         stage = self.request.query_params.get('stage')
-        if status == 'active':
+        if stage == 'active':
             return "my-history-orders-active"
-        elif status == 'finished':
+        elif stage == 'finished':
             return "my-history-orders-finished"
         else:
             # Handle invalid status parameter

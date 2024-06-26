@@ -101,7 +101,8 @@ class OrderDetailAPI(ModelSerializer):
 
         if not self.context['author']:
             representation.pop('hide')
-            representation.pop('org_work_slug')
+            if instance.org_work:
+                representation.pop('org_work_slug')
             representation.pop('is_finished')
         else:
             representation.pop('is_liked')

@@ -752,11 +752,10 @@ class OrderEmployeesAPIView(APIView):
                 "user_profile": employee.user.slug,
                 "user_first_name": employee.user.first_name,
                 "user_last_name": employee.user.last_name,
-                "user_profile_image": employee.user.profile_image,
+                "user_profile_image": employee.user.profile_image if employee.user.profile_image else None,
                 "job_title": employee.job_title.title if employee.job_title else None,
                 "status": employee.status
             })
-
         return Response(employees_data, status=status.HTTP_200_OK)
 
 
