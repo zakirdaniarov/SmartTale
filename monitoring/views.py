@@ -1,4 +1,5 @@
 import datetime as dt
+import json
 from operator import attrgetter
 
 from django.db.models import Q
@@ -746,17 +747,10 @@ class OrderEmployeesAPIView(APIView):
         if cur_org != order.org_work:
             return Response({"Error": "You don't have access for this page"}, status = status.HTTP_403_FORBIDDEN)
         employees = order.workers.all()
-        employees_data = []
-        for employee in employees:
-            employees_data.append({
-                "user_profile": employee.user.slug,
-                "user_first_name": employee.user.first_name,
-                "user_last_name": employee.user.last_name,
-                "user_profile_image": employee.user.profile_image if employee.user.profile_image else None,
-                "job_title": employee.job_title.title if employee.job_title else None,
-                "status": employee.status
-            })
-        return Response(employees_data, status=status.HTTP_200_OK)
+        print("heallo")
+        serializer = EmployeeListSerializer(employees, many = True)
+        print("fdasfdsa")
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class EmployeeCreateAPIView(APIView):

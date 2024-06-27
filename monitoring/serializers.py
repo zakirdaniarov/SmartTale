@@ -135,6 +135,7 @@ class EmployeeListSerializer(serializers.ModelSerializer):
     first_name = serializers.ReadOnlyField(source = 'user.first_name')
     last_name = serializers.ReadOnlyField(source = 'user.last_name')
     middle_name = serializers.ReadOnlyField(source = 'user.middle_name')
+    profile_image = serializers.ImageField(source = 'user.profile_image')
     email = serializers.ReadOnlyField(source = 'user.user.email')
     user_slug = serializers.ReadOnlyField(source = 'user.slug')
     order = OrderTitleSerializer(many = True, read_only = True)
@@ -142,8 +143,14 @@ class EmployeeListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Employee
-        fields = ['first_name', 'last_name', 'middle_name', 'email', 'user_slug',
-                  'order', 'job_title','status']
+        fields = ['first_name', 'last_name', 'middle_name', 'email', 'user_slug', 'profile_image',
+                  'order', 'job_title', 'status']
+        extra_kwargs = {
+            'profile_image': {
+                'allow_null': True,
+                'allow_blank': True
+            }
+        }
 class UserEmployeeSerializer(serializers.ModelSerializer):
     email = serializers.ReadOnlyField(source = 'user.email')
     class Meta:

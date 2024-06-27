@@ -30,16 +30,16 @@ def notify_customers(sender, instance, **kwargs):
     )
 
 
-@receiver(post_delete, sender=Notifications)
-def notify_customers_on_delete(sender, instance, **kwargs):
-    time.sleep(SLEEP_TIME)
-    channel_layer = get_channel_layer()  # Use this function
-    async_to_sync(channel_layer.group_send)(
-        "branch",
-        {
-            "type": "get_notifications",
-        },
-    )
+# @receiver(post_delete, sender=Notifications)
+# def notify_customers_on_delete(sender, instance, **kwargs):
+#     time.sleep(SLEEP_TIME)
+#     channel_layer = get_channel_layer()  # Use this function
+#     async_to_sync(channel_layer.group_send)(
+#         "branch",
+#         {
+#             "type": "get_notifications",
+#         },
+# )
 
 @receiver(post_save, sender=Employee, dispatch_uid="employee-create")
 def customer_status_changed(sender, instance, created, **kwargs):
@@ -52,7 +52,7 @@ def customer_status_changed(sender, instance, created, **kwargs):
                 title=title,
                 description=description,
                 recipient=instance.user,
-                target_slug = instance.org.slug
+                target_slug=instance.org.slug
             )
 
             user_name = f"{instance.user.id}-notifications"
@@ -179,26 +179,27 @@ def order_status_update_notification(sender, instance, **kwargs):
             }
         )
 
-# @receiver(post_save, sender=Message, dispatch_uid="employee-create")
-# def customer_status_changed(sender, instance, created, **kwargs):
-#     if created:
-#         title = "Новое сообщение"
-#         description = "У вас новое сообщение от {}".format(instance.sender.first_name)
-#         user = instance.conversation_id.initiator if instance.conversation_id.receiver == instance.sender else instance.conversation_id.receiver
+@receiver(post_save, sender=Message, dispatch_uid="employee-create")
+def customer_status_changed(sender, instance, created, **kwargs):
+    if created:
+        title = "Новое сообщение"
+        description = "У вас новое сообщение от {}".format(instance.sender.first_name)
+        user = instance.conversation_id.initiator if instance.conversation_id.receiver == instance.sender else instance.conversation_id.receiver
 
-#         Notifications.objects.create(
-#             type = 'Chat',
-#             title=title,
-#             description=description,
-#             recipient=user,
-#         )
+        Notifications.objects.create(
+            type = 'Chat',
+            title=title,
+            description=description,
+            recipient=user,
+            target_slug=instance.sender.slug
+        )
 
-#         user_name = f"{user.id}-notifications"
+        user_name = f"{user.id}-notifications"
 
-#         channel_layer = get_channel_layer()  # Use this function
-#         async_to_sync(channel_layer.group_send)(
-#             user_name,
-#             {
-#                 "type": "get_notifications_handler",
-#             }
-#         )
+        channel_layer = get_channel_layer()  # Use this function
+        async_to_sync(channel_layer.group_send)(
+            user_name,
+            {
+                "type": "get_notifications_handler",
+            }
+        )
