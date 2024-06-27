@@ -52,7 +52,7 @@ def customer_status_changed(sender, instance, created, **kwargs):
                 title=title,
                 description=description,
                 recipient=instance.user,
-                org = instance.org
+                target_slug = instance.org.slug
             )
 
             user_name = f"{instance.user.id}-notifications"
@@ -118,7 +118,8 @@ def order_book_notification(sender, instance, **kwargs):
                 type = 'Order',
                 title=title,
                 description=description,
-                recipient=instance.author
+                recipient=instance.author,
+                target_slug=instance.slug
             )
 
             user_name = f"{instance.author.id}-notifications"
@@ -141,7 +142,8 @@ def order_finish_notification(sender, instance, **kwargs):
             type = 'Order',
             title=title,
             description=description,
-            recipient=instance.author
+            recipient=instance.author,
+            target_slug = instance.slug
         )
 
         user_name = f"{instance.author.id}-notifications"
@@ -164,7 +166,8 @@ def order_status_update_notification(sender, instance, **kwargs):
             type = 'Order',
             title=title,
             description=description,
-            recipient=instance.author
+            recipient=instance.author,
+            target_slug = instance.slug
         )
 
         user_name = f"{instance.author.id}-notifications"

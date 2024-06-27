@@ -795,6 +795,8 @@ class EmployeeCreateAPIView(APIView):
             org = Organization.objects.get(slug = org_slug)
         except Exception:
             return Response({"Error": "Нет существует такой организации!"}, status = status.HTTP_404_NOT_FOUND)
+        if Employee.objects.filter(user = target_user, org = org,status = STATUS_CHOICES[1][0]).first():
+            return Response({"Error": "Пользователю уже была отправлена заявка!"}, status = status.HTTP_400_BAD_REQUEST)
         if cur_org == False and org != cur_org:
             return Response({"Error": "Нельзя добавлять сотрудника не в свою организацию!"}, status = status.HTTP_400_BAD_REQUEST)
         try:

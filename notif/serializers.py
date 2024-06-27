@@ -7,17 +7,9 @@ class UserSlugSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = ('slug',)
 
-# class OrgNotifSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Organization
-#         fields = ('slug', 'title')
-
 class UserNotificationSerializer(serializers.ModelSerializer):
     timestamp = serializers.DateTimeField(format="%d.%m.%Y %H:%M", read_only=True)
-    org = serializers.ReadOnlyField(source = 'org.slug')
     recipient = UserSlugSerializer()
-    #title = serializers.CharField(max_length=255)
-    #description = serializers.CharField(max_length=255)
 
     class Meta:
         model = Notifications
