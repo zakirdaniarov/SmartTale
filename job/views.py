@@ -386,9 +386,6 @@ class VacancyByOrgAPIView(views.APIView):
     def get(self, request, *args, **kwargs):
         user = request.user
         employee = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True).first()
-        if not employee:
-            return Response({"Error": "У Вас нет активной организации!"}, status = status.HTTP_403_FORBIDDEN)
-
         vacancy = Vacancy.objects.filter(organization=employee.org).order_by('-created_at')
 
         paginator = self.pagination_class()

@@ -1,7 +1,7 @@
 from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 
 from authorization.models import Organization
-from monitoring.models import Employee
+from monitoring.models import Employee, STATUS_CHOICES
 
 
 class CurrentUserOrReadOnly(IsAuthenticated):
@@ -32,15 +32,8 @@ class IsOrganizationEmployeeReadOnly(IsAuthenticated):
         user = request.user
 
         if user and not user.is_anonymous:
-            current_organization = Organization.objects.filter(founder=user.user_profile, active=True).first()
-            if not current_organization:
+            employee = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True).first()
+            if not employee:
                 return False
-            if request.method in SAFE_METHODS:
-                employee = user.user_profile
-                if employee == current_organization.founder or employee == current_organization.owner:
-                    return True
-                if Employee.objects.filter(user=user.user_profile, org=current_organization).exists():
-                    return True
-            return False
         else:
             return False

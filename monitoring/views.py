@@ -133,7 +133,7 @@ class MyProfileAPIView(APIView):
         is_sub = False
         if sub_type == SUBCRIPTION_CHOICES[2][0] or (sub and sub > dt.datetime.now(dt.timezone.utc)):
             is_sub = True
-        empl = Employee.objects.filter(user = user.user_profile)
+        empl = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0])
         emp_serializer = MyEmployeeSerializer(empl, many = True)
         active_emp = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True).first()
         org = None
