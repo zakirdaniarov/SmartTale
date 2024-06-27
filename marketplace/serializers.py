@@ -358,11 +358,9 @@ class OrderListAPI(serializers.ModelSerializer):
         if list_type in ["my-order-ads", "applied-orders"]:
             representation.pop('author')
             # representation.pop('category_slug')
-            representation.pop('price')
             representation.pop('currency')
             representation['created_at'] = instance.created_at
             representation.pop('is_liked')
-            representation.pop('booked_at')
         elif list_type == "my-received-orders":
             representation.pop('is_booked')
             representation.pop('is_liked')
@@ -377,7 +375,7 @@ class OrderListAPI(serializers.ModelSerializer):
             representation.pop('is_finished')
         elif list_type in ["my-org-orders", "orders-history-active", "orders-history-finished"]:
             representation.pop('author')
-            representation.pop('price')
+            #representation.pop('price')
             representation.pop('currency')
             representation.pop('is_liked')
             representation.pop('is_booked')
