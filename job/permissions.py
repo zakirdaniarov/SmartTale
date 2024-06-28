@@ -35,5 +35,6 @@ class IsOrganizationEmployeeReadOnly(IsAuthenticated):
             employee = Employee.objects.filter(user = user.user_profile, status = STATUS_CHOICES[0][0], active = True).first()
             if not employee:
                 return False
+            return True
         else:
             return False
