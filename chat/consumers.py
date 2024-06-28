@@ -34,53 +34,88 @@ class ChatConsumer(WebsocketConsumer):
             self.room_group_name, self.channel_name
         )
 
+    # # Receive message from WebSocket
+    # def receive(self, text_data=None, bytes_data=None):
+    #     # parse the json data into dictionary object
+    #     text_data_json = json.loads(text_data)
+    #     # Send message to room group
+    #     chat_type = {"type": "chat_message"}
+    #     return_dict = {**chat_type, **text_data_json}
+    #     async_to_sync(self.channel_layer.group_send)(
+    #         self.room_group_name,
+    #         return_dict,
+    #     )
+
+    # # Receive message from room group
+    # def chat_message(self, event):
+    #     text_data_json = event.copy()
+    #     text_data_json.pop("type")
+    #     message, attachment = (
+    #         text_data_json["message"],
+    #         text_data_json.get("attachment"),
+    #     )
+
+    #     conversation = self.conversation
+    #     sender = self.sender
+
+    #     # Attachment
+    #     if attachment:
+    #         file_str, file_ext = attachment["data"], attachment["format"]
+
+    #         file_data = ContentFile(
+    #             base64.b64decode(file_str), name=f"{secrets.token_hex(8)}.{file_ext}"
+    #         )
+    #         _message = Message.objects.create(
+    #             sender=sender.user_profile,
+    #             attachment=file_data,
+    #             text=message,
+    #             conversation_id=conversation,
+    #         )
+    #     else:
+    #         _message = Message.objects.create(
+    #             sender=sender.user_profile,
+    #             text=message,
+    #             conversation_id=conversation,
+    #         )
+    #     serializer = MessageSerializer(instance=_message)
+    #     # Send message to WebSocket
+    #     self.send(
+    #         text_data=json.dumps(
+    #             serializer.data
+    #         ).encode('utf-8').decode()
+    #     )
     # Receive message from WebSocket
     def receive(self, text_data=None, bytes_data=None):
         # parse the json data into dictionary object
         text_data_json = json.loads(text_data)
         # Send message to room group
-        chat_type = {"type": "chat_message"}
-        return_dict = {**chat_type, **text_data_json}
+        message = text_data_json['message']
+        sender = self.sender
+        Message.objects.create(
+                sender=sender.user_profile,
+                text=message,
+                conversation_id=self.conversation
+        )
         async_to_sync(self.channel_layer.group_send)(
             self.room_group_name,
-            return_dict,
+            {
+                'type': 'chat_message',
+                'message': message,
+                'user_slug': self.sender.user_profile.slug
+            }
         )
 
     # Receive message from room group
     def chat_message(self, event):
-        text_data_json = event.copy()
-        text_data_json.pop("type")
-        message, attachment = (
-            text_data_json["message"],
-            text_data_json.get("attachment"),
-        )
-
-        conversation = self.conversation
-        sender = self.sender
-
-        # Attachment
-        if attachment:
-            file_str, file_ext = attachment["data"], attachment["format"]
-
-            file_data = ContentFile(
-                base64.b64decode(file_str), name=f"{secrets.token_hex(8)}.{file_ext}"
-            )
-            _message = Message.objects.create(
-                sender=sender.user_profile,
-                attachment=file_data,
-                text=message,
-                conversation_id=conversation,
-            )
-        else:
-            _message = Message.objects.create(
-                sender=sender.user_profile,
-                text=message,
-                conversation_id=conversation,
-            )
-        serializer = MessageSerializer(instance=_message)
+        message = event['message']
+        user_slug = event['user_slug']
+        re_dict = {
+            'message': message,
+            'sender': user_slug
+        }
         # Send message to WebSocket
         self.send(
             text_data=json.dumps(
-                serializer.data
+                re_dict
             ).encode('utf-8').decode()
         )
