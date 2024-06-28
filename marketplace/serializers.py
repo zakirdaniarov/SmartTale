@@ -706,7 +706,7 @@ class MyAdsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order  # Placeholder for dynamic model assignment
-        fields = ['title', 'slug', 'author', 'description', 'type', 'image', 'status', 'is_liked', 'price', 'currency']  # Adjust fields as needed
+        fields = ['title', 'slug', 'author', 'description', 'type', 'image', 'status', 'is_liked', 'price', 'currency', 'created_at']  # Adjust fields as needed
 
     def get_image(self, instance):
         image = instance.images.first()

@@ -265,7 +265,15 @@ class MyOrgOrdersListView(BaseOrderListView):
             return Response({"Error": "У вас нет активной организации."}, status = status.HTTP_403_FORBIDDEN)
 
         self.stage = self.request.query_params.get('stage')
+        self.employee_slug = self.request.query_params.get('employee')
         queryset = Order.objects.filter(org_work=organization)
+
+        if self.employee_slug:
+            try:
+                employee = Employee.objects.get(user__slug=self.employee_slug, org=organization)
+                queryset = queryset.filter(workers=employee)
+            except Employee.DoesNotExist:
+                return Response({"Error": "Сотрудник не найден в этой организации."}, status=status.HTTP_404_NOT_FOUND)
 
         if self.stage == 'active':
             # Return orders with statuses other than "Arrived"
@@ -275,7 +283,7 @@ class MyOrgOrdersListView(BaseOrderListView):
             queryset = queryset.filter(is_finished=True)
         else:
             # Handle invalid status parameter
-            return Order.objects.filter(org_work=organization).order_by('booked_at')
+            return queryset.filter(org_work=organization).order_by('booked_at')
 
         # Apply default ordering
         queryset = queryset.order_by('-created_at')
@@ -307,6 +315,13 @@ class MyOrgOrdersListView(BaseOrderListView):
                 type=openapi.TYPE_STRING,
                 required=False,
                 description="Shows in which stage is order, active or finished",
+            ),
+            openapi.Parameter(
+                "employee",
+                openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                required=False,
+                description="Filter orders by the employee slug in the organization",
             )
         ],
         responses={200: serializer_class},
