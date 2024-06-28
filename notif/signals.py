@@ -179,7 +179,7 @@ def order_status_update_notification(sender, instance, **kwargs):
             }
         )
 
-@receiver(post_save, sender=Message, dispatch_uid="employee-create")
+@receiver(post_save, sender=Message, dispatch_uid="message-send")
 def customer_status_changed(sender, instance, created, **kwargs):
     if created:
         title = "Новое сообщение"
